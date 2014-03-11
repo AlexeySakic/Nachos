@@ -1,0 +1,266 @@
+\documentclass{article}
+\usepackage{amsmath,amsfonts,amsthm,amssymb}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{extramarks}
+\usepackage{chngpage}
+\usepackage{soul,color}
+\usepackage{graphicx,float,wrapfig}
+\usepackage{mathrsfs}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{tikz}
+\usepackage{pgffor}
+\usepackage{listings}
+\newcommand{\Class}{Fundamentals of Cryptography}
+\newcommand{\ClassInstructor}{John Steinberger}
+
+% Homework Specific Information. Change it to your own
+\newcommand{\Title}{Nachos Phase 1 Design Document}
+\newcommand{\DueDate}{May 17, 2013}
+\newcommand{\StudentName}{Yin HeZheng}
+\newcommand{\StudentClass}{Yao Class}
+\newcommand{\StudentNumber}{2011012343}
+\newcommand{\xd}{\leqslant}
+\newcommand{\dd}{\geqslant}
+% In case you need to adjust margins:
+\topmargin=-0.45in      %
+\evensidemargin=0in     %
+\oddsidemargin=0in      %
+\textwidth=6.5in        %
+\textheight=9.0in       %
+\headsep=0.25in         %
+
+% Setup the header and footer
+\pagestyle{fancy}                                                       %
+\lhead{\StudentName}                                                 %
+\chead{\Title}  %
+%\rhead{\firstxmark}                                                     %
+\lfoot{\lastxmark}                                                      %
+\cfoot{}                                                                %
+\rfoot{Page\ \thepage\ of\ \protect\pageref{LastPage}}                          %
+\renewcommand\headrulewidth{0.4pt}                                      %
+\renewcommand\footrulewidth{0.4pt}                                      %
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Some tools
+\newcommand{\enterProblemHeader}[1]{\nobreak\extramarks{#1}{#1 continued on next page\ldots}\nobreak%
+                                    \nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak}%
+\newcommand{\exitProblemHeader}[1]{\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak%
+                                   \nobreak\extramarks{#1}{}\nobreak}%
+
+\newcommand{\homeworkProblemName}{}%
+\newcounter{homeworkProblemCounter}%
+\newenvironment{homeworkProblem}[1][Problem \arabic{homeworkProblemCounter}]%
+  {\stepcounter{homeworkProblemCounter}%
+   \renewcommand{\homeworkProblemName}{#1}%
+   \section*{\homeworkProblemName}%
+   \enterProblemHeader{\homeworkProblemName}}%
+  {\exitProblemHeader{\homeworkProblemName}}%
+
+\newcommand{\homeworkSectionName}{}%
+\newlength{\homeworkSectionLabelLength}{}%
+\newenvironment{homeworkSection}[1]%
+  {% We put this space here to make sure we're not connected to the above.
+
+   \renewcommand{\homeworkSectionName}{#1}%
+   \settowidth{\homeworkSectionLabelLength}{\homeworkSectionName}%
+   \addtolength{\homeworkSectionLabelLength}{0.25in}%
+   \changetext{}{-\homeworkSectionLabelLength}{}{}{}%
+   \subsection*{\homeworkSectionName}%
+   \enterProblemHeader{\homeworkProblemName\ [\homeworkSectionName]}}%
+  {\enterProblemHeader{\homeworkProblemName}%
+
+   % We put the blank space above in order to make sure this margin
+   % change doesn't happen too soon.
+   \changetext{}{+\homeworkSectionLabelLength}{}{}{}}%
+\newcommand{\Proof}{\ \\\textbf{Proof:} }
+\newcommand{\Answer}{\ \\\textbf{Answer:} }
+\newcommand{\Acknowledgement}[1]{\ \\{\bf Acknowledgement:} #1}
+
+\makeatletter
+\newcommand{\rmnum}[1]{\romannumeral #1}
+\newcommand{\Rmnum}[1]{\expandafter\@slowromancap\romannumeral #1@}
+\makeatother
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Make title
+\title{\textmd{\bf \Class: \Title}\\{\large Instructed by \textit{\ClassInstructor}}\\\normalsize\vspace{0.1in}\small{Due\ on\ \DueDate}}
+\date{}
+\author{\textbf{\StudentName}\ \ \StudentClass\ \ \StudentNumber}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+\begin{spacing}{1.1}
+\maketitle \thispagestyle{empty}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Begin edit from here
+
+%tikz test
+%\begin{tikzpicture}
+%\draw (-2.0,0) -- (2.0,0);
+%\draw[rotate=90] (0,0) ellipse (20pt and 10pt);
+%\end{tikzpicture}
+
+\theoremstyle{plain} \newtheorem{computational}{Definition}
+\theoremstyle{plain} 
+
+\begin{homeworkProblem}[Commitment Schemes 1.]
+
+\Answer \textbf{Part A} By the definition of negligible function, we have:
+$$negl_{1}(n) < \frac{1}{p(n)} \text{ for } n>N_{1},\ negl_{2}(n) < \frac{1}{p(n)} \text{ for } n>N_{2}$$
+So we have:
+$$negl_{3} = negl_{1}+negl_{2} < \frac{2}{p(n)} \text{ for } n> \max\{N_{1}, N_{2}\}$$
+\textbf{Part B} 
+$$negl_{3} = negl_{1}\times negl_{2} < \frac{1}{p^{2}(n)} \text{ for } n> \max\{N_{1}, N_{2}\}$$
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Commitment Schemes 2.]
+
+\Answer 
+\[U\sim^s V\rightarrow \Delta(U_x, V_x) \text{ is negligible in the length of the string } x\]
+\[V\sim^s W\rightarrow \Delta(V_x, W_x) \text{ is negligible in the length of string } x\]
+Suppose $|x| = n$, we have
+\[\Delta(U_x, V_x) = \sum_x |\text{Pr}[U = x]-\text{Pr}[V = x]|\leqslant negl_1(n)\quad \Delta(V_x, W_x) = \sum_x |\text{Pr}[V = x]-\text{Pr}[W = x]|\leqslant negl_2(n)\]
+Consider
+\begin{align*}
+\Delta(U_x, W_x) &= \sum_x |\text{Pr}[U = x]-\text{Pr}[W = x]|\\
+&= \sum_x |\text{Pr}[U = x]-\text{Pr}[V = x]+\text{Pr}[V = x]-\text{Pr}[W = x]|\\
+&\leqslant \sum_x \biggl{(} |\text{Pr}[U = x]-\text{Pr}[V = x]|+|\text{Pr}[V = x]-\text{Pr}[W = x]| \biggl{)}\\
+&\leqslant negl_1(n)+negl_2(n)
+\end{align*}
+which is also negligible in $n$ by the result of previous exercise. This directly implies $U\sim^s W$. 
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Commitment Schemes 3.]
+
+\Answer 
+
+First, recall the alternative definition of computational indistinguishability.
+\begin{computational} Let $D(U)$ be the algorithm that first runs $U$ on input $x$ to get result $y$, and then runs $D$ on input $x$ and $y$. Define $D(V)$ similarly. Then $U\sim^c V$ iff $D(U)\sim^s D(V)$ for every probabilistic polynomial time algorithm $D$.
+\end{computational} 
+
+Since $U\sim^c V$ and $V\sim^c W$, we have $D(U)\sim^sD(V)$ and $D(V)\sim^s D(W)$. By applying the result from exercise 2, we have $D(U)\sim^s D(W)$ which suggests that $U\sim^c V$.
+
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Commitment Schemes 4.]
+
+\Answer \textbf{Part A} If a commitment is unconditional(perfectly) binding, then for any $c$, there exists one pair $(r, b)$ such that $c = \texttt{commit}_{pk}(r, b)$. If a perfectly binding commitment scheme does not depend on the random input $r$, then for any $c$, there exists a unique $b\in \{0, 1\}$ such that $c = \texttt{commit}_{pk}(b)$. So to break this scheme, one need only to try two cases: $b = 0$ and $b = 1$. Thus, this scheme can't be hiding in any flavor.
+
+\textbf{Part B} All the cases stated in the question can't be computational hiding. Since any polynomial (in $n$) adversary need only to try all the combination of possible $r$ and $b$. And the number of all possible $r$ is $2^{(\log n)^c} = n^c$ which is polynomial in $n$. So this scheme can't be computational hiding.
+
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Commitment Schemes 5.]
+
+\Answer \textbf{Part A} To prove this commitment scheme is computational binding, we show a reduction from RSA to this commitment scheme. Suppose there exists an algorithm $A$ that breaks the binding property of this scheme with probability $\epsilon$ in time $T_A$. Then we use $A$ to construct an algorithm $A'$ that breaks RSA encryption with success probability $\epsilon$ as well and in time $T_A$ plus the time needed for one inversion and one multiplication in $Z_n^*$. 
+
+\begin{algorithm}
+\caption{A'(n, e, y)}
+\begin{algorithmic}[1]
+\STATE  Run $A$ on input $(n, e, y)$
+\STATE  $A$ outputs in time $T_A$ a commitment $c$ and openings $(r_0, 0)$ and $(r_1, 1)$
+\RETURN $x = r_0r_1^{-1} \mod n$
+\end{algorithmic}
+\end{algorithm}
+
+Finally, we show that if indeed $(r_0, 0)$ and $(r_1, 1)$ are valid openings of $c$, then $x^e = y\mod n$. From our assumption, we have $c = yr_1^e \pmod n = r_0^e\pmod n$ which is equivalent to $y = r_0^er_1^{-e} \mod n$. Now we verify that
+\[x^e = (r_0r_1^{-1})^e \mod n = r_0^er_1^{-e} \mod n= y \mod n\]
+which finishes our proof.
+
+\textbf{Part B}
+\[y\notin Im(f)\rightarrow gcd(y, n)\neq 1\rightarrow gcd(yf(r), n)\neq 1 \rightarrow yf(r)\mod n\notin Z^*_N \rightarrow yf(r)\notin Im(f)\]
+
+$f$ may not be an isomorphism but must be homomorphism. Then $Im(f)$ is a group and every element has inverse. Hence if $yf(r)\in Im(f)$, then $y\in Im(f)$. And since we have known that $f(r) = r^2$ is not isomorphism. Then we can let $y\in Z^*n$ but $y\notin Im(f)$. Thus given any commitment $c = y^br^2$, we can easily check if $c\in Im(f)$ since we know the factorization of $n$. And $c\in Im(f)$ iff $b = 1$.
+
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Commitment Schemes 6.]
+
+\Answer Let $\mathcal{G}$ be a polynomial-time algorithm that, on input $1^n$, outputs a cyclic group $\mathbb{G}$, its order $q$ (with $||q|| = n$), and a generator $g\in \mathbb{G}$. $f(x) = g^x\mod q$ is a group homomorphism. 
+
+\begin{itemize}
+\item \textbf{Set-up Phase} the key generator $\mathcal{K}$ for the commitment scheme is defined based $\mathcal{G}$ as follows: it runs $1^n$. It then chooses a random element $h\in \mathbb{G}$ and outputs as public key $q, g, h$. In the set-up phase, $V$ runs $\mathcal{K}$ and sends the output $q, g, h$ to $P$, who checks that $h\in \mathbb{G}$.
+\item \textbf{Commit function}: is defined as a mapping from $\mathbb{G} \times \{0, 1\}$ to $\mathbb{G}$. Concretely, $\texttt{commit}_{pk}(r, b) = h^bf(r)\mod p$
+\end{itemize}
+
+\textbf{Proof of Computational Binding}  To prove this commitment scheme is computational binding, we show a reduction from DLP to this commitment scheme. Suppose there exists an algorithm $A$ that breaks the binding property of this scheme with probability $\epsilon$ in time $T_A$. Then we use $A$ to construct an algorithm $A'$ that breaks  DLP with success probability $\epsilon$ as well and in time $T_A$.
+
+\begin{algorithm}
+\caption{A'(g, h)}
+\begin{algorithmic}[1]
+\STATE  Run $A$ on input $(q, g, h)$
+\STATE  $A$ outputs in time $T_A$ a commitment $c$ and openings $(r_0, 0)$ and $(r_1, 1)$
+\RETURN $x = r_0-r_1 \mod q$
+\end{algorithmic}
+\end{algorithm}
+
+Finally, we show that if indeed $(r_0, 0)$ and $(r_1, 1)$ are valid openings of $c$, then $g^x = h\mod q$. From our assumption, we have $c = hg^{r_1} \pmod q = g^{r_0}\pmod q$ which is equivalent to $h = g^{r_0-r_1} \mod q$. So it is trivial to see that $g^x = g^{r_0-r_1} = h$ which finishes our proof.
+
+\textbf{Proof of Unconditional Hiding} In this part, we prove a commitment to $b$ will have distribution independent of $b$, namely the uniform distribution over $\mathbb{G}$. This is because $P$ chooses $r$ uniformly in $Z_q$, $f$ is a $1-1$ mapping and hence $f(x)$ is also uniform in $\mathbb{G}$. Finally, multiplication by constant $y$ is also a one-to-one mapping in the group $\mathbb{G}$, so $hf(x)\mod q$ is uniform as well. Thus this commitment is in fact perfectly hiding.
+
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Commitment Schemes 7.]
+
+\Answer \textbf{Part A} Since $f$ is a homomorphism, so if $r$ is chosen randomly from $\mathbb{G}$, then $f(r)$ is uniformly distributed in $Im(f)$. And since $Im(f)$ is a group and $y^m$ has inverse for any $m$, we say that for any $m$, $y^mf(r)$ is still uniformly distributed given that $r$ is uniformly distributed.
+
+\textbf{Part B} By way of contradiction, assume the scheme is not computational binding, that is exists PPT algorithm $A$ s.t. given input of $pk$, outputs $C = m, m', r, r'$ s.t. $C = \texttt{commit}_{pk}(r, m) = \texttt{commit}_{pk}(r', m')$, with probability $\epsilon(l)$ which is not negligible. Then we can compute one of the preimages of any given element $y\in Im(f)$. In fact, we have
+\[y^mf(r) = y^{m'}f(r')\]
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Zero Knowledge 8.]
+
+\Answer Suppose $(P, V)$ is a proof system for $L$, and $M_V$ is a perfect honest-verifier simulator for $(P, V)$. Assume that the conversation has the form $(a, b, z)$. Then we claim that $(P, V)$ is perfect zero-knowledge, that is,  for any PPT verifier $V^*$, there is a simulator $M_{V^*}$ running in expected probabilistic polynomial time, such that we have $M_{V^*}\sim^p (P, V^*)$. We show how to build $M_{V^*}$ given $M$.
+
+\begin{algorithm}
+\caption{$M_{V^*}$}
+\begin{algorithmic}[1]
+\FOR {$i = 0$ to $\ell$}
+	\STATE $M$ send $M_{V^*}\ a_i$, then $M_{V^*}$ send $a_i$ to $V^*$
+	\STATE $M_{V^*}$ chooses $c_i$ randomly from $\{0, 1\}$
+	\STATE Receive $b_i$ from $V^*$. If $b_i\neq c_i$, rewind and return to line 2 (still in round $i$). If $b_i = c_i$, then $M_{V^*}$ send $b_i$ to $M$, $M$ sends $M_{V^*}\ z_i$.
+	\STATE Write $(a_i, b_i, z_i)$ on the transcript.
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Zero Knowledge 9.]
+
+\Answer \\
+1. Run $B(G)$ and generate a uniform random $I\in Equiv(G)$ and a corresponding witness $\phi$. And sned $I$ to $V$.\\
+2. $V$ randomly choose $b\in\{0, 1\}$ and send to $P$\\
+3.If $b  =0$, then $P$ send $\psi = \phi$ to $V$. If $b = 1$, $P$ send $\psi = C(I, G, H, \phi, \pi)$. Then $P$ send $\psi$.\\
+4. For $b = 0$, $V$ goes on iff $A(I, G, \phi) = 1$; for $b = 1$, $V$ goes on iff $A(I, H, \phi) = 1$.
+The verifier accepts, only if all $n$ iterations were completed successfully. 
+
+\end{homeworkProblem}
+
+\begin{homeworkProblem}[Zero Knowledge 10.]
+
+\Answer We give protocol as follows:
+1. $P$ selects $y$ uniformly random from $\{1, \dots, q-1\}$ and compute $g' = g_0^y$, $h' = h_0^y$ and send $(g', h')$ to $V$.\\
+2. $V$ chooses $b$ uniformly random from $\{0, 1\}$ and send it to $P$.\\
+3. If $b = 0$, then $P$ send $z = y$ to $V$. If $b = 1$, then $P$ compute $z = yx^{-1}\mod q$ and send to $V$.\\
+4. $V$ check if $(g'^z, h'^z) = (g_b, h_b)$, and reject immediately if not. 
+
+
+\end{homeworkProblem}
+
+  
+
+%\Acknowledgement{Thank Wu YueXin for discussion.}
+
+\end{spacing}
+\end{document}
