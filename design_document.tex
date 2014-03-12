@@ -1,6 +1,7 @@
 \documentclass{article}
 \usepackage{amsmath,amsfonts,amsthm,amssymb}
 \usepackage{setspace}
+\usepackage{paralist}
 \usepackage{fancyhdr}
 \usepackage{lastpage}
 \usepackage{extramarks}
@@ -105,35 +106,212 @@
 
 \theoremstyle{plain} \newtheorem{computational}{Definition}
 
-\begin{algorithm}
-\caption{A'(n, e, y)}
-\begin{algorithmic}[1]
-\STATE  Run $A$ on input $(n, e, y)$
-\STATE  $A$ outputs in time $T_A$ a commitment $c$ and openings $(r_0, 0)$ and $(r_1, 1)$
-\RETURN $x = r_0r_1^{-1} \mod n$
-\end{algorithmic}
-\end{algorithm}
+\section{Task 6}
+
+\subsection{Design Decisions}
+Let's look at the problem more closely. Consider the simplest case where there are 2 children and 1 adult on Oaku. The only feasible way to carry them to Molokai is as follows:
+\begin{asparaitem}
+  \item Two children go to Molokai, one rowing the boat and the other riding it.\\
+  \item One child rows the boat back to Oahu.\\
+  \item The adult rows to Molokai.\\
+  \item The child left on Molokai rows the boat back to Oahu.\\
+  \item Two children go to Molokai.\\
+\end{asparaitem}
+
+Compare this to the scheme to carry 3 children:
+\begin{asparaitem}
+  \item Two children go to Molokai, one rowing the boat and the other riding it.\\
+  \item One child rows the boat back to Oahu.\\
+  \item Two children go to Molokai.\\
+\end{asparaitem}
+
+Ignoring the two final steps of these two subroutines, those two subroutines carry one adult and one child from Oahu to Molokai respectively, using two children as a medium. Therefore, once we have two children and a boat on Oahu, we can repeatedly carry other adults and children to Molokai using the two subrountines above until there are only two children left on Oaku, then let them go across the sea by themselves.\\
+
+Having understood this, it is reasonable to assign roles to all the adults and children. More specificly, we have the following role assignment:
+\begin{asparaitem}
+  \item \textbf{Rower}: The child who is responsible to row the boat. We denote it by $R$.\\
+  \item \textbf{Rider}: The child who is responsible to ride the boat of the rower. We denote it by $D$.\\
+  \item Other people who are going to be carried by $R$ and $D$.\\
+\end{asparaitem}
+
+\subsection{Designed Strategy}
+Then the main idea can be expressed as follows:
+\begin{asparaitem}
+  \item We store the total number of adults and children in a global variable. Each time a person is created, the counter increases by one.\\
+  \item All the children try to acquire the rower role, and only one of them get it. $R$ then decrease the population counter by 1.\\
+  \item Those who failed to get the rower role try to acquire the rider role, and only one of them get it. $D$ then decrease the population counter by 1. All the adults and the children who failed then waits to be carried to Molokai.\\
+  \item There is a global lock which all people except for $R$ and $D$ are waiting to acquire. If one person acquired the lock, he calls $R$ and $D$ to carry him to Molokai via one of the two subrountines, depending on whether it is a child or an adult. Then it decreases the population by 1, release the lock, and returns.\\
+  \item At the end no one except $R$ and $D$ is running, and the population counter is 0. Then $R$ and $D$ perform the final rowing to Molokai and returns.
+\end{asparaitem}
+
+\subsection{Pseudocode}
+The global variables we need are as follows:
+\begin{asparaitem}
+  \item \texttt{boolean isRowerSet}: The flag indicating if $R$ is set to a thread. All other threads should be able to access this.\\ 
+  \item \texttt{boolean isRiderSet}: The $D$ thread. All other threads should be able to wake them up and call it.\\
+  \item \texttt{int population}: The population counter, initially set to 0. Whenever a person is created, this counter increases by 1; whenever a person is assigned a role or get across the sea, the counter decreased by 0.\\
+\end{asparaitem}
+
+Furthermore, we need the following locks and condition variables to achieve the goal:\\
+\begin{asparaitem}
+  \item \texttt{Lock ChildMove \& Lock AllMove}: During initialization of the threads, no person should be able to move, as they may incorrectly determine the situation that no one is present on Oahu as the final state if the forking of threads goes too slow. Therefore, we use locks \texttt{ChildMove} and \texttt{AllMove} to block all threads but the main one to assure safe conditioning.\\
+  \item \texttt{Lock End \& Condition CVEnd}: The lock and its corresponding condition variable which informs the main thread to quit. The $R$ thread will take charge of this lock until all people are across the sea.\\
+  \item \texttt{Lock RowerMove, Condition CVRowerMove \& Lock RiderMove, Condition CVRiderMove}: These two locks are designed to synchronize the protocol between $R$, $D$ and the person being carried. Note that there can only be one person who is waiting for the lock, or it will cause problem.\\
+  \item \texttt{Lock BeingCarried}: The lock held by the person being carried across the sea. Note that there can only be one thread holding it.\\
+  \item \texttt{Lock PollMutex}: The lock held by the child who is trying to be $R$ or $D$.\\
+\end{asparaitem}
+
+Then the pseudocode for the main thread is as follows:
 
 \begin{algorithm}
-\caption{A'(g, h)}
+  \caption{Program performed by the main thread \texttt{begin(int adults, int children, BoatGrader b)}}
 \begin{algorithmic}[1]
-\STATE  Run $A$ on input $(q, g, h)$
-\STATE  $A$ outputs in time $T_A$ a commitment $c$ and openings $(r_0, 0)$ and $(r_1, 1)$
-\RETURN $x = r_0-r_1 \mod q$
-\end{algorithmic}
-\end{algorithm}
-
-
-\begin{algorithm}
-\caption{$M_{V^*}$}
-\begin{algorithmic}[1]
-\FOR {$i = 0$ to $\ell$}
-	\STATE $M$ send $M_{V^*}\ a_i$, then $M_{V^*}$ send $a_i$ to $V^*$
-	\STATE $M_{V^*}$ chooses $c_i$ randomly from $\{0, 1\}$
-	\STATE Receive $b_i$ from $V^*$. If $b_i\neq c_i$, rewind and return to line 2 (still in round $i$). If $b_i = c_i$, then $M_{V^*}$ send $b_i$ to $M$, $M$ sends $M_{V^*}\ z_i$.
-	\STATE Write $(a_i, b_i, z_i)$ on the transcript.
+  \STATE Initialize all global variables\\
+  \STATE \texttt{ChildMove.acquire()}; \COMMENT{Before forking threads, first acquire the locks to make sure to block them all}\\
+\STATE \texttt{AllMove.acquire()};\\
+\FOR {$i = 1$ to $adults$}
+\STATE Fork a new thread running \texttt{AdultItinerary();}\\
 \ENDFOR
+\FOR {$i = 1$ to $children$}
+\STATE Fork a new thread running \texttt{ChildrenItinerary();}\\
+\ENDFOR
+\STATE \texttt{End.acquire();}\\
+\STATE \texttt{ChildMove.release();}\COMMENT{Unblock all children and let them elect $R$ and $D$}\\
+\STATE \texttt{CVEnd.sleep();}\\
+\STATE \texttt{AllMove.release();}\COMMENT{When woke up by already elected $R$, Unblock all threads and start crossing the river}\\
+\STATE \texttt{CVEnd.wake();}\COMMENT{Wake up $R$ thread which woke it up}\\
+\STATE \texttt{CVEnd.sleep();}\\
+\STATE \texttt{End.release();}\COMMENT{When woke up by $R$ and informed that crossing is over, prepares to return}\\
+\RETURN
 \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{Program performed by an adult}
+\begin{algorithmic}[1]
+  \STATE \texttt{population ++;}\\
+  \STATE \texttt{AllMove.acquire();}\\
+  \STATE \texttt{AllMove.release();}\COMMENT{Releases to wake up still waiting threads}\\
+  \STATE \texttt{BeingCarried.acquire();}\\
+  \STATE \texttt{isAdult}=\TRUE;\\
+  \STATE \texttt{RowerMove.acquire();}\COMMENT{Controls $R$ to perform the protocol for adult to cross the sea}\\
+  \STATE \texttt{CVRowerMove.wake();}\\
+  \STATE \texttt{CVRowerMove.sleep();}\\
+  \STATE \texttt{bg.AdultRowToMolokai();}\\
+  \STATE \texttt{CVRowerMove.wake();}\\
+  \STATE \texttt{CVRowerMove.sleep();}\\
+  \STATE \texttt{population --;}\\
+  \STATE \texttt{CVRowerMove.wake();}\\
+  \STATE \texttt{RowerMove.release();}\\
+  \STATE \texttt{BeingCarried.release();}\\
+  \STATE \texttt{\RETURN}\\
+\end{algorithmic}
+\end{algorithm}
+
+
+\begin{algorithm}
+\caption{Program performed by children}
+\begin{algorithmic}[1]
+  \STATE \texttt{population ++;}\\
+  \STATE Set \texttt{boolean isRower} = \FALSE, \texttt{isRider} = \FALSE;\\
+  \STATE \texttt{ChildMove.acquire();}\COMMENT{Releases to still waiting children}\\
+  \STATE \texttt{ChildMove.release();}\\
+  \STATE \texttt{PollMutex.acquire();}\\
+  \IF {\texttt{isRowerSet}=\FALSE}
+   \STATE \texttt{isRowerSet}=\TRUE;\\
+  \STATE \texttt{isRower}=\TRUE;\\
+  \STATE \texttt{population --;}\\
+  \ELSIF {\texttt{isRiderSet}=\FALSE} 
+  \STATE \texttt{isRiderSet}=\TRUE;\\
+  \STATE \texttt{isRider}=\TRUE;\\
+  \STATE \texttt{population --;}\\
+  \ENDIF
+  \STATE \texttt{PollMutex.release();}\\
+  \IF {\texttt{isRower}=\TRUE}
+  \STATE \texttt{Rower();}\\
+  \RETURN
+  \ELSIF {\texttt{isRider}=\TRUE }
+  \STATE \texttt{Rider();}
+  \RETURN
+  \ELSE
+  \STATE \texttt{AllMove.acquire();}\\
+  \STATE \texttt{AllMove.release();}\\
+  \STATE \texttt{BeingCarried.acquire();}\\
+  \STATE \texttt{isAdult}=\FALSE;\\
+  \STATE \texttt{RowerMove.acquire();}\\
+  \STATE \texttt{CVRowerMove.wake()};\\
+  \STATE \texttt{CVRowerMove.sleep();}\\
+  \STATE \texttt{bg.ChildrenRideToMolokai();}\\
+  \STATE \texttt{CVRowerMove.wake();}
+  \STATE \texttt{CVRowerMove.sleep();}\\
+  \STATE \texttt{population --;}\\
+  \STATE \texttt{CVRowerMove.wake();}\\
+  \STATE \texttt{RowerMove.release();}
+  \STATE \texttt{BeingCarried.release();}
+  \RETURN
+  \ENDIF
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{The method \texttt{Rower()}}
+  \begin{algorithmic}
+    
+  \STATE \texttt{End.acquire();}\COMMENT{The $R$ thread is taking charge of the end condition lock}\\
+  \STATE \texttt{RowerMove.acquire();}\\
+  \STATE \texttt{RiderMove.acquire();}\\
+  \STATE \texttt{CVEnd.wake();}\COMMENT{Wake up the main thread}\\
+  \STATE \texttt{CVEnd.sleep();}\\
+  \WHILE{\texttt{population} $\geq 1$}
+  \STATE \texttt{CVRowerMove.sleep();}\COMMENT{Prepares to carry people across the sea}\\
+  \IF{\texttt{isAdult}=\TRUE}
+  \STATE \texttt{bg.ChildRowToMolokai();}\\
+  \STATE \texttt{CVRiderMove.wake();}\\
+  \STATE \texttt{CVRiderMove.sleep();}\\
+  \STATE \texttt{CVRowerMove.wake();}\\
+  \STATE \texttt{CVRowerMove.sleep();}\\
+  \STATE \texttt{bg.ChildRowToOahu();}\\
+  \STATE \texttt{CVRowerMove.wake();}\\
+  \STATE \texttt{CVRowerMove.sleep();}\\
+  \ELSE
+  \STATE \texttt{bg.ChildRowToMolokai();}\\
+  \STATE \texttt{CVRowerMove.wake();}\\
+  \STATE \texttt{CVRowerMove.sleep();}\\
+  \STATE \texttt{bg.ChildRowToOahu();}\\
+  \STATE \texttt{CVRowerMove.wake();}\\
+  \STATE \texttt{CVRowerMove.sleep();}\\
+  \ENDIF
+  \ENDWHILE
+  \STATE \texttt{RowerMove.release();}\COMMENT{Wakes up the last person}\\
+  \STATE \texttt{bgChildRowToMolokai();}\\
+  \STATE \texttt{CVRiderMove.wake();}\\
+  \STATE \texttt{CVRiderMove.sleep();}\\
+  \STATE \texttt{RiderMove.release();}\\
+  \STATE \texttt{CVEnd.wake();}\\
+  \STATE \texttt{End.release();}\\
+  \RETURN
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{The method \texttt{Rider()}}
+  \begin{algorithmic}
+  \STATE \texttt{AllMove.acquire();}\\
+  \STATE \texttt{AllMove.release();}\\
+  \STATE \texttt{RiderMove.acquire();}\\
+  \STATE \texttt{CVRiderMove.sleep();}\COMMENT{Ready to be called by $R$}\\
+  \WHILE {\texttt{population} $\geq 1$}
+  \STATE\texttt{bg.ChildRideToMolokai();}\\
+  \STATE\texttt{bg.ChildRowToOahu()};\\
+  \STATE\texttt{CVRiderMove.wake();}\\
+  \STATE\texttt{CVRiderMove.sleep();}\\
+  \ENDWHILE
+  \STATE\texttt{bg.ChildRideToMolokai();}\\
+  \STATE\texttt{CVRiderMove.wake();}
+  \STATE\texttt{RiderMove.release();}
+  \RETURN
+    
+  \end{algorithmic}
 \end{algorithm}
 
 \end{spacing}
