@@ -106,6 +106,50 @@
 
 \theoremstyle{plain} \newtheorem{computational}{Definition}
 
+\section{Task 5}
+
+\subsection{Overview}
+Task 5 asks us to implement priority scheduling in Nachos by completing the \texttt{PriorityScheduler} class. Particularly, in choosing which  thread to dequeue, the scheduler always choose a thread of the highest effective priority (choose the one that has been waiting in the queue longest if multiple threads with the same highest priority are waiting).
+
+The most difficulty lies in the function \texttt{Scheduler.getEffectivePriority}. To calculate one thread's effective priority (abbr. EP), we have to maintain a priority queue representing all threads it is getting priority from. Notice that when a thread's EP changes, threads' EP which that thread is waiting on may change as well. So we also need to maintain which thread is it waiting on for each thread. 
+
+Specifically, we calculate a thread's prior it  by taking the max of the donor's and the recipient's priority. As for the transitive property of priority donation, we simply call \texttt{Scheduler.getEffectivePriority} recursively.
+
+To speed up the calculation of EP, we create a variable to cache EP in class \texttt{ThreadState}. Thus, we only need to recalculate a thread's effective priority when it is possible for it to change.
+
+\subsection{Correctness Constraints}
+
+\begin{asparaitem}
+\item All threads waiting in a queue are sorted by their effective priority\\
+\item All threads store a sorted map of queues they own, and the highest priority thread stored in that queue. This map is called the thread?s priority cache.\\
+\item The effective priority of a thread is the highest priority stored in its priority cache.\\
+\item When a thread is selected from the queue to acquire the resource (nextThread()) that thread is removed from the queue and the new thread is told to aquire the queue (acquire()) The previous owner of the queue is told it no longer owns this queue, and the cached priority of this queue is removed. The new owner of the queue gets the highest priority in the queue added to its priority cache and its effective priority updated. \\
+\item When a thread is added to the waiting queue (waitForAccess()), it may have the highest priority of all threads in the queue. The owner of the queue then needs to update its effective priority to be greater than or equal to the new waiting thread.\\
+\item When a change occurs to a thread?s effective priority, it must reinsert itself into the correct position in the queue and as a result may end up affecting the effective priority of that queue?s owner.
+\end{asparaitem}
+
+\subsection{Declarations}
+
+\subsection{Descriptions}
+
+\begin{algorithm}
+  \caption{calculate effective priority}
+\begin{algorithmic}[1]
+  \STATE Initialize EP and donatorEP as default priority
+  \STATE EP $\leftarrow$ priority
+\FORALL {wait queues whose resource has been acquired by me}
+  \STATE donatorEP $\leftarrow$ largest EP in that wait queue
+  \IF {donatorEP > EP}
+    \STATE EP $\leftarrow$ donatorEP
+  \ENDIF
+\ENDFOR
+\STATE recursively call calculate effective priority on the thread I am waiting on
+\RETURN EP
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Testing Plan}
+
 \section{Task 6}
 
 \subsection{Design Decisions}
