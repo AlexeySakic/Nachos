@@ -6,23 +6,13 @@
 \usepackage{lastpage}
 \usepackage{extramarks}
 \usepackage{chngpage}
-\usepackage{soul,color}
+% \usepackage{soul,color}
 \usepackage{graphicx,float,wrapfig}
 \usepackage{mathrsfs}
 \usepackage{algorithm}
 \usepackage{algorithmic}
-\usepackage{tikz}
-\usepackage{pgffor}
-\usepackage{listings}
-\newcommand{\Class}{Operating System}
-\newcommand{\ClassInstructor}{Xu Wei}
-
-% Homework Specific Information. Change it to your own
-\newcommand{\Title}{Nachos Phase 1 Design Document}
-\newcommand{\DueDate}{March 11, 2014}
-\newcommand{\StudentName}{Yin HeZheng}
-\newcommand{\StudentClass}{Yao Class}
-\newcommand{\StudentNumber}{2011012343}
+% \usepackage{tikz}
+% \usepackage{pgffor}
 \newcommand{\xd}{\leqslant}
 \newcommand{\dd}{\geqslant}
 % In case you need to adjust margins:
@@ -35,7 +25,7 @@
 
 % Setup the header and footer
 \pagestyle{fancy}                                                       %
-\lhead{\StudentName}                                                 %
+% \lhead{\StudentName}                                                 %
 \chead{\Title}  %
 %\rhead{\firstxmark}                                                     %
 \lfoot{\lastxmark}                                                      %
@@ -44,38 +34,6 @@
 \renewcommand\headrulewidth{0.4pt}                                      %
 \renewcommand\footrulewidth{0.4pt}                                      %
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Some tools
-\newcommand{\enterProblemHeader}[1]{\nobreak\extramarks{#1}{#1 continued on next page\ldots}\nobreak%
-                                    \nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak}%
-\newcommand{\exitProblemHeader}[1]{\nobreak\extramarks{#1 (continued)}{#1 continued on next page\ldots}\nobreak%
-                                   \nobreak\extramarks{#1}{}\nobreak}%
-
-\newcommand{\homeworkProblemName}{}%
-\newcounter{homeworkProblemCounter}%
-\newenvironment{homeworkProblem}[1][Problem \arabic{homeworkProblemCounter}]%
-  {\stepcounter{homeworkProblemCounter}%
-   \renewcommand{\homeworkProblemName}{#1}%
-   \section*{\homeworkProblemName}%
-   \enterProblemHeader{\homeworkProblemName}}%
-  {\exitProblemHeader{\homeworkProblemName}}%
-
-\newcommand{\homeworkSectionName}{}%
-\newlength{\homeworkSectionLabelLength}{}%
-\newenvironment{homeworkSection}[1]%
-  {% We put this space here to make sure we're not connected to the above.
-
-   \renewcommand{\homeworkSectionName}{#1}%
-   \settowidth{\homeworkSectionLabelLength}{\homeworkSectionName}%
-   \addtolength{\homeworkSectionLabelLength}{0.25in}%
-   \changetext{}{-\homeworkSectionLabelLength}{}{}{}%
-   \subsection*{\homeworkSectionName}%
-   \enterProblemHeader{\homeworkProblemName\ [\homeworkSectionName]}}%
-  {\enterProblemHeader{\homeworkProblemName}%
-
-   % We put the blank space above in order to make sure this margin
-   % change doesn't happen too soon.
-   \changetext{}{+\homeworkSectionLabelLength}{}{}{}}%
 \newcommand{\Proof}{\ \\\textbf{Proof:} }
 \newcommand{\Answer}{\ \\\textbf{Answer:} }
 \newcommand{\Acknowledgement}[1]{\ \\{\bf Acknowledgement:} #1}
@@ -87,9 +45,24 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Make title
+\newcommand{\Class}{Operating System}
+\newcommand{\ClassInstructor}{Xu Wei}
+
+% Homework Specific Information. Change it to your own
+\newcommand{\Title}{Nachos Phase 1 Design Document}
+\newcommand{\DueDate}{March 11, 2014}
 \title{\textmd{\bf \Class: \Title}\\{\large Instructed by \textit{\ClassInstructor}}\\\normalsize\vspace{0.1in}\small{Due\ on\ \DueDate}}
 \date{}
-\author{\textbf{\StudentName}\ \ \StudentClass\ \ \StudentNumber}
+
+\author{%
+  Huang JiaChen 2011012xxx \and
+  Wu YueXin 2011012xxx \and
+  Yang Sheng 2011012359 \and
+  Yin HeZheng 2011012343 \and
+  Zhou XuRen 2011012xxx}
+\newcommand{\StudentClass}{Yao Class}
+
+% \author{\textbf{\StudentName}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
@@ -98,16 +71,9 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Begin edit from here
 
-%tikz test
-%\begin{tikzpicture}
-%\draw (-2.0,0) -- (2.0,0);
-%\draw[rotate=90] (0,0) ellipse (20pt and 10pt);
-%\end{tikzpicture}
-
 \theoremstyle{plain} \newtheorem{computational}{Definition}
 
 \section{Task 5}
-
 \subsection{Overview}
 Task 5 asks us to implement priority scheduling in Nachos by completing the \texttt{PriorityScheduler} class. Particularly, in choosing which  thread to dequeue, the scheduler always choose a thread of the highest effective priority (choose the one that has been waiting in the queue longest if multiple threads with the same highest priority are waiting).
 
