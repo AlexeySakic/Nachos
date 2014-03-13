@@ -121,16 +121,20 @@ To speed up the calculation of EP, we create a variable to cache EP in class \te
 
 \begin{asparaitem}
 \item All threads waiting in a queue are sorted by their effective priority\\
-\item All threads store a sorted map of queues they own, and the highest priority thread stored in that queue. This map is called the thread?s priority cache.\\
-\item The effective priority of a thread is the highest priority stored in its priority cache.\\
-\item When a thread is selected from the queue to acquire the resource (nextThread()) that thread is removed from the queue and the new thread is told to aquire the queue (acquire()) The previous owner of the queue is told it no longer owns this queue, and the cached priority of this queue is removed. The new owner of the queue gets the highest priority in the queue added to its priority cache and its effective priority updated. \\
-\item When a thread is added to the waiting queue (waitForAccess()), it may have the highest priority of all threads in the queue. The owner of the queue then needs to update its effective priority to be greater than or equal to the new waiting thread.\\
-\item When a change occurs to a thread?s effective priority, it must reinsert itself into the correct position in the queue and as a result may end up affecting the effective priority of that queue?s owner.
+\item All threads store a linked list of queues they own and its own effective priority for cache\\
+\item The effective priority of a thread is calculated by taking max between its initial priority and the largest effective priority stored in the linked list of queues.\\
+\item When a thread is selected from the queue to acquire the resource (\texttt{nextThread}) that thread is removed from the queue and the new thread is told to aquire the queue (\texttt{acquire}) The previous owner of the queue is told it no longer owns this queue, and this queue is removed from its linked list. At the same time, this queue is inserted into the linked list of new owner. The new owner of the queue gets the highest priority in the queue added to its priority cache and its effective priority updated. \\
+\item When a thread is added to the waiting queue (\texttt{waitForAccess}), it may have the highest priority of all threads in the queue. The owner of the queue then needs to update its effective priority to be greater than or equal to the new waiting thread.\\
+\item When a change occurs to a thread's effective priority, it must reinsert itself into the correct position in the queue and as a result may end up affecting the effective priority of that queue's owner.
 \end{asparaitem}
 
 \subsection{Declarations}
 
+We use \texttt{LinkedList<PriorityQueue> waitBy} and \texttt{PriorityQueue waitOn} to store threads waiting us and threads we are waiting separately. The class \texttt{PriorityQueue} is implemented by java.util.PriorityQueue.
+
 \subsection{Descriptions}
+
+The following algorithm describes the implementation of \texttt{getEffectivePriority} in high level.
 
 \begin{algorithm}
   \caption{calculate effective priority}
@@ -139,12 +143,49 @@ To speed up the calculation of EP, we create a variable to cache EP in class \te
   \STATE EP $\leftarrow$ priority
 \FORALL {wait queues whose resource has been acquired by me}
   \STATE donatorEP $\leftarrow$ largest EP in that wait queue
-  \IF {donatorEP > EP}
+  \IF {donatorEP $>$ EP}
     \STATE EP $\leftarrow$ donatorEP
   \ENDIF
 \ENDFOR
 \STATE recursively call calculate effective priority on the thread I am waiting on
 \RETURN EP
+\end{algorithmic}
+\end{algorithm}
+
+To clarify how we manipulate data structure, we illustrate the implementation of function \texttt{PriorityQueue.waitForAccess}, \texttt{PriorityQueue.acquire} and \texttt{PriorityQueue.nextThread} (actually, \texttt{waitForAccess} and \texttt{acquire} are implemented in class \texttt{ThreadState}).
+
+\begin{algorithm}
+  \caption{\texttt{ThreadState.wairForAccess(PriorityQueue waitQueue)}}
+\begin{algorithmic}[1]
+  \STATE waitQueue.add(this)  \COMMENT{add this thread to waitQueue}
+  \STATE this.waitingOn $\leftarrow$ waitQueue  \COMMENT{update waitingOn queue}
+  \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
+\RETURN 
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{\texttt{ThreadState.acquire(PriorityQueue waitQueue)}}
+\begin{algorithmic}[1]
+  \STATE waitQueue.owner $\leftarrow$ this
+  \STATE this.waitingBy.insert(waitQueue)
+  \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
+\RETURN 
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{\texttt{nextThread}}
+\begin{algorithmic}[1]
+  \STATE Initialize chosenThread as null
+  \STATE chosenThread $\leftarrow$ pickNextThread()
+  \IF {chosenThread != null}
+    \STATE remove this queue from current owner's waitingBy list
+    \STATE chosenThread.waitingOn $\leftarrow$ null
+    \STATE insert this queue into chosenThread's waitingBy list
+  \ENDIF
+  \STATE this.owner $\leftarrow$ chosenThread
+\RETURN chosenThread
 \end{algorithmic}
 \end{algorithm}
 
