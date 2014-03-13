@@ -4,4 +4,6 @@
 *.aux
 *.pdf
 *.gz
+.DS_Store
+*~
 
