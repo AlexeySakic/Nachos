@@ -6,4 +6,6 @@
 *.gz
 .DS_Store
 *~
+auto
+auto/*
 
