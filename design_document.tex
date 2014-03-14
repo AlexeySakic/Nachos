@@ -411,6 +411,42 @@ To clarify how we manipulate data structure, we illustrate the implementation of
 \end{algorithm}
 
 \subsection{Testing Plan}
+We need to test the following things. The test is done in \texttt{selfTest()}
+\begin{itemize}
+\item The PriorityQueue of \texttt{java.util.PriorityQueue} works well(Automatically)
+\item The transfer of priority works well
+\item The transfer of priority will hold its property when queue updated
+\item \texttt{Acquire()} will work well, and add queue to the queue list
+\end{itemize}
+
+\begin{algorithm}
+  \caption{\texttt{selfTest}}
+\begin{algorithmic}[1]
+  \STATE Initialize a PriorityScheduler \texttt{s}
+  \STATE Initialize 3 ThreadQueue
+  \STATE Create 5 threads
+  \STATE disable interrupt
+  \STATE
+  \STATE queue1.acquare(thread1)
+  \STATE queue2.acquire(thread1)
+  \STATE queue1.waitForAccess(thread2)
+  \STATE queue3.acquire(thread3)
+  \STATE queue3.waitForAccess(thread1)
+  \STATE print all the information of the threads
+  \STATE
+  \STATE thread2.setPriority(3)
+  \STATE print all the information of the threads
+  \STATE
+  \STATE queue2.waitForAccess(thread4)
+  \STATE thread3.setPriority(5)
+  \STATE print all the information of the threads
+  \STATE
+  \STATE thread3.setPriority(2)
+  \STATE print all the information of the threads
+  \STATE
+  \STATE restore interrupt
+\end{algorithmic}
+\end{algorithm}
 
 \section{Task 6}
 
