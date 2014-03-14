@@ -453,18 +453,20 @@ Then the main idea can be expressed as follows:
 \subsection{Pseudocode}
 The global variables we need are as follows:
 \begin{asparaitem}
-  \item \texttt{boolean isRowerSet}: The flag indicating if $R$ is set to a thread. All other threads should be able to access this.\\ 
-  \item \texttt{boolean isRiderSet}: The $D$ thread. All other threads should be able to wake them up and call it.\\
-  \item \texttt{int population}: The population counter, initially set to 0. Whenever a person is created, this counter increases by 1; whenever a person is assigned a role or get across the sea, the counter decreased by 0.\\
+  \item \texttt{boolean isRowerSet}: The flag indicating if $R$ is set to a thread. All other threads should be able to read this.\\ 
+  \item \texttt{boolean isRiderSet}: The flag indicating if $D$ is assigned to a thread. All other threads should be able to read this.\\
+  \item \texttt{int population}: The population counter, initially set to 0. Whenever a person is created, this counter increases by 1; whenever a person gets across the sea, the counter decreases by 1.\\
 \end{asparaitem}
 
 Furthermore, we need the following locks and condition variables to achieve the goal:\\
 \begin{asparaitem}
-  \item \texttt{Lock ChildMove \& Lock AllMove}: During initialization of the threads, no person should be able to move, as they may incorrectly determine the situation that no one is present on Oahu as the final state if the forking of threads goes too slow. Therefore, we use locks \texttt{ChildMove} and \texttt{AllMove} to block all threads but the main one to assure safe conditioning.\\
+  \item \texttt{Lock AllMove}: During initialization of the threads, no person should be able to move, as they may incorrectly determine the situation that no one is present on Oahu as the final state if the forking of threads goes too slow. Therefore, we use the lock \texttt{AllMove} to block all threads but the main one to assure safe conditioning.\\
   \item \texttt{Lock End \& Condition CVEnd}: The lock and its corresponding condition variable which informs the main thread to quit. The $R$ thread will take charge of this lock until all people are across the sea.\\
   \item \texttt{Lock RowerMove, Condition CVRowerMove \& Lock RiderMove, Condition CVRiderMove}: These two locks are designed to synchronize the protocol between $R$, $D$ and the person being carried. Note that there can only be one person who is waiting for the lock, or it will cause problem.\\
   \item \texttt{Lock BeingCarried}: The lock held by the person being carried across the sea. Note that there can only be one thread holding it.\\
   \item \texttt{Lock PollMutex}: The lock held by the child who is trying to be $R$ or $D$.\\
+  \item \texttt{Semaphore Register:} This semaphore is due to ensure that all created threads has actually incremented the population counter. Whenever a thread is created, the main thread executing \texttt{begin(int,int, BoatGrader)} performs \texttt{P()} to the semaphore, and waits for the newly created thread to wake it up after it has incremented the counter. It can also be seen that this semaphore is able to protect the counter from mutual accessing. Initially it is set to 0.\\
+  \item \texttt{Semaphore AllSet:} This semaphore is used by $D$ to tell the main thread that both $R$ and $D$ has been assigned. Only with this information, the main thread can release the \texttt{AllMove} lock. Initially it is set to 0.\\
 \end{asparaitem}
 
 Then the pseudocode for the main thread is as follows:
@@ -473,20 +475,19 @@ Then the pseudocode for the main thread is as follows:
   \caption{Program performed by the main thread \texttt{begin(int adults, int children, BoatGrader b)}}
 \begin{algorithmic}[1]
   \STATE Initialize all global variables\\
-  \STATE \texttt{ChildMove.acquire()}; \COMMENT{Before forking threads, first acquire the locks to make sure to block them all}\\
-\STATE \texttt{AllMove.acquire()};\\
+  \STATE \texttt{AllMove.acquire()}; \COMMENT{Before forking threads, first acquire the locks to make sure to block them all}\\
+\STATE \texttt{End.acquire()};\\
 \FOR {$i = 1$ to $adults$}
 \STATE Fork a new thread running \texttt{AdultItinerary();}\\
+\STATE \texttt{Register.P();}\\
 \ENDFOR
 \FOR {$i = 1$ to $children$}
 \STATE Fork a new thread running \texttt{ChildrenItinerary();}\\
+\STATE \texttt{Register.P();}\\
 \ENDFOR
-\STATE \texttt{End.acquire();}\\
-\STATE \texttt{ChildMove.release();}\COMMENT{Unblock all children and let them elect $R$ and $D$}\\
-\STATE \texttt{CVEnd.sleep();}\\
-\STATE \texttt{AllMove.release();}\COMMENT{When woke up by already elected $R$, Unblock all threads and start crossing the river}\\
-\STATE \texttt{CVEnd.wake();}\COMMENT{Wake up $R$ thread which woke it up}\\
-\STATE \texttt{CVEnd.sleep();}\\
+\STATE \texttt{AllSet.P();}\COMMENT{Wait for $D$ to release the semaphore}\\
+\STATE \texttt{AllMove.release();}\COMMENT{When woke up by already elected $D$, Unblock all threads and start crossing the river}\\
+\STATE \texttt{CVEnd.sleep();}\COMMENT{Enables $R$, thus starts crossing the sea}\\
 \STATE \texttt{End.release();}\COMMENT{When woke up by $R$ and informed that crossing is over, prepares to return}\\
 \RETURN
 \end{algorithmic}
@@ -496,6 +497,7 @@ Then the pseudocode for the main thread is as follows:
 \caption{Program performed by an adult}
 \begin{algorithmic}[1]
   \STATE \texttt{population ++;}\\
+  \STATE \texttt{Register.V();}\\
   \STATE \texttt{AllMove.acquire();}\\
   \STATE \texttt{AllMove.release();}\COMMENT{Releases to wake up still waiting threads}\\
   \STATE \texttt{BeingCarried.acquire();}\\
@@ -510,7 +512,7 @@ Then the pseudocode for the main thread is as follows:
   \STATE \texttt{CVRowerMove.wake();}\\
   \STATE \texttt{RowerMove.release();}\\
   \STATE \texttt{BeingCarried.release();}\\
-  \STATE \texttt{\RETURN}\\
+  \RETURN\\
 \end{algorithmic}
 \end{algorithm}
 
@@ -519,18 +521,15 @@ Then the pseudocode for the main thread is as follows:
 \caption{Program performed by children}
 \begin{algorithmic}[1]
   \STATE \texttt{population ++;}\\
+  \STATE \texttt{Register.V();}\\
   \STATE Set \texttt{boolean isRower} = \FALSE, \texttt{isRider} = \FALSE;\\
-  \STATE \texttt{ChildMove.acquire();}\COMMENT{Releases to still waiting children}\\
-  \STATE \texttt{ChildMove.release();}\\
-  \STATE \texttt{PollMutex.acquire();}\\
+  \STATE \texttt{PollMutex.acquire();}\COMMENT{Trying to be $R$ or $D$}\\
   \IF {\texttt{isRowerSet}=\FALSE}
    \STATE \texttt{isRowerSet}=\TRUE;\\
   \STATE \texttt{isRower}=\TRUE;\\
-  \STATE \texttt{population --;}\\
   \ELSIF {\texttt{isRiderSet}=\FALSE} 
   \STATE \texttt{isRiderSet}=\TRUE;\\
   \STATE \texttt{isRider}=\TRUE;\\
-  \STATE \texttt{population --;}\\
   \ENDIF
   \STATE \texttt{PollMutex.release();}\\
   \IF {\texttt{isRower}=\TRUE}
@@ -566,9 +565,7 @@ Then the pseudocode for the main thread is as follows:
   \STATE \texttt{End.acquire();}\COMMENT{The $R$ thread is taking charge of the end condition lock}\\
   \STATE \texttt{RowerMove.acquire();}\\
   \STATE \texttt{RiderMove.acquire();}\\
-  \STATE \texttt{CVEnd.wake();}\COMMENT{Wake up the main thread}\\
-  \STATE \texttt{CVEnd.sleep();}\\
-  \WHILE{\texttt{population} $\geq 1$}
+  \WHILE{\texttt{population} $\geq 3$}
   \STATE \texttt{CVRowerMove.sleep();}\COMMENT{Prepares to carry people across the sea}\\
   \IF{\texttt{isAdult}=\TRUE}
   \STATE \texttt{bg.ChildRowToMolokai();}\\
@@ -602,11 +599,12 @@ Then the pseudocode for the main thread is as follows:
 \begin{algorithm}
   \caption{The method \texttt{Rider()}}
   \begin{algorithmic}
+    \STATE \texttt{AllSet.V();}\COMMENT{Tell the main thread that \texttt{AllMove} can be released now}\\
   \STATE \texttt{AllMove.acquire();}\\
   \STATE \texttt{AllMove.release();}\\
   \STATE \texttt{RiderMove.acquire();}\\
   \STATE \texttt{CVRiderMove.sleep();}\COMMENT{Ready to be called by $R$}\\
-  \WHILE {\texttt{population} $\geq 1$}
+  \WHILE {\texttt{population} $\geq 3$}
   \STATE\texttt{bg.ChildRideToMolokai();}\\
   \STATE\texttt{bg.ChildRowToOahu()};\\
   \STATE\texttt{CVRiderMove.wake();}\\
