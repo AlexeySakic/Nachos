@@ -105,13 +105,115 @@
 %\end{tikzpicture}
 
 \theoremstyle{plain} \newtheorem{computational}{Definition}
+\section{Task 2}
+\subsection{Overview}
+In this task, we have to implement condition variables directly, by using enable and disable to provide atomicity instead semaphores. To be specific, we need to implement three functions \texttt{sleep()}, \texttt{wake()} and \texttt{wakeAll()} in \texttt{Condition2} as public functions.
+
+As for \texttt{sleep()}, we can first disable interrupts in order to make a small critical section, in which we only need to put it in a \texttt{ThreadQueue()} and announce it to sleep.
+
+And for \texttt{wake()}, it can be realized by taking the first element in the queue out, and call the \texttt{ready()} function.
+
+\texttt{wake()} can be done by running \texttt{wake()} iteratively.
+\subsection{Correctness Constraints}
+\begin{asparaitem}
+  \item When \texttt{sleep()} is called, the thread is blocked in the critical section by disabling interrupts while no thread can wake it before the \texttt{KThread.sleep()} function.
+  \item When \texttt{wake()} and \texttt{wakeAll()} are performed, we guarantee all of their instructions are done within a critical section surrounded by disabling and enabling interrupts.
+\end{asparaitem}
+\subsection{Declarations}
+\texttt{waitQueue} is a \texttt{ThreadQueue} for threads blocked by \texttt{sleep()}.
+\subsection{Description}
+\begin{algorithm}
+\caption{ \texttt{void Condition2::sleep()}}
+\begin{algorithmic}
+\STATE Disable interrupts
+\STATE Release \texttt{conditionLock}
+\STATE \texttt{waitQueue.waitForAccess(KThread.currentThread())}
+\STATE	\texttt{KThread.sleep()}
+\STATE Acquire \texttt{conditionLock}
+\STATE Enable interrupts
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{ \texttt{void Condition2::wake()}}
+\begin{algorithmic}
+\STATE Disable interrupts
+\IF {\texttt{thread = waitQueue.nextThread() != null}}
+\STATE \texttt{thread.ready()}
+\ENDIF
+\STATE Enable interrupts
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{ \texttt{void Condition2::wakeAll()}}
+\begin{algorithmic}
+\STATE Disable interrupts
+\WHILE {\texttt{thread = waitQueue.nextThread() != null}}
+\STATE \texttt{thread.ready()}
+\STATE \texttt{thread = waitQueue.nextThread()}
+\ENDWHILE
+\STATE Enable interrupts
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Testing Plan}
+We plan to run with function \texttt{selfTest()}, and the specific cases are as follows:
+\begin{asparaitem}
+  \item Case 1: Two threads in which one is sleeper and the other is the waker.
+  \item Case 2: Several sleepers with one waker.
+  \item Case 3: Several sleepers together with several wakers.
+\end{asparaitem}
+\section{Task 3}
+\subsection{Overview}
+In this task, we need to finish the public functions \texttt{waitUntil(long x)} and \texttt{timerInterrupt()} in \texttt{Alarm}. The key point is that we have to invent some efficient method instead busy waiting in \texttt{waitUntil(long x)}. Since the \texttt{timerInterrupt()} handler can be called every dozens of clock ticks, we can drive threads to sleep in \texttt{waitUntil(long x)} and decide whether they should awake in \texttt{timerInterrupt()}.
+\subsection{Correctness Constraints}
+\begin{asparaitem}
+  \item The methods of \texttt{waitUntil(long x)} and \texttt{timerInterrupt()} should be atomic so that the sleeping process can not be disturbed.
+  \item A queue of waiting threads should be well-maintained by handler \texttt{timerInterrupt} and \texttt{waitUntil(long x)}. To be specific, every time \texttt{waitUntil(long x)} is called, it should insert the thread into a proper place in the queue and Handler \texttt{timerInterrupt} should properly dequeue every thread out when it's invoked.
+\end{asparaitem}
+\subsection{Declarations}
+\begin{asparaitem}
+\item Class: \texttt{AlarmThread} is a wrapper that associates \texttt{KThread} with wake up time.
+\item Instance: \texttt{queue} is a priority queue \texttt{PriorityQueue<AlarmThread>} that keeps a record of sleeping threads.
+\end{asparaitem}
+
+\subsection{Description}
+\begin{algorithm}
+\caption{ \texttt{void Alarm::timerInterrupt()}}
+\begin{algorithmic}
+\STATE Disable interrupts
+\WHILE {\texttt{(queue.poll() != null) \&\& (queue.peek().wakeTime < Machine.timer().getTime())}}
+\STATE \texttt{queue.poll().thread.ready()}
+\ENDWHILE
+\STATE Enable interrupts
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{ \texttt{void Alarm::waitUntil(long x)}}
+\begin{algorithmic}
+\STATE Disable interrupts
+\STATE \texttt{long wakeTime = Machine.timer().getTime() + x}
+\STATE Insert \texttt{new AlarmThread(Kthread.currentThread() ,wakeTime)} into \texttt{queue}
+\STATE \texttt{Kthread.sleep()}
+\STATE Enable interrupts
+\end{algorithmic}
+\end{algorithm}
+\subsection{Testing Plan}
+\begin{asparaitem}
+  \item Case 1: one thread with wait time $0$.
+  \item Case 2: one thread with wait time within $500$.
+  \item Case 3: one thread with wait time beyond $500$.
+  \item Case 4: several threads with arbitrary wait time.
+\end{asparaitem}
 
 \section{Task 5}
 
 \subsection{Overview}
 Task 5 asks us to implement priority scheduling in Nachos by completing the \texttt{PriorityScheduler} class. Particularly, in choosing which  thread to dequeue, the scheduler always choose a thread of the highest effective priority (choose the one that has been waiting in the queue longest if multiple threads with the same highest priority are waiting).
 
-The most difficulty lies in the function \texttt{Scheduler.getEffectivePriority}. To calculate one thread's effective priority (abbr. EP), we have to maintain a priority queue representing all threads it is getting priority from. Notice that when a thread's EP changes, threads' EP which that thread is waiting on may change as well. So we also need to maintain which thread is it waiting on for each thread. 
+The most difficulty lies in the function \texttt{Scheduler.getEffectivePriority}. To calculate one thread's effective priority (abbr. EP), we have to maintain a priority queue representing all threads it is getting priority from. Notice that when a thread's EP changes, threads' EP which that thread is waiting on may change as well. So we also need to maintain which thread is it waiting on for each thread.
 
 Specifically, we calculate a thread's prior it  by taking the max of the donor's and the recipient's priority. As for the transitive property of priority donation, we simply call \texttt{Scheduler.getEffectivePriority} recursively.
 
@@ -160,7 +262,7 @@ To clarify how we manipulate data structure, we illustrate the implementation of
   \STATE waitQueue.add(this)  \COMMENT{add this thread to waitQueue}
   \STATE this.waitingOn $\leftarrow$ waitQueue  \COMMENT{update waitingOn queue}
   \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
-\RETURN 
+\RETURN
 \end{algorithmic}
 \end{algorithm}
 
@@ -170,7 +272,7 @@ To clarify how we manipulate data structure, we illustrate the implementation of
   \STATE waitQueue.owner $\leftarrow$ this
   \STATE this.waitingBy.insert(waitQueue)
   \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
-\RETURN 
+\RETURN
 \end{algorithmic}
 \end{algorithm}
 
@@ -232,7 +334,7 @@ Then the main idea can be expressed as follows:
 \subsection{Pseudocode}
 The global variables we need are as follows:
 \begin{asparaitem}
-  \item \texttt{boolean isRowerSet}: The flag indicating if $R$ is set to a thread. All other threads should be able to access this.\\ 
+  \item \texttt{boolean isRowerSet}: The flag indicating if $R$ is set to a thread. All other threads should be able to access this.\\
   \item \texttt{boolean isRiderSet}: The $D$ thread. All other threads should be able to wake them up and call it.\\
   \item \texttt{int population}: The population counter, initially set to 0. Whenever a person is created, this counter increases by 1; whenever a person is assigned a role or get across the sea, the counter decreased by 0.\\
 \end{asparaitem}
@@ -306,7 +408,7 @@ Then the pseudocode for the main thread is as follows:
    \STATE \texttt{isRowerSet}=\TRUE;\\
   \STATE \texttt{isRower}=\TRUE;\\
   \STATE \texttt{population --;}\\
-  \ELSIF {\texttt{isRiderSet}=\FALSE} 
+  \ELSIF {\texttt{isRiderSet}=\FALSE}
   \STATE \texttt{isRiderSet}=\TRUE;\\
   \STATE \texttt{isRider}=\TRUE;\\
   \STATE \texttt{population --;}\\
@@ -341,7 +443,7 @@ Then the pseudocode for the main thread is as follows:
 \begin{algorithm}
   \caption{The method \texttt{Rower()}}
   \begin{algorithmic}
-    
+
   \STATE \texttt{End.acquire();}\COMMENT{The $R$ thread is taking charge of the end condition lock}\\
   \STATE \texttt{RowerMove.acquire();}\\
   \STATE \texttt{RiderMove.acquire();}\\
@@ -395,7 +497,7 @@ Then the pseudocode for the main thread is as follows:
   \STATE\texttt{CVRiderMove.wake();}
   \STATE\texttt{RiderMove.release();}
   \RETURN
-    
+
   \end{algorithmic}
 \end{algorithm}
 
