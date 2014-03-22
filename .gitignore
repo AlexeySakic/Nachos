@@ -3,6 +3,9 @@
 
 *.log
 *.aux
+*.bak
+*.bbl
+*.blg
 *.pdf
 *.gz
 .DS_Store
@@ -13,4 +16,5 @@ auto
 auto/*
 doc
 doc/*
+ref/*
 
