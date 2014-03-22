@@ -1,0 +1,13 @@
+# Ignore generated files
+
+*.log
+*.aux
+*.pdf
+*.gz
+.DS_Store
+*~
+*.htm
+*.html
+auto
+auto/*
+
