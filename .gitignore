@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Ignore generated files
 
 *.log
@@ -10,4 +11,6 @@
 *.html
 auto
 auto/*
+doc
+doc/*
 
