@@ -187,6 +187,8 @@ public class KThread {
 	Lib.debug(dbgThread, "Finishing thread: " + currentThread.toString());
 
 	Machine.interrupt().disable();
+	
+	currentThread.joinSemaphore.V();
 
 	Machine.autoGrader().finishingCurrentThread();
 
@@ -276,6 +278,9 @@ public class KThread {
      */
     public void join() {
 	Lib.debug(dbgThread, "Joining to thread: " + toString());
+	
+	joinSemaphore.P();
+	joinSemaphore.V();
 
 	Lib.assertTrue(this != currentThread);
 
@@ -406,7 +411,10 @@ public class KThread {
 	Lib.debug(dbgThread, "Enter KThread.selfTest");
 
 	new KThread(new PingTest(1)).setName("forked thread").fork();
+//	new KThread(new PingTest(0)).setName("main thread").fork();
 	new PingTest(0).run();
+	
+	System.out.println("Testing");
     }
 
     private static final char dbgThread = 't';
@@ -446,4 +454,6 @@ public class KThread {
     private static KThread currentThread = null;
     private static KThread toBeDestroyed = null;
     private static KThread idleThread = null;
+    
+    private Semaphore joinSemaphore = new Semaphore(0); 
 }
