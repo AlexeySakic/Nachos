@@ -1,11 +1,17 @@
 # Ignore generated files
-
 *.log
 *.aux
+*.bak
+*.bbl
+*.blg
 *.pdf
 *.gz
 .DS_Store
 *~
+*.htm
+*.html
 auto
 auto/*
-
+doc
+doc/*
+ref/*
