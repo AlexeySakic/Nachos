@@ -3,7 +3,12 @@
 package nachos.threads;
 
 import nachos.machine.*;
-
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Queue;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.Comparator;
 import java.util.TreeSet;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -128,48 +133,72 @@ public class PriorityScheduler extends Scheduler {
      * A <tt>ThreadQueue</tt> that sorts threads by priority.
      */
     protected class PriorityQueue extends ThreadQueue {
-	PriorityQueue(boolean transferPriority) {
-	    this.transferPriority = transferPriority;
-	}
+    	
+    	PriorityQueue(boolean transferPriority) {
+    		this.transferPriority = transferPriority;
+    	}
 
-	public void waitForAccess(KThread thread) {
-	    Lib.assertTrue(Machine.interrupt().disabled());
-	    getThreadState(thread).waitForAccess(this);
-	}
+    	public void waitForAccess(KThread thread) {
+    		Lib.assertTrue(Machine.interrupt().disabled());
+    		getThreadState(thread).waitForAccess(this);
+    	}
 
-	public void acquire(KThread thread) {
-	    Lib.assertTrue(Machine.interrupt().disabled());
-	    getThreadState(thread).acquire(this);
-	}
+    	public void acquire(KThread thread) {
+    		Lib.assertTrue(Machine.interrupt().disabled());
+    		getThreadState(thread).acquire(this);
+    	}
 
-	public KThread nextThread() {
-	    Lib.assertTrue(Machine.interrupt().disabled());
-	    // implement me
-	    return null;
-	}
+    	public KThread nextThread() {
+    		Lib.assertTrue(Machine.interrupt().disabled());
+    		// implement me (have implemented)
+    		ThreadState nextThread = pickNextThread();
+    		if (nextThread != null){
+    			nextThread.acquire(this);
+    			return nextThread.thread;
+    		}
+    		return null;
+    	}
 
-	/**
-	 * Return the next thread that <tt>nextThread()</tt> would return,
-	 * without modifying the state of this queue.
-	 *
-	 * @return	the next thread that <tt>nextThread()</tt> would
-	 *		return.
-	 */
-	protected ThreadState pickNextThread() {
-	    // implement me
-	    return null;
-	}
+    	/**
+    	 * Return the next thread that <tt>nextThread()</tt> would return,
+    	 * without modifying the state of this queue.
+    	 *
+    	 * @return	the next thread that <tt>nextThread()</tt> would
+    	 *		return.
+    	 */
+    	protected ThreadState pickNextThread() {
+    		// implement me (have implemented)
+    		while(!queue.isEmpty()){
+    			Integer lastKey = queue.lastKey();
+    			Queue<ThreadState> qlist = queue.get(lastKey);
+    			
+    			if (qlist == null || qlist.isEmpty()){
+    				queue.remove(lastKey);
+    			}
+    			else {
+    				// here we pick the first-come-in thread
+    				return qlist.peek();
+    			}
+    		}
+    		return null;
+    	}
 
-	public void print() {
-	    Lib.assertTrue(Machine.interrupt().disabled());
-	    // implement me (if you want)
-	}
+    	public void print() {
+    		Lib.assertTrue(Machine.interrupt().disabled());
+    		// implement me (if you want)
+    	}
 
-	/**
-	 * <tt>true</tt> if this queue should transfer priority from waiting
-	 * threads to the owning thread.
-	 */
-	public boolean transferPriority;
+    	/**
+    	 * <tt>true</tt> if this queue should transfer priority from waiting
+    	 * threads to the owning thread.
+    	 */
+    	public boolean transferPriority;
+    	public ThreadState currentOwner = null;
+    	/**
+    	 * each entry of TreeMap stores a queue of threads 
+    	 * with same original priority
+    	 */
+    	public TreeMap<Integer, Queue<ThreadState>> queue = new TreeMap<Integer, Queue<ThreadState>>();
     }
 
     /**
@@ -207,8 +236,8 @@ public class PriorityScheduler extends Scheduler {
 	 * @return	the effective priority of the associated thread.
 	 */
 	public int getEffectivePriority() {
-	    // implement me
-	    return priority;
+		//implement me (have implemented)
+	    return priorityCache.last().priority;
 	}
 
 	/**
@@ -218,11 +247,14 @@ public class PriorityScheduler extends Scheduler {
 	 */
 	public void setPriority(int priority) {
 	    if (this.priority == priority)
-		return;
+	    	return;
+	    
+	    revokeDonation(null); //remove donations whose PriorityQueue is null
+	    registerDonation(priority, null); //set priority by fake registDonation with a null PriorityQueue
+	    
+	    //this.priority = priority;
 
-	    this.priority = priority;
-
-	    // implement me
+	    // implement me (have implemented)
 	}
 
 	/**
@@ -238,7 +270,10 @@ public class PriorityScheduler extends Scheduler {
 	 * @see	nachos.threads.ThreadQueue#waitForAccess
 	 */
 	public void waitForAccess(PriorityQueue waitQueue) {
-	    // implement me
+	    // implement me (have implemented)
+		assert(waitQueue != null);
+		waiting = waitQueue;
+		requeue(waiting); //insert itself into waiting
 	}
 
 	/**
@@ -252,9 +287,165 @@ public class PriorityScheduler extends Scheduler {
 	 * @see	nachos.threads.ThreadQueue#nextThread
 	 */
 	public void acquire(PriorityQueue waitQueue) {
-	    // implement me
+	    // implement me (have implemented)
+		assert(waitQueue != null);
+		
+		dequeue(waitQueue); // Make sure this thread is completely removed from the queue
+		
+		//If there was a previous owner , perform handover
+		if(waitQueue.currentOwner != null && waitQueue.transferPriority) {
+			waitQueue.currentOwner.revokeDonation(waitQueue);
+			//waitQueue.currentOwner = null;
+		}
+		
+		waitQueue.currentOwner = this; //update currentOwner
+		
+		//Check if we are waiting on this resource, if so, stop waiting
+		if(waiting == waitQueue){
+			waiting = null;
+		}
+		
+		//perform donation
+		if(waitQueue.transferPriority){
+			registerDonation(waitQueue);
+		}	
 	}
-
+	
+	protected void dequeue(PriorityQueue waitQueue){
+		if(waitQueue == null)
+			return;
+		
+		int effectivePriority = getEffectivePriority();
+		
+		if(waitQueue.queue.containsKey(effectivePriority)){
+			Queue<ThreadState> qlist = waitQueue.queue.get(effectivePriority);
+			qlist.remove(this);
+			
+			//If it is empty, clean qlist up
+			if(qlist.isEmpty()){
+				waitQueue.queue.remove(effectivePriority);
+				//the currentOwner no longer has any threads of this priority
+				notifyQueueOwner(waitQueue);
+			}
+		}
+	}
+	
+	protected void requeue(PriorityQueue waitQueue){
+		if(waitQueue == null)
+			return;
+		
+		int effectivePriority = getEffectivePriority();
+		
+		for(Map.Entry<Integer, Queue<ThreadState>> e: waitQueue.queue.entrySet()){
+			if(e.getValue().contains(this)){
+				if(e.getKey().equals(effectivePriority)){
+					return;
+				}
+				else{
+					e.getValue().remove(this);
+					break;
+				}
+			}
+		}
+		
+		Queue<ThreadState> qlist = null;
+		if(waitQueue.queue.containsKey(effectivePriority)){
+			qlist = waitQueue.queue.get(effectivePriority);
+		}
+		else{
+			qlist = new LinkedList<ThreadState>();
+			waitQueue.queue.put(effectivePriority, qlist);
+		}
+		
+		qlist.add(this);
+		
+		notifyQueueOwner(waitQueue);
+	}
+	
+	protected void requeue(){
+		requeue(waiting);
+	}
+	
+	protected void notifyQueueOwner(PriorityQueue waitQueue){
+		if (waitQueue.currentOwner != null && waitQueue.transferPriority){
+			ThreadState currentOwner = waitQueue.currentOwner;
+			currentOwner.revokeDonation(waitQueue);
+			currentOwner.registerDonation(waitQueue);
+		}
+	}
+	
+	protected int getLeadPriority(PriorityQueue queue){			
+		//Figure out the leading priority in this queue
+		if(queue != null)
+		while(!queue.queue.isEmpty()){
+			int qleader = queue.queue.lastKey();
+			Queue<ThreadState> list = queue.queue.get(qleader);
+			if(list.isEmpty()){
+				//Clean up that bucket
+				queue.queue.remove(qleader);
+			}else{
+				//Found the lead:
+				return qleader;
+			}
+		}
+		return priorityMinimum;
+	}
+	
+	protected void registerDonation(int lead, PriorityQueue queue){
+		PriorityDonation donation = new PriorityDonation(lead, queue);
+		priorityCache.add(donation);
+		requeue(); //reinsert itself into proper position after receiving donation
+	}
+	
+	protected void registerDonation(PriorityQueue queue){
+		registerDonation(getLeadPriority(queue), queue);
+	}
+	
+	protected void revokeDonation(PriorityQueue queue){
+		for(PriorityDonation d: priorityCache){
+			if(d.queue == queue){
+				priorityCache.remove(d);
+			}
+			requeue();
+			return;
+		}
+	}
+	
+	
+	//PriorityDonation simply extracts the max priority in PriorityQueue queue
+	protected class PriorityDonation {
+		
+		PriorityDonation(int priority, PriorityQueue queue) {
+    		this.priority = priority;
+    		this.queue = queue;
+    	}
+		
+		public int priority;
+		public PriorityQueue queue;
+	}
+	
+	protected class CompareDonation implements Comparator{
+		public int compare(Object o1, Object o2){
+			PriorityDonation d1 = (PriorityDonation)o1;
+			PriorityDonation d2 = (PriorityDonation)o2;
+			
+			if(d1.priority < d2.priority){
+				return -1;
+			}else if(d1.priority == d2.priority){
+				return 0;
+			}else{
+				return 1;
+			}
+		}
+	}
+	
+	/* 
+	 * priorityCache stores all the queues(each is a PriorityDonation) this thread owns
+	 * waiting stores the queue which this thread is waiting on 
+	 */
+	protected TreeSet<PriorityDonation> priorityCache = new TreeSet<PriorityDonation>(new CompareDonation());
+	protected PriorityQueue waiting = null;
+	
 	/** The thread with which this object is associated. */
 	protected KThread thread;
 	/** The priority of the associated thread. */
