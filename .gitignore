@@ -4,6 +4,7 @@
 *.bak
 *.bbl
 *.blg
+*.class
 *.pdf
 *.gz
 .DS_Store
