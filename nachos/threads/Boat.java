@@ -6,36 +6,25 @@ import nachos.ag.BoatGrader;
 public class Boat
 {
     static BoatGrader bg;
-    static BoatChecker bc;
     static boolean isRowerSet;
     static boolean isRiderSet;
     static int population;
-    static Lock AllMove;
-    static Semaphore End;
-    static Condition CVEnd;
-    static Lock RowerMove;
-    static Condition CVRowerMove;
-    static Lock RiderMove;
-    static Condition CVRiderMove;
-    static Lock BeingCarried;
-    static Semaphore Register;
-    static Semaphore LockTransmitted;
-    static boolean isAdult;
     
-    static Semaphore errOccurs;
-    static String errMessage;
+    static boolean isAdult;
+    static Lock move;
+    static Condition rowerMove;
+    static Condition riderMove;
+    static Condition passengerMove;
+    static Condition mainMove;
+    static Condition waitingMove;
+    
 
     public static void selfTest()
     {
-	BoatGrader b = new BoatGrader();
+    	BoatChecker bc = new BoatChecker();
 
-	try{
-		begin(10, 8, b);
-	}
-	catch(Exception e)
-	{
-		System.out.println(e.toString());
-	}
+		begin(10, 10, bc);
+		bc.Halting();
 
 //	System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
 //  	begin(1, 2, b);
@@ -44,34 +33,29 @@ public class Boat
 //  	begin(3, 3, b);
     }
 
-    public static void begin( int adults, int children, BoatGrader b ) throws Exception
+    public static void begin( int adults, int children, BoatGrader b )
     {
 	// Store the externally generated autograder in a class
 	// variable to be accessible by children.
 	bg = b;
-	bc = new BoatChecker(adults, children);
 	isRowerSet = false;
 	isRiderSet = false;
 	population = 0;
-	AllMove = new Lock();
-	End = new Semaphore(0);
-	RowerMove = new Lock();
-	CVRowerMove = new Condition(RowerMove);
-	RiderMove = new Lock();
-	CVRiderMove = new Condition(RiderMove);
-	BeingCarried = new Lock();
-	Register = new Semaphore(0);
-	LockTransmitted = new Semaphore(0);
 	
-	errOccurs = new Semaphore(1);
-	errMessage = null;
+	move = new Lock();
+	riderMove = new Condition(move);
+	rowerMove = new Condition(move);
+	passengerMove = new Condition(move);
+	waitingMove = new Condition(move);
+	mainMove = new Condition(move);
+	
 
 	// Instantiate global variables here
 
 	// Create threads here. See section 3.4 of the Nachos for Java
 	// Walkthrough linked from the projects page.
 
-	AllMove.acquire();
+	move.acquire();
 	
 	Runnable child = new Runnable() {
 	    public void run() {
@@ -90,23 +74,21 @@ public class Boat
     	KThread t = new KThread(child);
     	t.setName("Child Thread " + i);
     	t.fork();
-    	Register.P();    	
+    	mainMove.sleep();
     }
 	for(int i = 0; i < adults; i ++)
 	{
     	KThread t = new KThread(adult);
     	t.setName("Adult Thread " + i);
     	t.fork();
-    	Register.P();    
+    	mainMove.sleep();
 	}
-	AllMove.release();
-	End.P();
-	Halting();
+	rowerMove.wake();
+	mainMove.sleep();
     }
 
     static void AdultItinerary()
     {
-    	try{
 	bg.initializeAdult(); //Required for autograder interface. Must be the first thing called.
 	//DO NOT PUT ANYTHING ABOVE THIS LINE.
 
@@ -116,175 +98,99 @@ public class Boat
 	       bg.AdultRowToMolokai();
 	   indicates that an adult has rowed the boat across to Molokai
 	*/
+	move.acquire();
 	population ++;
-	Register.V();
-	AllMove.acquire();
-	AllMove.release();
-	BeingCarried.acquire();
+	mainMove.wake();
+	waitingMove.sleep();
 	isAdult = true;
-	RowerMove.acquire();
-	CVRowerMove.wake();
-	CVRowerMove.sleep();
-	AdultRowToMolokai();
+	rowerMove.wake();
+	passengerMove.sleep();
+	bg.AdultRowToMolokai();
 	population --;
-	CVRowerMove.wake();
-	RowerMove.release();
-	LockTransmitted.P();
-	BeingCarried.release();
-    	}
-    	catch(Exception e)
-    	{
-    		errOccurs.P();
-    		errMessage = e.getMessage();
-    		End.V();
-    	}
+	rowerMove.wake();
+    move.release();
     }
 
     static void ChildItinerary()
     {
-    	try{
 	bg.initializeChild(); //Required for autograder interface. Must be the first thing called.
 	//DO NOT PUT ANYTHING ABOVE THIS LINE.
+	move.acquire();
 	population ++;
-	boolean isRower = false;
-	boolean isRider = false;
 	if(isRowerSet == false)
 	{
 		isRowerSet = true;
-		isRower = true;
+		Rower();
 	}
 	else if(isRiderSet == false)
 	{
 
 		isRiderSet = true;
-		isRider = true;
+		Rider();
 	}
-	if(isRower == true) Rower();
-	else if(isRider == true) Rider();
 	else
 	{
-		Register.V();
-		AllMove.acquire();
-		AllMove.release();
-		BeingCarried.acquire();
+		mainMove.wake();
+		waitingMove.sleep();
 		isAdult = false;
-		RowerMove.acquire();
-		CVRowerMove.wake();
-		CVRowerMove.sleep();
-		ChildRideToMolokai();
+		rowerMove.wake();
+		passengerMove.sleep();
+		bg.ChildRideToMolokai();
 		population --;
-		CVRowerMove.wake();
-		RowerMove.release();
-		LockTransmitted.P();
-		BeingCarried.release();
+		rowerMove.wake();
 	}
-	}
-    	catch(Exception e)
-    	{
-    		errOccurs.P();
-    		errMessage = e.getMessage();
-    		End.V();
-    	}
+    move.release();
+    	
     }
 
-    static void Rower() throws Exception
+    static void Rower()
     {
-    	RowerMove.acquire();
-    	RiderMove.acquire();
-    	Register.V();
-    	AllMove.acquire();
-    	AllMove.release();
+    	mainMove.wake();
+    	rowerMove.sleep();
     	while(population >= 3)
     	{
-    		CVRowerMove.sleep();
+    		waitingMove.wake();
+    		rowerMove.sleep();
     		if(isAdult == true)
     		{
-    			ChildRowToMolokai();
-    			CVRiderMove.wake();
-    			CVRiderMove.sleep();
-    			CVRowerMove.wake();
-    			CVRowerMove.sleep();
-    			ChildRowToOahu();
-    			LockTransmitted.V();
+    			bg.ChildRowToMolokai();
+    			riderMove.wake();
+    			rowerMove.sleep();
+    			passengerMove.wake();
+    			rowerMove.sleep();
+    			bg.ChildRowToOahu();
     		}
     		else
     		{
 
-    			ChildRowToMolokai();
-    			CVRowerMove.wake();
-    			CVRowerMove.sleep();
-    			ChildRowToOahu();
-    			LockTransmitted.V();
+    			bg.ChildRowToMolokai();
+    			passengerMove.wake();
+    			rowerMove.sleep();
+    			bg.ChildRowToOahu();
     		}
     	}
-    	RowerMove.release();
-    	ChildRowToMolokai();
-    	CVRiderMove.wake();
-    	CVRiderMove.sleep();
-    	RiderMove.release();
-    	End.V();
+    	bg.ChildRowToMolokai();
+    	riderMove.wake();
     }
     
-    static void Rider() throws Exception
+    static void Rider()
     {
-    	Register.V();
-    	AllMove.acquire();
-    	AllMove.release();
-    	RiderMove.acquire();
+    	mainMove.wake();
+    	riderMove.sleep();
     	while(population >= 3)
     	{
 
-    		ChildRideToMolokai();
-    		ChildRowToOahu();
-    		CVRiderMove.wake();
-    		CVRiderMove.sleep();
+    		bg.ChildRideToMolokai();
+    		bg.ChildRowToOahu();
+    		rowerMove.wake();
+    		riderMove.sleep();
     	}
-    	ChildRideToMolokai();
-    	CVRiderMove.wake();
-    	RiderMove.release();
-    }
-    
-    static void ChildRideToMolokai() throws Exception
-    {
     	bg.ChildRideToMolokai();
-    	bc.ChildRideToMolokai();
-    }
-    static void ChildRowToMolokai() throws Exception
-    {
-    	bg.ChildRowToMolokai();
-    	bc.ChildRowToMolokai();
-    }
-    static void AdultRowToMolokai() throws Exception
-    {
-    	bg.AdultRowToMolokai();
-    	bc.AdultRowToMolokai();
-    }
-    static void ChildRowToOahu() throws Exception
-    {
-    	bg.ChildRowToOahu();
-    	bc.ChildRowToOahu();
-    }
-    static void ChildRideToOahu() throws Exception
-    {
-    	bg.ChildRideToOahu();
-    	bc.ChildRideToOahu();
-    }
-    static void AdultRowToOahu() throws Exception
-    {
-    	bg.AdultRowToOahu();
-    	bc.AdultRowToOahu();
-    }
-    static void Halting() throws Exception
-    {
-    	if(errMessage != null)
-    	{
-    		throw new Exception(errMessage);
-    	}
-    	bc.Halting();
+    	mainMove.wake();
     }
 }
 
-class BoatChecker
+class BoatChecker extends BoatGrader
 {
 	private int adultOnOahu;
 	private int childOnOahu;
@@ -304,18 +210,32 @@ class BoatChecker
 	}
 	private State state;
 	
-	public BoatChecker(int adults, int children)
+	public BoatChecker()
 	{
-		adultOnOahu = adults;
+		super();
+		adultOnOahu = 0;
 		adultOnMolokai = 0;
-		childOnOahu = children;
+		childOnOahu = 0;
 		childOnMolokai = 0;
 		step = 0;
 		state = State.START;
 	}
 	
-	public void ChildRowToMolokai() throws Exception
+	public void initializeChild()
 	{
+		super.initializeChild();
+		childOnOahu ++;
+	}
+	
+	public void initializeAdult()
+	{
+		super.initializeAdult();
+		adultOnOahu ++;
+	}
+	
+	public void ChildRowToMolokai()
+	{
+		super.ChildRowToMolokai();
 		step ++;
 		switch(state)
 		{
@@ -326,18 +246,19 @@ class BoatChecker
 			state = State.CHILD_ROW_MOL;
 			break;
 		default:
-			throw new Exception("On step " + step + ", transition error: boat is not on Oahu");
+			System.out.println("On step " + step + ", transition error: boat is not on Oahu");
 		}
 		childOnOahu --;
 		childOnMolokai ++;
 		if(childOnOahu < 0)
 		{
-			throw new Exception("On step " + step + ", population error: there's no child on Oahu");
+			System.out.println("On step " + step + ", population error: there's no child on Oahu");
 		}
 	}
 	
-	public void ChildRideToMolokai() throws Exception
+	public void ChildRideToMolokai()
 	{
+		super.ChildRideToMolokai();
 		step ++;
 		if(state == State.CHILD_ROW_MOL)
 		{
@@ -345,18 +266,19 @@ class BoatChecker
 		}
 		else
 		{
-			throw new Exception("On step " + step + ", transition error: no one is rowing the boat on Oahu");
+			System.out.println("On step " + step + ", transition error: no one is rowing the boat on Oahu");
 		}
 		childOnOahu --;
 		childOnMolokai ++;
 		if(childOnOahu < 0)
 		{
-			throw new Exception("On step " + step + ", population error: there's no child on Oahu");
+			System.out.println("On step " + step + ", population error: there's no child on Oahu");
 		}
 	}
 	
-	public void AdultRowToMolokai() throws Exception
+	public void AdultRowToMolokai()
 	{
+		super.AdultRowToMolokai();
 		step ++;
 		switch(state)
 		{
@@ -367,18 +289,19 @@ class BoatChecker
 			state = State.ADULT_ROW_MOL;
 			break;
 			default:
-				throw new Exception("On step " + step + ", transition error: boat is not on Oahu");
+				System.out.println("On step " + step + ", transition error: boat is not on Oahu");
 		}
 		adultOnOahu --;
 		adultOnMolokai ++;
 		if(adultOnOahu < 0)
 		{
-			throw new Exception("On step " + step + ", population error: there's no adult on Oahu");
+			System.out.println("On step " + step + ", population error: there's no adult on Oahu");
 		}
 	}
 	
-	public void ChildRowToOahu() throws Exception
+	public void ChildRowToOahu()
 	{
+		super.ChildRowToOahu();
 		step ++;
 		switch(state)
 		{
@@ -388,18 +311,19 @@ class BoatChecker
 			state = State.CHILD_ROW_OAH;
 			break;
 		default:
-			throw new Exception("On step " + step + ", transition error: boat is not on Molokai");
+			System.out.println("On step " + step + ", transition error: boat is not on Molokai");
 		}
 		childOnMolokai --;
 		childOnOahu ++;
 		if(childOnMolokai < 0)
 		{
-			throw new Exception("On step " + step + ", population error: there's no child on Oahu");
+			System.out.println("On step " + step + ", population error: there's no child on Oahu");
 		}
 	}
 	
-	public void ChildRideToOahu() throws Exception
+	public void ChildRideToOahu()
 	{
+		super.ChildRideToOahu();
 		step ++;
 		if(state == State.CHILD_ROW_OAH)
 		{
@@ -407,18 +331,19 @@ class BoatChecker
 		}
 		else
 		{
-			throw new Exception("On step " + step + ", transition error: no one is rowing the boat on Molokai");
+			System.out.println("On step " + step + ", transition error: no one is rowing the boat on Molokai");
 		}
 		childOnOahu ++;
 		childOnMolokai --;
 		if(childOnOahu < 0)
 		{
-			throw new Exception("On step " + step + ", population error: there's no child on Molokai");
+			System.out.println("On step " + step + ", population error: there's no child on Molokai");
 		}
 	}
 	
-	public void AdultRowToOahu() throws Exception
+	public void AdultRowToOahu()
 	{
+		super.AdultRowToOahu();
 		step ++;
 		switch(state)
 		{
@@ -429,17 +354,17 @@ class BoatChecker
 			state = State.ADULT_ROW_OAH;
 			break;
 			default:
-				throw new Exception("On step " + step + ", transition error: boat is not on Molokai");
+				System.out.println("On step " + step + ", transition error: boat is not on Molokai");
 		}
 		adultOnOahu ++;
 		adultOnMolokai --;
 		if(adultOnOahu < 0)
 		{
-			throw new Exception("On step " + step + ", population error: there's no adult on Molokai");
+			System.out.println("On step " + step + ", population error: there's no adult on Molokai");
 		}
 	}
 	
-	public void Halting() throws Exception
+	public void Halting()
 	{
 		switch(state)
 		{
@@ -449,11 +374,11 @@ class BoatChecker
 			state = State.HALT;
 			break;
 			default:
-				throw new Exception("On step " + step + ", halting error: boat is not on Molokai");
+				System.out.println("On step " + step + ", halting error: boat is not on Molokai");
 		}
 		if(childOnOahu > 0 || adultOnOahu > 0)
 		{
-			throw new Exception("On step " + step + ", halting error: there are still people on Oahu" + childOnOahu + " / " + adultOnOahu);
+			System.out.println("On step " + step + ", halting error: there are still people on Oahu" + childOnOahu + " / " + adultOnOahu);
 		}
 		int minStep = 5 * adultOnMolokai + 3 * childOnMolokai - 4;
 		System.out.println("Successfully carried " + adultOnMolokai + " adults and " + childOnMolokai + " children from Oahu to Molokai within " + step + "/" + minStep + " steps");
