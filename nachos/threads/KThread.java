@@ -187,8 +187,6 @@ public class KThread {
 	Lib.debug(dbgThread, "Finishing thread: " + currentThread.toString());
 
 	Machine.interrupt().disable();
-	
-	currentThread.joinSemaphore.V();
 
 	Machine.autoGrader().finishingCurrentThread();
 
@@ -197,6 +195,8 @@ public class KThread {
 
 
 	currentThread.status = statusFinished;
+	
+	currentThread.finishSemaphore.V();
 
 	sleep();
     }
@@ -278,11 +278,11 @@ public class KThread {
      */
     public void join() {
 	Lib.debug(dbgThread, "Joining to thread: " + toString());
-	
-	joinSemaphore.P();
-	joinSemaphore.V();
 
 	Lib.assertTrue(this != currentThread);
+	
+	finishSemaphore.P();
+	finishSemaphore.V();
 
     }
 
@@ -403,6 +403,45 @@ public class KThread {
 
 	private int which;
     }
+    
+    
+    private static class Caller implements Runnable {
+    	Caller(int which1, int which2, KThread calleeThread, int times1, int times2) {
+    		this.which1 = which1;
+    		this.which2 = which2;
+    		this.calleeThread = calleeThread;
+    		this.times1 = times1;
+    		this.times2 = times2;
+    	}
+    	public void run() {
+    	    System.out.println("*** thread " + which1 + " starts.");
+    	    for (int i=0; i<times1; i++) {
+    			System.out.println("*** thread " + which1 + " looped "
+    					   + i + " times");
+    			currentThread.yield();
+    	    }
+    	    if(calleeThread != null)
+    	    {
+    	    	System.out.println("*** For thread " + which1 + ": thread " + which2 + " joins");
+    	    	calleeThread.join();
+    	    	System.out.println("*** For thread " + which1 + ": thread " + which2 + " finishs");
+    	    }
+
+    	    for (int i=0; i<times2; i++) {
+    	    	System.out.println("*** thread " + which1 + " looped "
+    				       + (i + times1) + " times");
+    	    	currentThread.yield();
+    	    }
+    	    System.out.println("*** thread " + which1 + " finishs.");
+    	}
+    	
+    	private int which1;
+    	private int which2;
+    	private KThread calleeThread;
+    	private int times1;
+    	private int times2;
+    }
+    
 
     /**
      * Tests whether this module is working.
@@ -410,11 +449,89 @@ public class KThread {
     public static void selfTest() {
 	Lib.debug(dbgThread, "Enter KThread.selfTest");
 
-	new KThread(new PingTest(1)).setName("forked thread").fork();
-//	new KThread(new PingTest(0)).setName("main thread").fork();
-	new PingTest(0).run();
+	/**
+	 * Tests for ping
+	 */
+//	new KThread(new PingTest(1)).setName("forked thread").fork();
+//	new KThread(new PingTest(0)).setName("forked thread").fork();
+//	new PingTest(0).run();
 	
-	System.out.println("Testing");
+	KThread thread1, thread2, thread3, thread4;
+	
+	/**
+	 * Tests for case 1
+	 */
+	System.out.println("\ncase 1:");
+	thread2 = new KThread(new Caller(2, -1, null, 1, 3));
+	thread1 = new KThread(new Caller(1, 2, thread2, 2, 4));
+	
+	thread1.fork();
+	thread2.fork();
+	thread1.join();
+	thread2.join();
+	
+	/**
+	 * Tests for case 2
+	 */
+	System.out.println("\ncase 2:");
+	thread2 = new KThread(new Caller(2, -1, null, 2, 0));
+	thread1 = new KThread(new Caller(1, 2, thread2, 4, 2));
+	
+	thread1.fork();
+	thread2.fork();
+	thread1.join();
+	thread2.join();
+	
+	/**
+	 * Tests for case 3
+	 */
+	System.out.println("\ncase 3:");
+	thread3 = new KThread(new Caller(3, -1, null, 7, 0));
+	thread2 = new KThread(new Caller(2, 3, thread3, 1, 3));
+	thread1 = new KThread(new Caller(1, 2, thread2, 4, 2));
+	
+	thread1.fork();
+	thread2.fork();
+	thread3.fork();
+	thread1.join();
+	thread2.join();
+	thread3.join();
+	
+	/**
+	 * Tests for case 4
+	 */
+	System.out.println("\ncase 4:");
+	thread3 = new KThread(new Caller(4,-1, null, 10, 0));
+	thread2 = new KThread(new Caller(2, -1, null, 1, 3));
+	thread1 = new KThread(new Caller(1, 2, thread2, 2, 4));
+
+	thread1.fork();
+	thread2.fork();
+	thread3.fork();
+	thread1.join();
+	thread2.join();
+	thread3.join();
+	
+	/**
+	 * Tests for all
+	 */
+	System.out.println("\ncase 5:");
+	thread4 = new KThread(new Caller(4,-1,null, 10, 0));
+	thread3 = new KThread(new Caller(3, -1, null, 5, 0));
+	thread2 = new KThread(new Caller(2, 3, thread3, 1, 3));
+	thread1 = new KThread(new Caller(1, 2, thread2, 4, 2));
+	
+	
+	thread1.fork();
+	thread2.fork();
+	thread3.fork();
+	thread4.fork();
+	thread1.join();
+	thread2.join();
+	thread3.join();
+	thread4.join();
+	
+	System.out.println("");
     }
 
     private static final char dbgThread = 't';
@@ -441,6 +558,7 @@ public class KThread {
     private String name = "(unnamed thread)";
     private Runnable target;
     private TCB tcb;
+    private Semaphore finishSemaphore = new Semaphore(0);
 
     /**
      * Unique identifer for this thread. Used to deterministically compare
@@ -454,6 +572,5 @@ public class KThread {
     private static KThread currentThread = null;
     private static KThread toBeDestroyed = null;
     private static KThread idleThread = null;
-    
-    private Semaphore joinSemaphore = new Semaphore(0); 
 }
+
