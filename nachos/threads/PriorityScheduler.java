@@ -311,10 +311,18 @@ public class PriorityScheduler extends Scheduler {
 		}	
 	}
 	
+	/**
+	 * remove this thread from PriorityQueue waitQueue
+	 * if a level of priority is cleaned up, then we call notifyQueueOwner(waitQueue)
+	 * to update currentOwner's priority
+	 * @param waitQueue
+	 */
 	protected void dequeue(PriorityQueue waitQueue){
+		//Check if we really need to do anything
 		if(waitQueue == null)
 			return;
 		
+		//Where should this thread have been in the queue?
 		int effectivePriority = getEffectivePriority();
 		
 		if(waitQueue.queue.containsKey(effectivePriority)){
@@ -330,18 +338,26 @@ public class PriorityScheduler extends Scheduler {
 		}
 	}
 	
+	/**
+	 * thread reinsert itself into a PriorityQueue 
+	 * @param waitQueue
+	 */
 	protected void requeue(PriorityQueue waitQueue){
+		//Do we really need to do anything?
 		if(waitQueue == null)
 			return;
 		
+		//Check if we need to update the order 
 		int effectivePriority = getEffectivePriority();
 		
 		for(Map.Entry<Integer, Queue<ThreadState>> e: waitQueue.queue.entrySet()){
 			if(e.getValue().contains(this)){
 				if(e.getKey().equals(effectivePriority)){
+					//the order is correct, just return
 					return;
 				}
 				else{
+					//the order is wrong, prepare to reinsert
 					e.getValue().remove(this);
 					break;
 				}
@@ -350,15 +366,17 @@ public class PriorityScheduler extends Scheduler {
 		
 		Queue<ThreadState> qlist = null;
 		if(waitQueue.queue.containsKey(effectivePriority)){
-			qlist = waitQueue.queue.get(effectivePriority);
+			qlist = waitQueue.queue.get(effectivePriority); //Priority level already exists in the queue
 		}
 		else{
+			//Priority Level does not exist in the queue yet
 			qlist = new LinkedList<ThreadState>();
 			waitQueue.queue.put(effectivePriority, qlist);
 		}
 		
 		qlist.add(this);
 		
+		//notify the currentOwner to update its priority
 		notifyQueueOwner(waitQueue);
 	}
 	
