@@ -122,7 +122,7 @@
     because \texttt{KThread::finishSemaphore} is a private
     member variable, we need to modify its value in methord \texttt{finish()}.
     The pseudo code is as follows:
-    \begin{algorithm}
+    \begin{algorithm}[htbp]
       \caption{\texttt{KThread::join()}}
       \begin{algorithmic}[1]
 	\STATE /* the given code */
@@ -131,7 +131,7 @@
       \end{algorithmic}
     \end{algorithm}
 
-    \begin{algorithm}
+    \begin{algorithm}[htbp]
       \caption{\texttt{KThread::finish()}}
       \begin{algorithmic}[1]
 	\STATE /* the given code except sleep() */
@@ -161,7 +161,7 @@
     \subsection{Pseudocode}
     \textit{Variables: }
     \texttt{waitQueue = \color{blue}new ThreadedKernel.scheduler.newThreadQueue(false);} is a \texttt{ThreadQueue} for threads blocked by \texttt{sleep()}.
-    \begin{algorithm}
+    \begin{algorithm}[htbp]
       \caption{ \texttt{void Condition2::sleep()}}
       \begin{algorithmic}
 	\STATE Disable interrupts
@@ -173,7 +173,7 @@
       \end{algorithmic}
     \end{algorithm}
 
-    \begin{algorithm}
+    \begin{algorithm}[htbp]
       \caption{ \texttt{void Condition2::wake()}}
       \begin{algorithmic}
 	\STATE Disable interrupts
@@ -184,7 +184,7 @@
       \end{algorithmic}
     \end{algorithm}
 
-    \begin{algorithm}
+    \begin{algorithm}[htbp]
       \caption{ \texttt{void Condition2::wakeAll()}}
       \begin{algorithmic}
 	\STATE Disable interrupts
@@ -206,7 +206,7 @@
     \end{asparaitem}
     \subsection{Testing Pesudocodes}
 
-    \begin{algorithm}
+    \begin{algorithm}[htbp]
       \caption{\texttt{Producer::run()}}
       \begin{algorithmic}
         \STATE \texttt{//enqueue items }
@@ -220,7 +220,7 @@
       \end{algorithmic}
     \end{algorithm}
 
-    \begin{algorithm}
+    \begin{algorithm}[htbp]
       \caption{\texttt{Consumer::run()}}
       \begin{algorithmic}
         \STATE \texttt{//dequeue items }
@@ -235,7 +235,7 @@
         \STATE \texttt{lock.release(); }
       \end{algorithmic}
     \end{algorithm}
-    \begin{algorithm}
+    \begin{algorithm}[htbp]
       \caption{\texttt{ProducerConsumerTest::ProducerConsumerTest(int numProducer, int numConsumer, int productsPerProducer=1)}}
       \begin{algorithmic}
             \STATE \texttt{\color{blue}//Initialize producers and consumers }
@@ -266,7 +266,7 @@
           \end{algorithmic}
         \end{algorithm}
 
-    \begin{algorithm}
+    \begin{algorithm}[htbp]
       \caption{\texttt{Condition2::selfTest()}}
       \begin{algorithmic}
         \STATE {\color{blue}\texttt{//Case 1: 1 producer, 1 consumer }}
@@ -347,7 +347,7 @@
     \item Case 4: several threads with arbitrary wait time.
     \end{asparaitem}
   \subsection{Test Pseudocodes}
-  \begin{algorithm}
+  \begin{algorithm}[htbp]
     \caption{\texttt{sleepThread::run()}}
     \begin{algorithmic}
 \STATE \texttt{long startTime = Machine.timer().getTime();  }
@@ -360,7 +360,7 @@
     \end{algorithmic}
   \end{algorithm}
 
-  \begin{algorithm}
+  \begin{algorithm}[htbp]
     \caption{\texttt{Alarm::selfTest()}}
     \begin{algorithmic}
       \STATE {\color{blue}\texttt{//Case 1 }}
@@ -438,7 +438,7 @@
 
     \subsection{Description}
 
-    \begin{algorithm}
+    \begin{algorithm}[htbp]
       \caption{\texttt{Communicator::speak(w)}}
       \begin{algorithmic}[1]
 	\STATE lock.acquire();
@@ -459,7 +459,7 @@
       \end{algorithmic}
     \end{algorithm}
 
-    \begin{algorithm}
+    \begin{algorithm}[htbp]
       \caption{\texttt{Communicator::listen()}}
       \begin{algorithmic}[1]
 	\STATE lock.acquire();
@@ -516,7 +516,7 @@ We use \texttt{LinkedList<PriorityQueue> waitBy} and \texttt{PriorityQueue waitO
 
 The following algorithm describes the implementation of \texttt{getEffectivePriority} in high level.
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{calculate effective priority}
 \begin{algorithmic}[1]
   \STATE Initialize EP and donatorEP as default priority
@@ -534,7 +534,7 @@ The following algorithm describes the implementation of \texttt{getEffectivePrio
 
 To clarify how we manipulate data structure, we illustrate the implementation of function \linebreak \texttt{PriorityQueue.waitForAccess}, \texttt{PriorityQueue.acquire} and \texttt{PriorityQueue.nextThread} (actually, \linebreak \texttt{waitForAccess} and \texttt{acquire} are implemented in class \texttt{ThreadState}).
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{\texttt{ThreadState.wairForAccess(PriorityQueue waitQueue)}}
 \begin{algorithmic}[1]
   \STATE waitQueue.add(this)  \COMMENT{add this thread to waitQueue}
@@ -544,7 +544,7 @@ To clarify how we manipulate data structure, we illustrate the implementation of
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{\texttt{ThreadState.acquire(PriorityQueue waitQueue)}}
 \begin{algorithmic}[1]
   \STATE waitQueue.owner $\leftarrow$ this
@@ -554,7 +554,7 @@ To clarify how we manipulate data structure, we illustrate the implementation of
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{\texttt{nextThread}}
 \begin{algorithmic}[1]
   \STATE Initialize chosenThread as null
@@ -579,7 +579,7 @@ We need to test the following things. The test is done in \texttt{selfTest()}
 \item \texttt{Acquire()} will work well, and add queue to the queue list
 \end{itemize}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{\texttt{selfTest}}
 \begin{algorithmic}[1]
   \STATE Initialize a PriorityScheduler \texttt{s}
