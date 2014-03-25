@@ -24,7 +24,7 @@
   showtabs=false,
   breaklines=true,
   showstringspaces=false,
-  breakatwhitespace=true,
+  breakatwhitespace=false,
   commentstyle=\color{pgreen},
   keywordstyle=\color{pblue},
   stringstyle=\color{pred},
@@ -238,7 +238,7 @@
     \begin{algorithm}
       \caption{\texttt{ProducerConsumerTest::ProducerConsumerTest(int numProducer, int numConsumer, int productsPerProducer=1)}}
       \begin{algorithmic}
-            \STATE \texttt{//Initialize producers and consumers }
+            \STATE \texttt{\color{blue}//Initialize producers and consumers }
             \FOR{\texttt{int i = 0; i < numProducer; i++}}
             \STATE \texttt{producers.push(new Producer(i, productsPerProducer)); }
             \STATE \texttt{order.push(1); }
@@ -247,6 +247,7 @@
             \STATE \texttt{consumers.push(new Consumer(i)); }
             \STATE \texttt{order.push(2); }
             \ENDFOR
+            \STATE\texttt{\color{blue} //use random order to execute producers and consumers}
             \STATE \texttt{Collections.shuffle(order); }
             \STATE \texttt{Stack<KThread> joinStack = new Stack<KThread>(); }
             \FOR{\texttt{int i = 0; i < numProducer + numConsumer; i++}}
@@ -298,6 +299,7 @@
     \begin{lstlisting}
     public void timerInterrupt() {
     Machine.interrupt().disable();
+    //poll threads that have slept for expected
    	while (!queue.isEmpty() &&
 			(queue.peek().wakeTime < Machine.timer().getTime())) {
    		queue.poll().thread.ready();
@@ -310,11 +312,12 @@
     public void waitUntil(long x) {
     Machine.interrupt().disable();
 	long wakeTime = Machine.timer().getTime() + x;
+    //put threads to sleep
 	queue.offer(new AlarmThread(KThread.currentThread(), wakeTime));
 	KThread.sleep();
 	Machine.interrupt().enable();
     }
-
+    //wrapper class that combines threads with their sleeping time
     private class AlarmThread implements Comparable {
     	AlarmThread(KThread thread, long wakeTime) {
     		this.thread = thread;
@@ -354,15 +357,6 @@
 \STATE \texttt{System.out.println("*** thread " + which + " wakes after " }
 \STATE \texttt{+ (currentTime - startTime) }
 \STATE \texttt{+ " ticks\ n\ tat time " + currentTime); }
-    \end{algorithmic}
-  \end{algorithm}
-
-  \begin{algorithm}
-    \caption{\texttt{Alarm::sleepTest()}}
-    \begin{algorithmic}
-      \STATE \texttt{KThread thread = new KThread(new sleepThread(0, 0)); }
-      \STATE \texttt{thread.fork(); }
-      \STATE \texttt{thread.join(); }
     \end{algorithmic}
   \end{algorithm}
 
@@ -628,60 +622,159 @@ The whole carring strategy is just the repeated execution of those two subroutin
 Pseudocodes are presented in the algorithm boxes.\\
 
 \begin{lstlisting}
- public static void begin( int adults, int children, BoatGrader b )
-    {
-	bg = b;
-	isRowerSet = false;
-	isRiderSet = false;
-	population = 0;
+public static void begin(int adults, int children, BoatGrader b)
+{
+  bg = b;
+  isRowerSet = false;
+  isRiderSet = false;
+  population = 0;
 	
-	move = new Lock();
-	riderMove = new Condition(move);
-	rowerMove = new Condition(move);
-	passengerMove = new Condition(move);
-	waitingMove = new Condition(move);
-	mainMove = new Condition(move);
+  move = new Lock(); // mutex initializing
+  riderMove = new Condition(move);
+  rowerMove = new Condition(move);
+  passengerMove = new Condition(move);
+  waitingMove = new Condition(move);
+  mainMove = new Condition(move);
 	
-
-	move.acquire();
+  move.acquire();
 	
-	Runnable child = new Runnable() {
-	    public void run() {
-            ChildItinerary();
-        }
-    };
-
-	Runnable adult = new Runnable() {
-	    public void run() {
-            AdultItinerary();
-        }
-    };
-
-    for(int i = 0; i < children; i ++)
-    {
-    	KThread t = new KThread(child);
-    	t.setName("Child Thread " + i);
-    	t.fork();
-    	mainMove.sleep();
+  Runnable child = new Runnable() {
+	public void run() {
+      ChildItinerary();
     }
-	for(int i = 0; i < adults; i ++)
-	{
-    	KThread t = new KThread(adult);
-    	t.setName("Adult Thread " + i);
-    	t.fork();
-    	mainMove.sleep();
-	}
-	rowerMove.wake(); //wake up rower to start carrying; will be woken up by halting or error
-	mainMove.sleep();
+  };
+
+  Runnable adult = new Runnable() {
+      public void run() {
+      AdultItinerary();
     }
+  };
+
+  for(int i = 0; i < children; i ++)
+  {
+    KThread t = new KThread(child);
+    t.setName("Child Thread " + i);
+    t.fork();
+    mainMove.sleep(); // wait for the child initializing
+  }
+  for(int i = 0; i < adults; i ++)
+  {
+    KThread t = new KThread(adult);
+    t.setName("Adult Thread " + i);
+    t.fork();
+    mainMove.sleep(); // wait for the adult initializing
+  }
+  rowerMove.wake(); //wake up rower to start carrying; will be woken up by halting or error
+  mainMove.sleep();
+}
+
+
+static void AdultItinerary()
+{
+  bg.initializeAdult();
+
+  move.acquire();
+  population ++;
+
+  mainMove.wake(); // initialization is finished. Start waiting
+  waitingMove.sleep();
+
+  // protocol part
+  isAdult = true;
+  rowerMove.wake();
+  passengerMove.sleep();
+  bg.AdultRowToMolokai();
+  population --;
+  rowerMove.wake();
+  move.release();
+
+}
+
+static void ChildItinerary()
+{
+  bg.initializeChild();
+  move.acquire();
+  population ++;
+  if(isRowerSet == false)
+  {
+    isRowerSet = true;
+    Rower();
+  }
+  else if(isRiderSet == false)
+  {
+    isRiderSet = true;
+    Rider();
+  }
+  else
+  {
+    mainMove.wake();
+    waitingMove.sleep();
+
+    // protocol part
+    isAdult = false;
+    rowerMove.wake();
+    passengerMove.sleep();
+    bg.ChildRideToMolokai();
+    population --;
+    rowerMove.wake();
+  }
+
+  move.release();
+}
+
+static void Rower()
+{
+  mainMove.wake();
+  rowerMove.sleep();
+  while(population >= 3)
+  {
+    waitingMove.wake();
+    rowerMove.sleep();
+    if(isAdult == true) // protocol for adult
+    {
+      bg.ChildRowToMolokai();
+      riderMove.wake();
+      rowerMove.sleep();
+      passengerMove.wake();
+      rowerMove.sleep();
+      bg.ChildRowToOahu();
+    }
+    else // protocol for children
+    {
+      bg.ChildRowToMolokai();
+      passengerMove.wake();
+      rowerMove.sleep();
+      bg.ChildRowToOahu();
+    }
+  }
+  bg.ChildRowToMolokai();
+  riderMove.wake();
+}
+
+static void Rider()
+{
+  mainMove.wake();
+  riderMove.sleep();
+
+  while(population >= 3)
+  {
+    bg.ChildRideToMolokai();
+    bg.ChildRowToOahu();
+    rowerMove.wake();
+    riderMove.sleep();
+  }
+
+  bg.ChildRideToMolokai();
+  mainMove.wake(); // wake up the main thread to finish
+}
 \end{lstlisting}
 
 \subsection{Test Taken}
 \subsubsection{Correctness Analysis}
-To test the correctness of the role-assigning strategy, we used a class \texttt{BoatChecker} to take charge of all testing tasks.\\
-When \texttt{begin()} is called, the BoatChecker \texttt{bc} is initialized with all people and the boat on Oahu. Each time someone row or ride the boat, it sends a message to \texttt{bc}, which will simulate the actual boat rowing and check for errors. Those errors can be divided into two kinds:
+To test the correctness of the role-assigning strategy, we created a class \texttt{BoatChecker extends BoatGrader} to take charge of all testing tasks.\\
+In our \texttt{selfTest()}, we called \texttt{begin} using a \texttt{BoatChecker} as the final argument. Each time a message is sent to the checker, it examines the following three kinds of errors:\\
 \begin{itemize}
-  \item State transition error: the state transition is not permitted. We will discuss this later on.\\
+  \item State transition error: the state transition is invalid. We will discuss this later on.\\
   \item Population error: all the numbers of children and adults on both side of the sea should be always non-negative. \texttt{bc} will update th epopulation for each call, and if a negative population number is detected, \texttt{bc} will throw out an exception indicating that population error.\\
   \item Halting error: upon halting there should not be anyone on side Oahu. If there are still people waiting for carring when \texttt{begin()} is going to halt, there is a halting error.\\
 \end{itemize}
@@ -703,125 +796,35 @@ The state of the boat rowing mechanism can be regarded as a DFA below:\\
     \node[state] (arm) [below of = cdm] {ARM};
 
     \path[->]
-    (str) edge [bend right] node {\texttt{AdultRowToMolokai()}} (arm)
-    (str) edge [bend right]node {\texttt{ChildRowToMolokai()}} (cdm)
-    (aro) edge [bend right]node {\texttt{AdultRowToMolokai()}} (arm)
-    (aro) edge [bend right]node {\texttt{ChildRowToMolokai()}} (cdm)
-    (cro) edge [bend right]node {\texttt{AdultRowToMolokai()}} (arm)
-    (cro) edge [bend right]node {\texttt{ChildRowToMolokai()}} (cdm)
-    (cdo) edge [bend right]node {\texttt{AdultRowToMolokai()}} (arm)
-    (cdo) edge [bend right]node {\texttt{ChildRowToMolokai()}} (cdm)
-    (crm) edge [bend right]node {\texttt{ChildRowToOahu()}} (cro)
-    (crm) edge [bend right] node {\texttt{AdultRowToOahu()}} (aro)
-    (cdm) edge [bend right] node {\texttt{ChildRowToOahu()}} (cro)
-    (cdm) edge [bend right] node {\texttt{AdultRowToOahu()}} (aro)
-    (arm) edge [bend right] node {\texttt{ChildRowToOahu()}} (cro)
-    (arm) edge [bend right] node {\texttt{AdultRowToOahu()}} (aro)
-    (cro) edge [bend right] node {\texttt{ChildRideToOahu()}} (cdo)
-    (crm) edge [bend right] node {\texttt{ChildRideToMolokai()}} (cdm)
-    (crm) edge [bend right] node {\texttt{Halting()}} (hlt)
-    (cdm) edge [bend right] node {\texttt{Halting()}} (hlt)
-    (arm) edge [bend right] node {\texttt{Halting()}} (hlt);
+    (str) edge (arm)
+    (str) edge (crm)
+    (cdo) edge (arm)
+    (cdo) edge (crm)
+    (cro) edge (arm)
+    (cro) edge (crm)
+    (aro) edge (arm)
+    (aro) edge (crm)
+    (crm) edge (cro)
+    (crm) edge (aro)
+    (cdm) edge (cro)
+    (cdm) edge (aro)
+    (arm) edge (cro)
+    (arm) edge (aro)
+    (crm) edge (cdm)
+    (cro) edge (cdo)
+    (crm) edge [bend right] (hlt)
+    (cdm) edge [bend right] (hlt)
+    (arm) edge [bend right] (hlt);
 \end{tikzpicture}
 \end{center}
-Each time a method is called, we check if the transition function is permissible. If so, \texttt{bc} updates the state inside it and waits for next call; otherwise \texttt{bc} will throw out an exception indicating that transition error.\\
+Here, a state indicates the function it has just implemented: for example, it is permissible to call \texttt{ChildRowToOahu()} (CRO) just after \texttt{ChildRowToMolokai()}, but it is not valid to call \texttt{ChildRideToMolokai()} after \texttt{ChildRowToOahu()}. The DFA is thus responsible for both the position of the boat and the number of person on the boat.\\
+Each time a method is called, we check if the transition function is permissible. If so, \texttt{bc} will output an error message.\\
 If none of the three kinds of errors occur, the boat rowing scheme will halt normally without any error message. Then \texttt{bc} will output a success message.\\
 \subsubsection{Efficiency Analysis}
 To carry $a$ adults and $b$ children across the sea, it can be proved that the minimum number of steps is $5a+3b-4$. Each time a method is called, \texttt{bc} will increment a counter \texttt{step}, which is initialized to be 0. When \texttt{begin()} halts normally, \texttt{bc} will output
 $$\#\text{Steps taken/ \# Minimum steps}$$
-as a measure of efficiency. Analysis relative to the clocktick has not been implemented yet.\\
-\subsubsection{Sample Output for \texttt{begin(10, 8, bg)}}
-\begin{verbatim}
-A child has forked.
-A child has forked.
-A child has forked.
-A child has forked.
-A child has forked.
-A child has forked.
-A child has forked.
-A child has forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-Successfully carried 10 adults and 8 children from Oahu to Molokai within 70/70 steps
-\end{verbatim}
+as a measure of efficiency. Analysis related to the clocktick has not been implemented yet.\\
 \end{spacing}
+To see the \texttt{BoatChecker} class, see \texttt{Boat.java}.\\
 \end{document}
 
