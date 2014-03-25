@@ -100,13 +100,13 @@
       \item[$\bullet$] Caller thread waits (sleep) until callee thread finishes.
       \item[$\bullet$] If callee thread has finishes, \texttt{join()} just returns
 	directly.
-      \item[$\bullet$] All the threads except caller thread should not be effected. 
+      \item[$\bullet$] All the threads except caller thread should not be effected.
     \end{enumerate}
 
     \subsection{Declarations}
     Here, we can see that in order to implement \texttt{join()} method, we need callee
     thread sends a signal to caller thread once callee finished. Therefore, we use
-    semaphore to reach this goal. 
+    semaphore to reach this goal.
     \begin{enumerate}
       \item[$\bullet$] \textit{data structures}: \texttt{Semaphore}.
       \item[$\bullet$] \textit{member variable}:
@@ -120,7 +120,7 @@
 
     \subsection{Description}
     because \texttt{KThread::finishSemaphore} is a private
-    member variable, we need to modify its value in methord \texttt{finish()}.  
+    member variable, we need to modify its value in methord \texttt{finish()}.
     The pseudo code is as follows:
     \begin{algorithm}
       \caption{\texttt{KThread::join()}}
@@ -142,7 +142,7 @@
 
     \subsection{Testing Plan}
     \begin{enumerate}
-      \item[] case 1: Only 2 thread, \texttt{thread1} and \texttt{thread2}. 
+      \item[] case 1: Only 2 thread, \texttt{thread1} and \texttt{thread2}.
 	\texttt{thread1} calls \texttt{thread2.join()} before \texttt{thread2} finishes.
       \item[] case 2: Only 2 thread, \texttt{thread1} and \texttt{thread2}.
 	\texttt{thread1} calls \texttt{thread2.join()} after \texttt{thread2} finishes.
@@ -150,24 +150,17 @@
 	\texttt{thread3}. \texttt{thread1} calls \texttt{thread2.join()} while
 	\texttt{thread2} calls \texttt{thread3.join()}.
     \end{enumerate}
-
     \section{Task 2}
-    \subsection{Overview}
-    In this task, we have to implement condition variables directly, by using enable and disable to provide atomicity instead semaphores. To be specific, we need to implement three functions \texttt{sleep()}, \texttt{wake()} and \texttt{wakeAll()} in \texttt{Condition2} as public functions.
+    \subsection{Implementation}
+    \texttt{sleep()}: we can first disable interrupts in order to make a small critical section, in which we only need to put it in a \texttt{ThreadQueue()} and announce it to sleep.
 
-    As for \texttt{sleep()}, we can first disable interrupts in order to make a small critical section, in which we only need to put it in a \texttt{ThreadQueue()} and announce it to sleep.
+    \texttt{wake()}: it can be realized by taking the first element in the queue out, and call the \texttt{ready()} function.
 
-    And for \texttt{wake()}, it can be realized by taking the first element in the queue out, and call the \texttt{ready()} function.
+    \texttt{wakeAll()} can be done by iteratively taking elements out of the queue and call the \texttt{read()} function.
 
-    \texttt{wake()} can be done by running \texttt{wake()} iteratively.
-    \subsection{Correctness Constraints}
-    \begin{asparaitem}
-    \item When \texttt{sleep()} is called, the thread is blocked in the critical section by disabling interrupts while no thread can wake it before the \texttt{KThread.sleep()} function.
-    \item When \texttt{wake()} and \texttt{wakeAll()} are performed, we guarantee all of their instructions are done within a critical section surrounded by disabling and enabling interrupts.
-    \end{asparaitem}
-    \subsection{Declarations}
-    \texttt{waitQueue} is a \texttt{ThreadQueue} for threads blocked by \texttt{sleep()}.
-    \subsection{Description}
+    \subsection{Pseudocode}
+    \textit{Variables: }
+    \texttt{waitQueue = \color{blue}new ThreadedKernel.scheduler.newThreadQueue(false);} is a \texttt{ThreadQueue} for threads blocked by \texttt{sleep()}.
     \begin{algorithm}
       \caption{ \texttt{void Condition2::sleep()}}
       \begin{algorithmic}
@@ -203,62 +196,213 @@
       \end{algorithmic}
     \end{algorithm}
 
-    \subsection{Testing Plan}
-    We plan to run with function \texttt{selfTest()}, and the specific cases are as follows:
+    \subsection{Testing}
+
+    The test is done by running a new static function \texttt{Condition2.selfTest()} which is called in \texttt{ThreadKernel.selfTest()}, and the specific cases are as follows {\color{blue} using a producer-consumer model}:
     \begin{asparaitem}
     \item Case 1: Two threads in which one is sleeper and the other is the waker.
-    \item Case 2: Several sleepers with one waker.
+    \item Case 2: Several sleepers with one waker {\color{blue} where the producer can iteratively produce enough number of items}.
     \item Case 3: Several sleepers together with several wakers.
     \end{asparaitem}
+    \subsection{Testing Pesudocodes}
+
+    \begin{algorithm}
+      \caption{\texttt{Producer::run()}}
+      \begin{algorithmic}
+        \STATE \texttt{//enqueue items }
+        \FOR{\texttt{int i = 0; i < numProducts; i++}}
+        \STATE \texttt{lock.acquire(); }
+        \STATE \texttt{System.out.println("*** producer " + which + " adds item. "); }
+        \STATE \texttt{sharedata.add(which); }
+        \STATE \texttt{dataready.wake(); }
+        \STATE \texttt{lock.release(); }
+        \ENDFOR
+      \end{algorithmic}
+    \end{algorithm}
+
+    \begin{algorithm}
+      \caption{\texttt{Consumer::run()}}
+      \begin{algorithmic}
+        \STATE \texttt{//dequeue items }
+        \STATE \texttt{lock.acquire(); }
+        \STATE \texttt{System.out.println("*** consumer " + which + " enters. "); }
+        \WHILE{\texttt{sharedata.isEmpty()}}
+        \STATE \texttt{System.out.println("*** consumer " + which + " sleeps. "); }
+        \STATE \texttt{dataready.sleep(); }
+        \ENDWHILE
+        \STATE \texttt{System.out.println("*** consumer " + which + " gets " + sharedata.pop() }
+        \STATE \texttt{+ "'s item. "); }
+        \STATE \texttt{lock.release(); }
+      \end{algorithmic}
+    \end{algorithm}
+    \begin{algorithm}
+      \caption{\texttt{ProducerConsumerTest::ProducerConsumerTest(int numProducer, int numConsumer, int productsPerProducer=1)}}
+      \begin{algorithmic}
+            \STATE \texttt{//Initialize producers and consumers }
+            \FOR{\texttt{int i = 0; i < numProducer; i++}}
+            \STATE \texttt{producers.push(new Producer(i, productsPerProducer)); }
+            \STATE \texttt{order.push(1); }
+            \ENDFOR
+            \FOR{\texttt{int i = numProducer; i < numProducer + numConsumer; i++}}
+            \STATE \texttt{consumers.push(new Consumer(i)); }
+            \STATE \texttt{order.push(2); }
+            \ENDFOR
+            \STATE \texttt{Collections.shuffle(order); }
+            \STATE \texttt{Stack<KThread> joinStack = new Stack<KThread>(); }
+            \FOR{\texttt{int i = 0; i < numProducer + numConsumer; i++}}
+            \STATE \texttt{int currentNumber = order.pop(); }
+            \IF{\texttt{currentNumber == 1}}
+            \STATE \texttt{joinStack.push(new KThread(producers.pop())); }
+            \STATE \texttt{joinStack.peek().fork(); }
+            \ELSIF{(currentNumber == 2)}
+              \STATE \texttt{joinStack.push(new KThread(consumers.pop())); }
+              \STATE \texttt{joinStack.peek().fork(); }
+            \ENDIF
+            \ENDFOR
+            \WHILE{\texttt{!joinStack.isEmpty()}}
+            \STATE \texttt{joinStack.pop().join(); }
+            \ENDWHILE
+          \end{algorithmic}
+        \end{algorithm}
+
+    \begin{algorithm}
+      \caption{\texttt{Condition2::selfTest()}}
+      \begin{algorithmic}
+        \STATE {\color{blue}\texttt{//Case 1: 1 producer, 1 consumer }}
+        \STATE \texttt{System.out.println("Case 1:"); }
+        \STATE \texttt{new ProducerConsumerTest(1, 1); }
+        \STATE {\color{blue}\texttt{ //Case 2: 1 producer, several consumers }}
+        \STATE \texttt{System.out.println("Case 2:"); }
+        \STATE \texttt{new ProducerConsumerTest(1, 4, 4); }
+        \STATE {\color{blue}\texttt{ //Case 3: 3 producer3, 3 consumer3 }}
+        \STATE \texttt{System.out.println("Case 3:"); }
+        \STATE \texttt{new ProducerConsumerTest(3, 3); }
+      \end{algorithmic}
+    \end{algorithm}
+    \begin{lstlisting}
+
+    \end{lstlisting}
+
     \section{Task 3}
-    \subsection{Overview}
-    In this task, we need to finish the public functions \texttt{waitUntil(long x)} and \texttt{timerInterrupt()} in \texttt{Alarm}. The key point is that we have to invent some efficient method instead busy waiting in \texttt{waitUntil(long x)}. Since the \texttt{timerInterrupt()} handler can be called every dozens of clock ticks, we can drive threads to sleep in \texttt{waitUntil(long x)} and decide whether they should awake in \texttt{timerInterrupt()}.
-    \subsection{Correctness Constraints}
-    \begin{asparaitem}
-    \item The methods of \texttt{waitUntil(long x)} and \texttt{timerInterrupt()} should be atomic so that the sleeping process can not be disturbed.
-    \item A queue of waiting threads should be well-maintained by handler \texttt{timerInterrupt} and \texttt{waitUntil(long x)}. To be specific, every time \texttt{waitUntil(long x)} is called, it should insert the thread into a proper place in the queue and Handler \texttt{timerInterrupt} should properly dequeue every thread out when it's invoked.
-    \end{asparaitem}
-    \subsection{Declarations}
-    \begin{asparaitem}
+    \subsection{Implementation}
+\begin{asparaitem}
+\item Make threads sleep in \texttt{waitUntil(long x)}.
+
+\item In \texttt{timerInterrupt()}, if the current time is larger than a thread's expected waiting time, make a signal.
+\end{asparaitem}
+\subsection{Code}
+\begin{asparaitem}
     \item Class: \texttt{AlarmThread} is a wrapper that associates \texttt{KThread} with wake up time.
     \item Instance: \texttt{queue} is a priority queue \texttt{PriorityQueue<AlarmThread>} that keeps a record of sleeping threads.
     \end{asparaitem}
+    \begin{lstlisting}
+    public void timerInterrupt() {
+    Machine.interrupt().disable();
+   	while (!queue.isEmpty() &&
+			(queue.peek().wakeTime < Machine.timer().getTime())) {
+   		queue.poll().thread.ready();
+   	}
+   	Machine.interrupt().enable();
 
-    \subsection{Description}
-    \begin{algorithm}
-      \caption{ \texttt{void Alarm::timerInterrupt()}}
-      \begin{algorithmic}
-	\STATE Disable interrupts
-	\WHILE {\texttt{(queue.poll() != null) \&\& (queue.peek().wakeTime < Machine.timer().getTime())}}
-	\STATE \texttt{queue.poll().thread.ready()}
-	\ENDWHILE
-	\STATE Enable interrupts
-      \end{algorithmic}
-    \end{algorithm}
+   	KThread.yield();
+    }
 
-    \begin{algorithm}
-      \caption{ \texttt{void Alarm::waitUntil(long x)}}
-      \begin{algorithmic}
-	\STATE Disable interrupts
-	\STATE \texttt{long wakeTime = Machine.timer().getTime() + x}
-	\STATE Insert \texttt{new AlarmThread(Kthread.currentThread() ,wakeTime)} into \texttt{queue}
-	\STATE \texttt{Kthread.sleep()}
-	\STATE Enable interrupts
-      \end{algorithmic}
-    \end{algorithm}
-    \subsection{Testing Plan}
+    public void waitUntil(long x) {
+    Machine.interrupt().disable();
+	long wakeTime = Machine.timer().getTime() + x;
+	queue.offer(new AlarmThread(KThread.currentThread(), wakeTime));
+	KThread.sleep();
+	Machine.interrupt().enable();
+    }
+
+    private class AlarmThread implements Comparable {
+    	AlarmThread(KThread thread, long wakeTime) {
+    		this.thread = thread;
+    		this.wakeTime = wakeTime;
+    	}
+		@Override
+		public int compareTo(Object o) {
+			if (this.wakeTime < ((AlarmThread)o).wakeTime)
+				return -1;
+			else if (this.wakeTime > ((AlarmThread)o).wakeTime)
+				return 1;
+			else
+				return 0;
+		}
+		
+    	KThread thread;
+    	long wakeTime;
+    }
+    \end{lstlisting}
+
+    \subsection{TESTING}
+   The test is done by running a new static function \texttt{Alarm.selfTest()} which is called in \texttt{ThreadKernel.selfTest()}, and the specific cases are as follows {\color{blue} by simply making sleeping threads}:
     \begin{asparaitem}
     \item Case 1: one thread with wait time $0$.
     \item Case 2: one thread with wait time within $500$.
     \item Case 3: one thread with wait time beyond $500$.
     \item Case 4: several threads with arbitrary wait time.
     \end{asparaitem}
+  \subsection{Test Pseudocodes}
+  \begin{algorithm}
+    \caption{\texttt{sleepThread::run()}}
+    \begin{algorithmic}
+\STATE \texttt{long startTime = Machine.timer().getTime();  }
+\STATE \texttt{System.out.println("*** thread " + which + " sleep for " + x + " ticks\ n\ tat time " + startTime); }
+\STATE \texttt{ThreadedKernel.alarm.waitUntil(x); }
+\STATE \texttt{long currentTime = Machine.timer().getTime(); }
+\STATE \texttt{System.out.println("*** thread " + which + " wakes after " }
+\STATE \texttt{+ (currentTime - startTime) }
+\STATE \texttt{+ " ticks\ n\ tat time " + currentTime); }
+    \end{algorithmic}
+  \end{algorithm}
+
+  \begin{algorithm}
+    \caption{\texttt{Alarm::sleepTest()}}
+    \begin{algorithmic}
+      \STATE \texttt{KThread thread = new KThread(new sleepThread(0, 0)); }
+      \STATE \texttt{thread.fork(); }
+      \STATE \texttt{thread.join(); }
+    \end{algorithmic}
+  \end{algorithm}
+
+  \begin{algorithm}
+    \caption{\texttt{Alarm::selfTest()}}
+    \begin{algorithmic}
+      \STATE {\color{blue}\texttt{//Case 1 }}
+      \STATE \texttt{System.out.println("Case 1:"); }
+      \STATE \texttt{KThread thread = new KThread(new sleepThread(0, 0)); }
+      \STATE \texttt{thread.fork(); }
+      \STATE \texttt{thread.join(); }
+      \STATE {\color{blue}\texttt{//Case 2 }}
+      \STATE \texttt{System.out.println("Case 2:"); }
+      \STATE \texttt{thread = new KThread(new sleepThread(1, 100)); }
+      \STATE \texttt{thread.fork(); }
+      \STATE \texttt{thread.join(); }
+      \STATE {\color{blue}\texttt{//Case 3 }}
+      \STATE \texttt{System.out.println("Case 3:"); }
+      \STATE \texttt{thread = new KThread(new sleepThread(2, 600)); }
+      \STATE \texttt{thread.fork(); }
+      \STATE \texttt{thread.join(); }
+      \STATE {\color{blue}\texttt{//Case 4 }}
+      \STATE \texttt{System.out.println("Case 4:"); }
+      \STATE \texttt{LinkedList<KThread> threadList = new LinkedList<KThread>();}
+      \STATE \texttt{Random rand = new Random(); }
+      \FOR{\texttt{int i = 0; i < 5; i++}}
+      \STATE \texttt{threadList.add(new KThread(new sleepThread(i + 3, rand.nextInt(400) + 300))); }
+      \STATE \texttt{threadList.get(i).fork(); }
+      \ENDFOR
+      \FOR{\texttt{int i = 0; i < 5; i++}}
+      \STATE \texttt{threadList.poll().join(); }
+      \ENDFOR
+    \end{algorithmic}
+  \end{algorithm}
 
     \section{Task 4}
 
     \subsection{Correctness Constraints}
     \begin{enumerate}
-      \item[$\bullet$] An active speaker should wait until an listener becomes active and 
+      \item[$\bullet$] An active speaker should wait until an listener becomes active and
 	recieves the word.
       \item[$\bullet$] At any time, there should be at most one active speaker.
       \item[$\bullet$] If there are some waiting speakers but no active speaker,
@@ -275,16 +419,16 @@
     \subsection{Declarations}
     Here we can see that the \texttt{Communicator} is a mutex resource, we need use
     a lock to protect this resource. And we can see that we need to maintain waiting
-    speakers and listeners, we can use condition variables to manage them. And we 
+    speakers and listeners, we can use condition variables to manage them. And we
     can find that active speaker and active listener need to cooperate with other
     threads, we also use condition variables to manage them. Finially, to check whether
-    there is active speaker or listener, we use two boolean variables to indicate 
+    there is active speaker or listener, we use two boolean variables to indicate
     respectively; and we use boolean variable to indicate whether the word is recieved.
     \begin{enumerate}
       \item[$\bullet$] \textit{data structure}: \texttt{Semaphore}, \texttt{Lock}.
       \item[$\bullet$] \textit{member variable}:
 	The following variables are all the member variables of \texttt{Communicator},
-	all of them are private. 
+	all of them are private.
 	\begin{enumerate}
 	  \item \texttt{Lock lock};
 	  \item \texttt{Condition waitingSpeakerQueue}, initially \texttt{lock};
@@ -353,7 +497,7 @@
 \subsection{Overview}
 Task 5 asks us to implement priority scheduling in Nachos by completing the \texttt{PriorityScheduler} class. Particularly, in choosing which  thread to dequeue, the scheduler always choose a thread of the highest effective priority (choose the one that has been waiting in the queue longest if multiple threads with the same highest priority are waiting).
 
-The most difficulty lies in the function \texttt{Scheduler.getEffectivePriority}. To calculate one thread's effective priority (abbr. EP), we have to maintain a priority queue representing all threads it is getting priority from. Notice that when a thread's EP changes, threads' EP which that thread is waiting on may change as well. So we also need to maintain which thread is it waiting on for each thread. 
+The most difficulty lies in the function \texttt{Scheduler.getEffectivePriority}. To calculate one thread's effective priority (abbr. EP), we have to maintain a priority queue representing all threads it is getting priority from. Notice that when a thread's EP changes, threads' EP which that thread is waiting on may change as well. So we also need to maintain which thread is it waiting on for each thread.
 
 Specifically, we calculate a thread's prior it  by taking the max of the donor's and the recipient's priority. As for the transitive property of priority donation, we simply call \texttt{Scheduler.getEffectivePriority} recursively.
 
@@ -402,7 +546,7 @@ To clarify how we manipulate data structure, we illustrate the implementation of
   \STATE waitQueue.add(this)  \COMMENT{add this thread to waitQueue}
   \STATE this.waitingOn $\leftarrow$ waitQueue  \COMMENT{update waitingOn queue}
   \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
-\RETURN 
+\RETURN
 \end{algorithmic}
 \end{algorithm}
 
@@ -412,7 +556,7 @@ To clarify how we manipulate data structure, we illustrate the implementation of
   \STATE waitQueue.owner $\leftarrow$ this
   \STATE this.waitingBy.insert(waitQueue)
   \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
-\RETURN 
+\RETURN
 \end{algorithmic}
 \end{algorithm}
 
@@ -506,13 +650,13 @@ Pseudocodes are presented in the algorithm boxes.\\
             ChildItinerary();
         }
     };
-    
+
 	Runnable adult = new Runnable() {
 	    public void run() {
             AdultItinerary();
         }
     };
-    
+
     for(int i = 0; i < children; i ++)
     {
     	KThread t = new KThread(child);
@@ -529,7 +673,7 @@ Pseudocodes are presented in the algorithm boxes.\\
 	}
 	rowerMove.wake(); //wake up rower to start carrying; will be woken up by halting or error
 	mainMove.sleep();
-    } 
+    }
 \end{lstlisting}
 
 \subsection{Test Taken}
@@ -558,7 +702,7 @@ The state of the boat rowing mechanism can be regarded as a DFA below:\\
     \node[state] (cdm) [below of = crm] {CDM};
     \node[state] (arm) [below of = cdm] {ARM};
 
-    \path[->] 
+    \path[->]
     (str) edge [bend right] node {\texttt{AdultRowToMolokai()}} (arm)
     (str) edge [bend right]node {\texttt{ChildRowToMolokai()}} (cdm)
     (aro) edge [bend right]node {\texttt{AdultRowToMolokai()}} (arm)
@@ -583,7 +727,7 @@ The state of the boat rowing mechanism can be regarded as a DFA below:\\
 Each time a method is called, we check if the transition function is permissible. If so, \texttt{bc} updates the state inside it and waits for next call; otherwise \texttt{bc} will throw out an exception indicating that transition error.\\
 If none of the three kinds of errors occur, the boat rowing scheme will halt normally without any error message. Then \texttt{bc} will output a success message.\\
 \subsubsection{Efficiency Analysis}
-To carry $a$ adults and $b$ children across the sea, it can be proved that the minimum number of steps is $5a+3b-4$. Each time a method is called, \texttt{bc} will increment a counter \texttt{step}, which is initialized to be 0. When \texttt{begin()} halts normally, \texttt{bc} will output 
+To carry $a$ adults and $b$ children across the sea, it can be proved that the minimum number of steps is $5a+3b-4$. Each time a method is called, \texttt{bc} will increment a counter \texttt{step}, which is initialized to be 0. When \texttt{begin()} halts normally, \texttt{bc} will output
 $$\#\text{Steps taken/ \# Minimum steps}$$
 as a measure of efficiency. Analysis relative to the clocktick has not been implemented yet.\\
 \subsubsection{Sample Output for \texttt{begin(10, 8, bg)}}
