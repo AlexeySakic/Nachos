@@ -693,8 +693,27 @@ We need to test the following things. The test is done in \texttt{selfTest()}
 
 
 \section{Task 6}
+\subsection{Overview}
+This task is to use multithreaded programming to implement a distributed process where all threads coordinate to accomplish the sea crossing task. To implement this, we divided the main process into several subrountines in which one person is carried across the river.
 
-\subsection{Implemented Strategy}
+\subsection{Correctness Constraints}
+\begin{itemize}
+  \item All people must be on Oahu at start and be on Molokai at the end.
+  \item The main thread \texttt{begin} must not exit until all boat rowing messages are sent.
+  \item The boat should be in the right place for someone to row as well as to ride. This is abstracted as a DFA; see the testing part.
+\end{itemize}
+\subsection{Declarations}
+\textcolor{green}{In our final implementation, we used almost completely different variables to accomplish the task. The defined variables are used as follows:}
+\begin{itemize}
+  \item \texttt{int population}: the global population counter, initially 0. When a passenger thread is created, it increments this counter by 1. $R$ and $D$ determined the termination of execution by reading this variable.\\
+  \item \texttt{boolean isRowerSet, isRiderSet}: the global indicator indicating whether $R$ and $D$ have been selected. When a child thread is created, it checks and sets these variables and choose to execute $R$, $D$ or $P$ method.\\
+  \item \texttt{boolean isAdult}: the indicator indicating whether this $P$ thread being carried is an adult. $R$ checks this variable and determines which protocol to follow.\\
+  \item \texttt{Lock move}: Every thread should acquire this lock whenever they are created. This lock takes charge of all threads and makes them follow the protocols.\\
+  \item \texttt{Condition mainMove, rowerMove, riderMove, waitingMove, passengerMove}: These conditions are all belong to the lock \texttt{move} and provides queues for different threads to sleep. For example, when $R$ needs to sleep, it will call \texttt{rowerMove.sleep()} to ensure other thread correctly wake it up later on.\\
+\end{itemize}
+
+
+\subsection{Description}
 The strategy implemented is the same as the role-assigning strategy described in our design document. More specifically, we assigned three roles to all threads:
 \begin{asparaitem}
   \item \textbf{Rower}: The child who is responsible to row the boat. We denote it by $R$.\\
@@ -728,23 +747,12 @@ The whole carring strategy is just the repeated execution of those two subroutin
   \item At the end no one except $R$ and $D$ is running, and the population counter is 0. Then $R$ and $D$ perform the final rowing to Molokai and returns.
 \end{asparaitem}
 
-\subsection{Implementation Code}
-\subsubsection{Variables Defined}
-\textcolor{green}{In our final implementation, we used almost completely different variables to accomplish the task. The defined variables are used as follows:}
-\begin{itemize}
-  \item \texttt{int population}: the global population counter, initially 0. When a passenger thread is created, it increments this counter by 1. $R$ and $D$ determined the termination of execution by reading this variable.\\
-  \item \texttt{boolean isRowerSet, isRiderSet}: the global indicator indicating whether $R$ and $D$ have been selected. When a child thread is created, it checks and sets these variables and choose to execute $R$, $D$ or $P$ method.\\
-  \item \texttt{boolean isAdult}: the indicator indicating whether this $P$ thread being carried is an adult. $R$ checks this variable and determines which protocol to follow.\\
-  \item \texttt{Lock move}: Every thread should acquire this lock whenever they are created. This lock takes charge of all threads and makes them follow the protocols.\\
-  \item \texttt{Condition mainMove, rowerMove, riderMove, waitingMove, passengerMove}: These conditions are all belong to the lock \texttt{move} and provides queues for different threads to sleep. For example, when $R$ needs to sleep, it will call \texttt{rowerMove.sleep()} to ensure other thread correctly wake it up later on.\\
-\end{itemize}
-
-\subsubsection{Codes}
-Pseudocodes are presented in the algorithm boxes.\\
+Part of the source code is listed below. Although the main idea remains the same, the implementation is significantly changed from the original design, so codes changed are not highlighted.\\
 
 \begin{lstlisting}
 public static void begin(int adults, int children, BoatGrader b)
 {
+  /*Initialization Part*/
   bg = b;
   isRowerSet = false;
   isRiderSet = false;
@@ -757,6 +765,7 @@ public static void begin(int adults, int children, BoatGrader b)
   waitingMove = new Condition(move);
   mainMove = new Condition(move);
 	
+  /*Main thread scheme starts here*/
   move.acquire();
 	
   Runnable child = new Runnable() {
@@ -792,6 +801,7 @@ public static void begin(int adults, int children, BoatGrader b)
 
 static void AdultItinerary()
 {
+  /* Initialization Part */
   bg.initializeAdult();
 
   move.acquire();
@@ -800,7 +810,7 @@ static void AdultItinerary()
   mainMove.wake(); // initialization is finished. Start waiting
   waitingMove.sleep();
 
-  // protocol part
+  /* Protocol Part */
   isAdult = true;
   rowerMove.wake();
   passengerMove.sleep();
@@ -813,6 +823,7 @@ static void AdultItinerary()
 
 static void ChildItinerary()
 {
+  /* Initialization Part */
   bg.initializeChild();
   move.acquire();
   population ++;
@@ -828,6 +839,7 @@ static void ChildItinerary()
   }
   else
   {
+    /* Protocol Part */
     mainMove.wake();
     waitingMove.sleep();
 
@@ -845,6 +857,7 @@ static void ChildItinerary()
 
 static void Rower()
 {
+  /* Protocol Part */
   mainMove.wake();
   rowerMove.sleep();
   while(population >= 3)
@@ -868,12 +881,15 @@ static void Rower()
       bg.ChildRowToOahu();
     }
   }
+
+  /* Halting Part */
   bg.ChildRowToMolokai();
   riderMove.wake();
 }
 
 static void Rider()
 {
+  /* Protocol Part */
   mainMove.wake();
   riderMove.sleep();
 
@@ -885,19 +901,20 @@ static void Rider()
     riderMove.sleep();
   }
 
+  /* Halting Part */
   bg.ChildRideToMolokai();
   mainMove.wake(); // wake up the main thread to finish
 }
 \end{lstlisting}
 
-\subsection{Test Taken}
+\subsection{Testing Plan}
 \subsubsection{Correctness Analysis}
 To test the correctness of the role-assigning strategy, we created a class \texttt{BoatChecker extends BoatGrader} to take charge of all testing tasks.\\
 In our \texttt{selfTest()}, we called \texttt{begin} using a \texttt{BoatChecker} as the final argument. Each time a message is sent to the checker, it examines the following three kinds of errors:\\
 \begin{itemize}
-  \item State transition error: the state transition is invalid. We will discuss this later on.\\
-  \item Population error: all the numbers of children and adults on both side of the sea should be always non-negative. \texttt{bc} will update th epopulation for each call, and if a negative population number is detected, \texttt{bc} will throw out an exception indicating that population error.\\
-  \item Halting error: upon halting there should not be anyone on side Oahu. If there are still people waiting for carring when \texttt{begin()} is going to halt, there is a halting error.\\
+  \item State transition error: the state transition is invalid. We will discuss this later on.
+  \item Population error: all the numbers of children and adults on both side of the sea should be always non-negative. \texttt{bc} will update th epopulation for each call, and if a negative population number is detected, \texttt{bc} will throw out an exception indicating that population error.
+  \item Halting error: upon halting there should not be anyone on side Oahu. If there are still people waiting for carring when \texttt{begin()} is going to halt, there is a halting error.
 \end{itemize}
 The state of the boat rowing mechanism can be regarded as a DFA below:\\
 \begin{center}
