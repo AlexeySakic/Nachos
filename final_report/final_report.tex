@@ -1,5 +1,7 @@
 \documentclass{article}
 \usepackage{amsmath,amsfonts,amsthm,amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
 \usepackage{setspace}
 \usepackage{paralist}
 \usepackage{fancyhdr}
@@ -13,6 +15,23 @@
 \usepackage{algorithm}
 \usepackage{algorithmic}
 \usepackage{tikz}
+\definecolor{pblue}{rgb}{0.13,0.13,1}
+\definecolor{pgreen}{rgb}{0,0.5,0}
+\definecolor{pred}{rgb}{0.9,0,0}
+\definecolor{pgrey}{rgb}{0.46,0.45,0.48}
+\lstset{language=Java,
+  showspaces=false,
+  showtabs=false,
+  breaklines=true,
+  showstringspaces=false,
+  breakatwhitespace=false,
+  commentstyle=\color{pgreen},
+  keywordstyle=\color{pblue},
+  stringstyle=\color{pred},
+  basicstyle=\ttfamily,
+  moredelim=[il][\textcolor{pgrey}]{$$},
+  moredelim=[is][\textcolor{pgrey}]{\%\%}{\%\%}
+}
 \usetikzlibrary{arrows,positioning,automata,shadows,fit,shapes}
 % \usepackage{pgffor}
 \newcommand{\xd}{\leqslant}
@@ -58,10 +77,10 @@
 
 \author{%
   Huang JiaChen 2011012358 \and
-  Wu YueXin 2011012xxx \and
+  Wu YueXin 2011012061 \and
   Yang Sheng 2011012359 \and
   Yin HeZheng 2011012343 \and
-  Zhou XuRen 2011012xxx}
+  Zhou XuRen 2011012353}
 \newcommand{\StudentClass}{Yao Class}
 
 % \author{\textbf{\StudentName}}
@@ -81,13 +100,13 @@
       \item[$\bullet$] Caller thread waits (sleep) until callee thread finishes.
       \item[$\bullet$] If callee thread has finishes, \texttt{join()} just returns
 	directly.
-      \item[$\bullet$] All the threads except caller thread should not be effected. 
+      \item[$\bullet$] All the threads except caller thread should not be effected.
     \end{enumerate}
 
     \subsection{Declarations}
     Here, we can see that in order to implement \texttt{join()} method, we need callee
     thread sends a signal to caller thread once callee finished. Therefore, we use
-    semaphore to reach this goal. 
+    semaphore to reach this goal.
     \begin{enumerate}
       \item[$\bullet$] \textit{data structures}: \texttt{Semaphore}.
       \item[$\bullet$] \textit{member variable}:
@@ -101,7 +120,7 @@
 
     \subsection{Description}
     because \texttt{KThread::finishSemaphore} is a private
-    member variable, we need to modify its value in methord \texttt{finish()}.  
+    member variable, we need to modify its value in methord \texttt{finish()}.
     The pseudo code is as follows:
     \begin{algorithm}
       \caption{\texttt{KThread::join()}}
@@ -123,7 +142,7 @@
 
     \subsection{Testing Plan}
     \begin{enumerate}
-      \item[] case 1: Only 2 thread, \texttt{thread1} and \texttt{thread2}. 
+      \item[] case 1: Only 2 thread, \texttt{thread1} and \texttt{thread2}.
 	\texttt{thread1} calls \texttt{thread2.join()} before \texttt{thread2} finishes.
       \item[] case 2: Only 2 thread, \texttt{thread1} and \texttt{thread2}.
 	\texttt{thread1} calls \texttt{thread2.join()} after \texttt{thread2} finishes.
@@ -131,24 +150,17 @@
 	\texttt{thread3}. \texttt{thread1} calls \texttt{thread2.join()} while
 	\texttt{thread2} calls \texttt{thread3.join()}.
     \end{enumerate}
-
     \section{Task 2}
-    \subsection{Overview}
-    In this task, we have to implement condition variables directly, by using enable and disable to provide atomicity instead semaphores. To be specific, we need to implement three functions \texttt{sleep()}, \texttt{wake()} and \texttt{wakeAll()} in \texttt{Condition2} as public functions.
+    \subsection{Implementation}
+    \texttt{sleep()}: we can first disable interrupts in order to make a small critical section, in which we only need to put it in a \texttt{ThreadQueue()} and announce it to sleep.
 
-    As for \texttt{sleep()}, we can first disable interrupts in order to make a small critical section, in which we only need to put it in a \texttt{ThreadQueue()} and announce it to sleep.
+    \texttt{wake()}: it can be realized by taking the first element in the queue out, and call the \texttt{ready()} function.
 
-    And for \texttt{wake()}, it can be realized by taking the first element in the queue out, and call the \texttt{ready()} function.
+    \texttt{wakeAll()} can be done by iteratively taking elements out of the queue and call the \texttt{read()} function.
 
-    \texttt{wake()} can be done by running \texttt{wake()} iteratively.
-    \subsection{Correctness Constraints}
-    \begin{asparaitem}
-    \item When \texttt{sleep()} is called, the thread is blocked in the critical section by disabling interrupts while no thread can wake it before the \texttt{KThread.sleep()} function.
-    \item When \texttt{wake()} and \texttt{wakeAll()} are performed, we guarantee all of their instructions are done within a critical section surrounded by disabling and enabling interrupts.
-    \end{asparaitem}
-    \subsection{Declarations}
-    \texttt{waitQueue} is a \texttt{ThreadQueue} for threads blocked by \texttt{sleep()}.
-    \subsection{Description}
+    \subsection{Pseudocode}
+    \textit{Variables: }
+    \texttt{waitQueue = \color{blue}new ThreadedKernel.scheduler.newThreadQueue(false);} is a \texttt{ThreadQueue} for threads blocked by \texttt{sleep()}.
     \begin{algorithm}
       \caption{ \texttt{void Condition2::sleep()}}
       \begin{algorithmic}
@@ -184,62 +196,207 @@
       \end{algorithmic}
     \end{algorithm}
 
-    \subsection{Testing Plan}
-    We plan to run with function \texttt{selfTest()}, and the specific cases are as follows:
+    \subsection{Testing}
+
+    The test is done by running a new static function \texttt{Condition2.selfTest()} which is called in \texttt{ThreadKernel.selfTest()}, and the specific cases are as follows {\color{blue} using a producer-consumer model}:
     \begin{asparaitem}
     \item Case 1: Two threads in which one is sleeper and the other is the waker.
-    \item Case 2: Several sleepers with one waker.
+    \item Case 2: Several sleepers with one waker {\color{blue} where the producer can iteratively produce enough number of items}.
     \item Case 3: Several sleepers together with several wakers.
     \end{asparaitem}
+    \subsection{Testing Pesudocodes}
+
+    \begin{algorithm}
+      \caption{\texttt{Producer::run()}}
+      \begin{algorithmic}
+        \STATE \texttt{//enqueue items }
+        \FOR{\texttt{int i = 0; i < numProducts; i++}}
+        \STATE \texttt{lock.acquire(); }
+        \STATE \texttt{System.out.println("*** producer " + which + " adds item. "); }
+        \STATE \texttt{sharedata.add(which); }
+        \STATE \texttt{dataready.wake(); }
+        \STATE \texttt{lock.release(); }
+        \ENDFOR
+      \end{algorithmic}
+    \end{algorithm}
+
+    \begin{algorithm}
+      \caption{\texttt{Consumer::run()}}
+      \begin{algorithmic}
+        \STATE \texttt{//dequeue items }
+        \STATE \texttt{lock.acquire(); }
+        \STATE \texttt{System.out.println("*** consumer " + which + " enters. "); }
+        \WHILE{\texttt{sharedata.isEmpty()}}
+        \STATE \texttt{System.out.println("*** consumer " + which + " sleeps. "); }
+        \STATE \texttt{dataready.sleep(); }
+        \ENDWHILE
+        \STATE \texttt{System.out.println("*** consumer " + which + " gets " + sharedata.pop() }
+        \STATE \texttt{+ "'s item. "); }
+        \STATE \texttt{lock.release(); }
+      \end{algorithmic}
+    \end{algorithm}
+    \begin{algorithm}
+      \caption{\texttt{ProducerConsumerTest::ProducerConsumerTest(int numProducer, int numConsumer, int productsPerProducer=1)}}
+      \begin{algorithmic}
+            \STATE \texttt{\color{blue}//Initialize producers and consumers }
+            \FOR{\texttt{int i = 0; i < numProducer; i++}}
+            \STATE \texttt{producers.push(new Producer(i, productsPerProducer)); }
+            \STATE \texttt{order.push(1); }
+            \ENDFOR
+            \FOR{\texttt{int i = numProducer; i < numProducer + numConsumer; i++}}
+            \STATE \texttt{consumers.push(new Consumer(i)); }
+            \STATE \texttt{order.push(2); }
+            \ENDFOR
+            \STATE\texttt{\color{blue} //use random order to execute producers and consumers}
+            \STATE \texttt{Collections.shuffle(order); }
+            \STATE \texttt{Stack<KThread> joinStack = new Stack<KThread>(); }
+            \FOR{\texttt{int i = 0; i < numProducer + numConsumer; i++}}
+            \STATE \texttt{int currentNumber = order.pop(); }
+            \IF{\texttt{currentNumber == 1}}
+            \STATE \texttt{joinStack.push(new KThread(producers.pop())); }
+            \STATE \texttt{joinStack.peek().fork(); }
+            \ELSIF{(currentNumber == 2)}
+              \STATE \texttt{joinStack.push(new KThread(consumers.pop())); }
+              \STATE \texttt{joinStack.peek().fork(); }
+            \ENDIF
+            \ENDFOR
+            \WHILE{\texttt{!joinStack.isEmpty()}}
+            \STATE \texttt{joinStack.pop().join(); }
+            \ENDWHILE
+          \end{algorithmic}
+        \end{algorithm}
+
+    \begin{algorithm}
+      \caption{\texttt{Condition2::selfTest()}}
+      \begin{algorithmic}
+        \STATE {\color{blue}\texttt{//Case 1: 1 producer, 1 consumer }}
+        \STATE \texttt{System.out.println("Case 1:"); }
+        \STATE \texttt{new ProducerConsumerTest(1, 1); }
+        \STATE {\color{blue}\texttt{ //Case 2: 1 producer, several consumers }}
+        \STATE \texttt{System.out.println("Case 2:"); }
+        \STATE \texttt{new ProducerConsumerTest(1, 4, 4); }
+        \STATE {\color{blue}\texttt{ //Case 3: 3 producer3, 3 consumer3 }}
+        \STATE \texttt{System.out.println("Case 3:"); }
+        \STATE \texttt{new ProducerConsumerTest(3, 3); }
+      \end{algorithmic}
+    \end{algorithm}
+    \begin{lstlisting}
+
+    \end{lstlisting}
+
     \section{Task 3}
-    \subsection{Overview}
-    In this task, we need to finish the public functions \texttt{waitUntil(long x)} and \texttt{timerInterrupt()} in \texttt{Alarm}. The key point is that we have to invent some efficient method instead busy waiting in \texttt{waitUntil(long x)}. Since the \texttt{timerInterrupt()} handler can be called every dozens of clock ticks, we can drive threads to sleep in \texttt{waitUntil(long x)} and decide whether they should awake in \texttt{timerInterrupt()}.
-    \subsection{Correctness Constraints}
-    \begin{asparaitem}
-    \item The methods of \texttt{waitUntil(long x)} and \texttt{timerInterrupt()} should be atomic so that the sleeping process can not be disturbed.
-    \item A queue of waiting threads should be well-maintained by handler \texttt{timerInterrupt} and \texttt{waitUntil(long x)}. To be specific, every time \texttt{waitUntil(long x)} is called, it should insert the thread into a proper place in the queue and Handler \texttt{timerInterrupt} should properly dequeue every thread out when it's invoked.
-    \end{asparaitem}
-    \subsection{Declarations}
-    \begin{asparaitem}
+    \subsection{Implementation}
+\begin{asparaitem}
+\item Make threads sleep in \texttt{waitUntil(long x)}.
+
+\item In \texttt{timerInterrupt()}, if the current time is larger than a thread's expected waiting time, make a signal.
+\end{asparaitem}
+\subsection{Code}
+\begin{asparaitem}
     \item Class: \texttt{AlarmThread} is a wrapper that associates \texttt{KThread} with wake up time.
     \item Instance: \texttt{queue} is a priority queue \texttt{PriorityQueue<AlarmThread>} that keeps a record of sleeping threads.
     \end{asparaitem}
+    \begin{lstlisting}
+    public void timerInterrupt() {
+    Machine.interrupt().disable();
+    //poll threads that have slept for expected
+   	while (!queue.isEmpty() &&
+			(queue.peek().wakeTime < Machine.timer().getTime())) {
+   		queue.poll().thread.ready();
+   	}
+   	Machine.interrupt().enable();
 
-    \subsection{Description}
-    \begin{algorithm}
-      \caption{ \texttt{void Alarm::timerInterrupt()}}
-      \begin{algorithmic}
-	\STATE Disable interrupts
-	\WHILE {\texttt{(queue.poll() != null) \&\& (queue.peek().wakeTime < Machine.timer().getTime())}}
-	\STATE \texttt{queue.poll().thread.ready()}
-	\ENDWHILE
-	\STATE Enable interrupts
-      \end{algorithmic}
-    \end{algorithm}
+   	KThread.yield();
+    }
 
-    \begin{algorithm}
-      \caption{ \texttt{void Alarm::waitUntil(long x)}}
-      \begin{algorithmic}
-	\STATE Disable interrupts
-	\STATE \texttt{long wakeTime = Machine.timer().getTime() + x}
-	\STATE Insert \texttt{new AlarmThread(Kthread.currentThread() ,wakeTime)} into \texttt{queue}
-	\STATE \texttt{Kthread.sleep()}
-	\STATE Enable interrupts
-      \end{algorithmic}
-    \end{algorithm}
-    \subsection{Testing Plan}
+    public void waitUntil(long x) {
+    Machine.interrupt().disable();
+	long wakeTime = Machine.timer().getTime() + x;
+    //put threads to sleep
+	queue.offer(new AlarmThread(KThread.currentThread(), wakeTime));
+	KThread.sleep();
+	Machine.interrupt().enable();
+    }
+    //wrapper class that combines threads with their sleeping time
+    private class AlarmThread implements Comparable {
+    	AlarmThread(KThread thread, long wakeTime) {
+    		this.thread = thread;
+    		this.wakeTime = wakeTime;
+    	}
+		@Override
+		public int compareTo(Object o) {
+			if (this.wakeTime < ((AlarmThread)o).wakeTime)
+				return -1;
+			else if (this.wakeTime > ((AlarmThread)o).wakeTime)
+				return 1;
+			else
+				return 0;
+		}
+		
+    	KThread thread;
+    	long wakeTime;
+    }
+    \end{lstlisting}
+
+    \subsection{TESTING}
+   The test is done by running a new static function \texttt{Alarm.selfTest()} which is called in \texttt{ThreadKernel.selfTest()}, and the specific cases are as follows {\color{blue} by simply making sleeping threads}:
     \begin{asparaitem}
     \item Case 1: one thread with wait time $0$.
     \item Case 2: one thread with wait time within $500$.
     \item Case 3: one thread with wait time beyond $500$.
     \item Case 4: several threads with arbitrary wait time.
     \end{asparaitem}
+  \subsection{Test Pseudocodes}
+  \begin{algorithm}
+    \caption{\texttt{sleepThread::run()}}
+    \begin{algorithmic}
+\STATE \texttt{long startTime = Machine.timer().getTime();  }
+\STATE \texttt{System.out.println("*** thread " + which + " sleep for " + x + " ticks\ n\ tat time " + startTime); }
+\STATE \texttt{ThreadedKernel.alarm.waitUntil(x); }
+\STATE \texttt{long currentTime = Machine.timer().getTime(); }
+\STATE \texttt{System.out.println("*** thread " + which + " wakes after " }
+\STATE \texttt{+ (currentTime - startTime) }
+\STATE \texttt{+ " ticks\ n\ tat time " + currentTime); }
+    \end{algorithmic}
+  \end{algorithm}
+
+  \begin{algorithm}
+    \caption{\texttt{Alarm::selfTest()}}
+    \begin{algorithmic}
+      \STATE {\color{blue}\texttt{//Case 1 }}
+      \STATE \texttt{System.out.println("Case 1:"); }
+      \STATE \texttt{KThread thread = new KThread(new sleepThread(0, 0)); }
+      \STATE \texttt{thread.fork(); }
+      \STATE \texttt{thread.join(); }
+      \STATE {\color{blue}\texttt{//Case 2 }}
+      \STATE \texttt{System.out.println("Case 2:"); }
+      \STATE \texttt{thread = new KThread(new sleepThread(1, 100)); }
+      \STATE \texttt{thread.fork(); }
+      \STATE \texttt{thread.join(); }
+      \STATE {\color{blue}\texttt{//Case 3 }}
+      \STATE \texttt{System.out.println("Case 3:"); }
+      \STATE \texttt{thread = new KThread(new sleepThread(2, 600)); }
+      \STATE \texttt{thread.fork(); }
+      \STATE \texttt{thread.join(); }
+      \STATE {\color{blue}\texttt{//Case 4 }}
+      \STATE \texttt{System.out.println("Case 4:"); }
+      \STATE \texttt{LinkedList<KThread> threadList = new LinkedList<KThread>();}
+      \STATE \texttt{Random rand = new Random(); }
+      \FOR{\texttt{int i = 0; i < 5; i++}}
+      \STATE \texttt{threadList.add(new KThread(new sleepThread(i + 3, rand.nextInt(400) + 300))); }
+      \STATE \texttt{threadList.get(i).fork(); }
+      \ENDFOR
+      \FOR{\texttt{int i = 0; i < 5; i++}}
+      \STATE \texttt{threadList.poll().join(); }
+      \ENDFOR
+    \end{algorithmic}
+  \end{algorithm}
 
     \section{Task 4}
 
     \subsection{Correctness Constraints}
     \begin{enumerate}
-      \item[$\bullet$] An active speaker should wait until an listener becomes active and 
+      \item[$\bullet$] An active speaker should wait until an listener becomes active and
 	recieves the word.
       \item[$\bullet$] At any time, there should be at most one active speaker.
       \item[$\bullet$] If there are some waiting speakers but no active speaker,
@@ -256,16 +413,16 @@
     \subsection{Declarations}
     Here we can see that the \texttt{Communicator} is a mutex resource, we need use
     a lock to protect this resource. And we can see that we need to maintain waiting
-    speakers and listeners, we can use condition variables to manage them. And we 
+    speakers and listeners, we can use condition variables to manage them. And we
     can find that active speaker and active listener need to cooperate with other
     threads, we also use condition variables to manage them. Finially, to check whether
-    there is active speaker or listener, we use two boolean variables to indicate 
+    there is active speaker or listener, we use two boolean variables to indicate
     respectively; and we use boolean variable to indicate whether the word is recieved.
     \begin{enumerate}
       \item[$\bullet$] \textit{data structure}: \texttt{Semaphore}, \texttt{Lock}.
       \item[$\bullet$] \textit{member variable}:
 	The following variables are all the member variables of \texttt{Communicator},
-	all of them are private. 
+	all of them are private.
 	\begin{enumerate}
 	  \item \texttt{Lock lock};
 	  \item \texttt{Condition waitingSpeakerQueue}, initially \texttt{lock};
@@ -334,7 +491,7 @@
 \subsection{Overview}
 Task 5 asks us to implement priority scheduling in Nachos by completing the \texttt{PriorityScheduler} class. Particularly, in choosing which  thread to dequeue, the scheduler always choose a thread of the highest effective priority (choose the one that has been waiting in the queue longest if multiple threads with the same highest priority are waiting).
 
-The most difficulty lies in the function \texttt{Scheduler.getEffectivePriority}. To calculate one thread's effective priority (abbr. EP), we have to maintain a priority queue representing all threads it is getting priority from. Notice that when a thread's EP changes, threads' EP which that thread is waiting on may change as well. So we also need to maintain which thread is it waiting on for each thread. 
+The most difficulty lies in the function \texttt{Scheduler.getEffectivePriority}. To calculate one thread's effective priority (abbr. EP), we have to maintain a priority queue representing all threads it is getting priority from. Notice that when a thread's EP changes, threads' EP which that thread is waiting on may change as well. So we also need to maintain which thread is it waiting on for each thread.
 
 Specifically, we calculate a thread's prior it  by taking the max of the donor's and the recipient's priority. As for the transitive property of priority donation, we simply call \texttt{Scheduler.getEffectivePriority} recursively.
 
@@ -383,7 +540,7 @@ To clarify how we manipulate data structure, we illustrate the implementation of
   \STATE waitQueue.add(this)  \COMMENT{add this thread to waitQueue}
   \STATE this.waitingOn $\leftarrow$ waitQueue  \COMMENT{update waitingOn queue}
   \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
-\RETURN 
+\RETURN
 \end{algorithmic}
 \end{algorithm}
 
@@ -393,7 +550,7 @@ To clarify how we manipulate data structure, we illustrate the implementation of
   \STATE waitQueue.owner $\leftarrow$ this
   \STATE this.waitingBy.insert(waitQueue)
   \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
-\RETURN 
+\RETURN
 \end{algorithmic}
 \end{algorithm}
 
@@ -466,7 +623,7 @@ The strategy implemented is the same as the role-assigning strategy described in
 \begin{asparaitem}
   \item \textbf{Rower}: The child who is responsible to row the boat. We denote it by $R$.\\
   \item \textbf{Rider}: The child who is responsible to ride the boat of the rower. We denote it by $D$.\\
-  \item Other people who are going to be carried by $R$ and $D$.\\
+  \item Other people who are going to be carried by $R$ and $D$, i.e. passengers. We denote them as $P$.\\
 \end{asparaitem}
 
 To carry an adult to Molokai, we used the following subroutine:\\
@@ -495,223 +652,174 @@ The whole carring strategy is just the repeated execution of those two subroutin
   \item At the end no one except $R$ and $D$ is running, and the population counter is 0. Then $R$ and $D$ perform the final rowing to Molokai and returns.
 \end{asparaitem}
 
-\subsection{Pseudocode}
-The global variables are silghtly changed from our original design document.\\
-\begin{asparaitem}
-  \item \texttt{boolean isRowerSet}: The flag indicating if $R$ is set to a thread. All other threads should be able to read this.\\ 
-  \item \texttt{boolean isRiderSet}: The flag indicating if $D$ is assigned to a thread. All other threads should be able to read this.\\
-  \item \texttt{int population}: The population counter, initially set to 0. Whenever a person is created, this counter increases by 1; whenever a person gets across the sea, the counter decreases by 1.\\
-  \item \textcolor{blue}{\texttt{BoatGrader bg}: I simply forgot to put this on the design document; it is always there.}\\
-  \item \textcolor{blue}{\texttt{BoatChecker bc}: This BoatChecker is used to detect errors from the execution. For more details, go to see the testing part.}\\
-\end{asparaitem}
+\subsection{Implementation Code}
+\subsubsection{Variables Defined}
+\textcolor{green}{In our final implementation, we used almost completely different variables to accomplish the task. The defined variables are used as follows:}
+\begin{itemize}
+  \item \texttt{int population}: the global population counter, initially 0. When a passenger thread is created, it increments this counter by 1. $R$ and $D$ determined the termination of execution by reading this variable.\\
+  \item \texttt{boolean isRowerSet, isRiderSet}: the global indicator indicating whether $R$ and $D$ have been selected. When a child thread is created, it checks and sets these variables and choose to execute $R$, $D$ or $P$ method.\\
+  \item \texttt{boolean isAdult}: the indicator indicating whether this $P$ thread being carried is an adult. $R$ checks this variable and determines which protocol to follow.\\
+  \item \texttt{Lock move}: Every thread should acquire this lock whenever they are created. This lock takes charge of all threads and makes them follow the protocols.\\
+  \item \texttt{Condition mainMove, rowerMove, riderMove, waitingMove, passengerMove}: These conditions are all belong to the lock \texttt{move} and provides queues for different threads to sleep. For example, when $R$ needs to sleep, it will call \texttt{rowerMove.sleep()} to ensure other thread correctly wake it up later on.\\
+\end{itemize}
 
-Furthermore, we need the following locks and condition variables to achieve the goal:\\
-\begin{asparaitem}
-  \item \texttt{Lock AllMove}: During initialization of the threads, no person should be able to move, as they may incorrectly determine the situation that no one is present on Oahu as the final state if the forking of threads goes too slow. Therefore, we use the lock \texttt{AllMove} to block all threads but the main one to assure safe conditioning.\\
-  \item \texttt{Lock End \& Condition CVEnd}: The lock and its corresponding condition variable which informs the main thread to quit. The $R$ thread will take charge of this lock until all people are across the sea. \textcolor{red}{For testing reasons, we used \texttt{Semaphore End} instead of original \texttt{Condition CVEnd}, and all other threads can thus wake up the main thread if they encounter an error. For more details, see the testing part.}\\
-  \item \texttt{Lock RowerMove, Condition CVRowerMove \& Lock RiderMove, Condition CVRiderMove}: These two locks are designed to synchronize the protocol between $R$, $D$ and the person being carried. Note that there can only be one person who is waiting for the lock, or it will cause problem.\\
-  \item \texttt{Lock BeingCarried}: The lock held by the person being carried across the sea. Note that there can only be one thread holding it.\\
-  \item \texttt{Lock PollMutex}: The lock held by the child who is trying to be $R$ or $D$. \textcolor{red}{This is removed in our final implementation, and its function implemented by \texttt{Semaphore Register}.}\\
-  \item \texttt{Semaphore Register:} This semaphore is due to ensure that all created threads has actually incremented the population counter. Whenever a thread is created, the main thread executing \texttt{begin(int,int, BoatGrader)} performs \texttt{P()} to the semaphore, and waits for the newly created thread to wake it up after it has incremented the counter. It can also be seen that this semaphore is able to protect the counter from mutual accessing. Initially it is set to 0.\\
-  \item \texttt{Semaphore AllSet:} This semaphore is used by $D$ to tell the main thread that both $R$ and $D$ has been assigned. Only with this information, the main thread can release the \texttt{AllMove} lock. Initially it is set to 0. \textcolor{red}{This Semaphore is found unnecessary in the implementation, so it is removed.}\\
-  \item \textcolor{blue}{\texttt{Lock LockTransmitted}: When a thread with no role is perparing to exit, it must give the \texttt{RowerMove} lock back to $R$. This lock is used to ensure that the \texttt{RowerMove} lock is correctly given to $R$ before the thread holding \texttt{BeingCarried} exits. An extra lock between them is found necessary.}\\
-  \item \textcolor{blue}{\texttt{Semaphore errOccurs \& String errMessage}: These two variables deal with the error. Whenever an error occurs within one thread, the thread acquires \texttt{errOccurs} to protect \texttt{errMessage}, then it wakes up the main thread, which will read the message and throw it out as an exception.}\\
-\end{asparaitem}
-
-\textcolor{blue}{Moreover, we encapsulated all rowing and riding moves as static methods of \texttt{Boat} itself, and we send message to \texttt{bg} and \texttt{bc} at the same time. For example, the method \texttt{ChildRowToMolokai()} is equivalent to calling first \texttt{bg.ChildRowToMolokai()} and then \texttt{bc.ChildRowToMolokai()}. For more details, see the testing part.}\\
-
+\subsubsection{Codes}
 Pseudocodes are presented in the algorithm boxes.\\
 
-\begin{algorithm}[bpth]
-  \caption{Program performed by the main thread \texttt{begin(int adults, int children, BoatGrader b)}}
-\begin{algorithmic}[1]
-  \STATE Initialize all global variables\\
-  \STATE \texttt{AllMove.acquire()}; \COMMENT{Before forking threads, first acquire the locks to make sure to block them all}\\
-  \STATE\colorbox{yellow}{ \texttt{End.acquire()};}\COMMENT{Removed because \texttt{End} is not a lock}\\
-\FOR {$i = 1$ to $adults$}
-\STATE Fork a new thread running \texttt{AdultItinerary();}\\
-\STATE \texttt{Register.P();}\\
-\ENDFOR
-\FOR {$i = 1$ to $children$}
-\STATE Fork a new thread running \texttt{ChildrenItinerary();}\\
-\STATE \texttt{Register.P();}\\
-\ENDFOR
-\STATE \colorbox{yellow}{\texttt{AllSet.P();}\COMMENT{Wait for $D$ to release the semaphore}}\COMMENT{Removed. This can be done using only \texttt{Register}}\\
-\STATE \texttt{AllMove.release();}\COMMENT{When woke up by already elected $D$, Unblock all threads and start crossing the river}\\
-\STATE \colorbox{yellow}{\texttt{CVEnd.sleep();}\COMMENT{Enables $R$, thus starts crossing the sea}}\\
-\STATE \colorbox{yellow}{\texttt{End.release();}\COMMENT{When woke up by $R$ and informed that crossing is over, prepares to return}}\\
-\STATE \colorbox{green}{\texttt{End.P();}\COMMENT{The last two lines are replaced by \texttt{End.P()} to enable other threads to wake up the main thread}}
- \vbox{\colorbox{green}{\vbox{\IF {\texttt{errMessage} $!=$ \textbf{null}}
-\STATE Throw exception with \texttt{errMessage};\COMMENT{Error Halting}
-\ELSE \STATE \texttt{bc.Halting();}\COMMENT{Halt normally. Check halting conditions}
-\ENDIF}}}
-\RETURN
-\end{algorithmic}
-\end{algorithm}
+\begin{lstlisting}
+public static void begin(int adults, int children, BoatGrader b)
+{
+  bg = b;
+  isRowerSet = false;
+  isRiderSet = false;
+  population = 0;
+	
+  move = new Lock(); // mutex initializing
+  riderMove = new Condition(move);
+  rowerMove = new Condition(move);
+  passengerMove = new Condition(move);
+  waitingMove = new Condition(move);
+  mainMove = new Condition(move);
+	
+  move.acquire();
+	
+  Runnable child = new Runnable() {
+	public void run() {
+      ChildItinerary();
+    }
+  };
 
-\begin{algorithm}[bpth]
-\caption{Program performed by an adult}
-\begin{algorithmic}[1]
-  \STATE \texttt{population ++;}\\
-  \STATE \texttt{Register.V();}\\
-  \STATE \texttt{AllMove.acquire();}\\
-  \STATE \texttt{AllMove.release();}\COMMENT{Releases to wake up still waiting threads}\\
-  \STATE \texttt{BeingCarried.acquire();}\\
-  \STATE \texttt{isAdult}=\TRUE;\\
-  \STATE \texttt{RowerMove.acquire();}\COMMENT{Controls $R$ to perform the protocol for adult to cross the sea}\\
-  \STATE \texttt{CVRowerMove.wake();}\\
-  \STATE \texttt{CVRowerMove.sleep();}\\
-  \STATE \texttt{AdultRowToMolokai();}\\
-  \STATE \colorbox{yellow}{\texttt{CVRowerMove.wake();}}\\
-  \STATE \colorbox{yellow}{\texttt{CVRowerMove.sleep();}\COMMENT{These two lines are found useless}}\\
-  \STATE \texttt{population --;}\\
-  \STATE \texttt{CVRowerMove.wake();}\\
-  \STATE \texttt{RowerMove.release();}\\
-  \STATE \colorbox{green}{\texttt{LockTransmitted.P();}\COMMENT{Ensure that $R$ get the lock before next thread}}\\
-  \STATE \texttt{BeingCarried.release();}\\
-  \vbox{\colorbox{green}{\vbox{
-    \IF {Exception \texttt{e} is caught}
-    \STATE \texttt{errOccurs.P();}
-    \STATE \texttt{errMessage = e.getMessage();}
-    \STATE \texttt{End.V();} \COMMENT{Wake up the main thread to halt}
-    \ENDIF
-  }}}
-  \RETURN\\
-\end{algorithmic}
-\end{algorithm}
+  Runnable adult = new Runnable() {
+      public void run() {
+      AdultItinerary();
+    }
+  };
+
+  for(int i = 0; i < children; i ++)
+  {
+    KThread t = new KThread(child);
+    t.setName("Child Thread " + i);
+    t.fork();
+    mainMove.sleep(); // wait for the child initializing
+  }
+  for(int i = 0; i < adults; i ++)
+  {
+    KThread t = new KThread(adult);
+    t.setName("Adult Thread " + i);
+    t.fork();
+    mainMove.sleep(); // wait for the adult initializing
+  }
+  rowerMove.wake(); //wake up rower to start carrying; will be woken up by halting or error
+  mainMove.sleep();
+}
 
 
-\begin{algorithm}[bpth]
-\caption{Program performed by children}
-\begin{algorithmic}[1]
-  \STATE \texttt{population ++;}\\
-  \STATE \colorbox{yellow}{\texttt{Register.V();}}\COMMENT{This will be done later}\\
-  \STATE Set \texttt{boolean isRower} = \FALSE, \texttt{isRider} = \FALSE;\\
-  \STATE \colorbox{yellow}{\texttt{PollMutex.acquire();}\COMMENT{Trying to be $R$ or $D$}}\\
-  \IF {\texttt{isRowerSet}=\FALSE}
-   \STATE \texttt{isRowerSet}=\TRUE;\\
-  \STATE \texttt{isRower}=\TRUE;\\
-  \ELSIF {\texttt{isRiderSet}=\FALSE} 
-  \STATE \texttt{isRiderSet}=\TRUE;\\
-  \STATE \texttt{isRider}=\TRUE;\\
-  \ENDIF
-  \STATE \colorbox{yellow}{\texttt{PollMutex.release();}}\COMMENT{Mutex is already ensured by \texttt{Register}}\\
-  \IF {\texttt{isRower}=\TRUE}
-  \STATE \texttt{Rower();}\\
-  \RETURN
-  \ELSIF {\texttt{isRider}=\TRUE }
-  \STATE \texttt{Rider();}
-  \RETURN
-  \ELSE
-  \STATE \colorbox{green}{\texttt{Register.V();}}\\
-  \STATE \texttt{AllMove.acquire();}\\
-  \STATE \texttt{AllMove.release();}\\
-  \STATE \texttt{BeingCarried.acquire();}\\
-  \STATE \texttt{isAdult}=\FALSE;\\
-  \STATE \texttt{RowerMove.acquire();}\\
-  \STATE \texttt{CVRowerMove.wake()};\\
-  \STATE \texttt{CVRowerMove.sleep();}\\
-  \STATE \texttt{ChildrenRideToMolokai();}\\
-  \STATE \colorbox{yellow}{\texttt{CVRowerMove.wake();}}
-  \STATE \colorbox{yellow}{\texttt{CVRowerMove.sleep();}}\COMMENT{This is found unnecessary}\\
-  \STATE \texttt{population --;}\\
-  \STATE \texttt{CVRowerMove.wake();}\\
-  \STATE \texttt{RowerMove.release();}
-  \STATE \colorbox{green}{\texttt{LockTransmitted.P();}\COMMENT{Ensure that $R$ get the lock before next thread}}\\
-  \STATE \texttt{BeingCarried.release();}\\
-  \vbox{\colorbox{green}{\vbox{
-    \IF {Exception \texttt{e} is caught}
-    \STATE \texttt{errOccurs.P();}
-    \STATE \texttt{errMessage = e.getMessage();}
-    \STATE \texttt{End.V();} \COMMENT{Wake up the main thread to halt}
-    \ENDIF
-  }}}
-  \RETURN
-  \ENDIF
-\end{algorithmic}
-\end{algorithm}
+static void AdultItinerary()
+{
+  bg.initializeAdult();
 
-\begin{algorithm}[bpth]
-  \caption{The method \texttt{Rower()}}
-  \begin{algorithmic}[1]
-    
-    \STATE \colorbox{yellow}{\texttt{End.acquire();}\COMMENT{The $R$ thread is taking charge of the end condition lock}}\\
-  \STATE \texttt{RowerMove.acquire();}\\
-  \STATE \texttt{RiderMove.acquire();}\\
-  \STATE \colorbox{green}{\texttt{Register.V();}}\\
-  \WHILE{\texttt{population} $\geq 3$}
-  \STATE \texttt{CVRowerMove.sleep();}\COMMENT{Prepares to carry people across the sea}\\
-  \IF{\texttt{isAdult}=\TRUE}
-  \STATE \texttt{ChildRowToMolokai();}\\
-  \STATE \texttt{CVRiderMove.wake();}\\
-  \STATE \texttt{CVRiderMove.sleep();}\\
-  \STATE \texttt{CVRowerMove.wake();}\\
-  \STATE \texttt{CVRowerMove.sleep();}\\
-  \STATE \texttt{ChildRowToOahu();}\\
-  \STATE \colorbox{yellow}{\texttt{CVRowerMove.wake();}}\\
-  \STATE \colorbox{yellow}{\texttt{CVRowerMove.sleep();}}\COMMENT{Unnecessary}\\
-  \STATE \colorbox{green}{\texttt{LockTransmitted.V();}}\\
-  \ELSE
-  \STATE \texttt{ChildRowToMolokai();}\\
-  \STATE \texttt{CVRowerMove.wake();}\\
-  \STATE \texttt{CVRowerMove.sleep();}\\
-  \STATE \texttt{ChildRowToOahu();}\\
-  \STATE \colorbox{yellow}{\texttt{CVRowerMove.wake();}}\\
-  \STATE \colorbox{yellow}{\texttt{CVRowerMove.sleep();}}\COMMENT{Unnecessary}\\
-  \STATE \colorbox{green}{\texttt{LockTransmitted.V();}}\\
-  \ENDIF
-  \ENDWHILE
-  \STATE \texttt{RowerMove.release();}\COMMENT{Wakes up the last person}\\
-  \STATE \texttt{ChildRowToMolokai();}\\
-  \STATE \texttt{CVRiderMove.wake();}\\
-  \STATE \texttt{CVRiderMove.sleep();}\\
-  \STATE \texttt{RiderMove.release();}\\
-  \STATE \colorbox{yellow}{\texttt{CVEnd.wake();}}\\
-  \STATE \colorbox{yellow}{\texttt{End.release();}}\COMMENT{This is replaced by the next statement}\\
-  \STATE \colorbox{green}{\texttt{End.V();}}\\
-  \vbox{\colorbox{green}{\vbox{
-    \IF {Exception \texttt{e} is caught}
-    \STATE Throw to \texttt{ChildItinerary();}\\
-    \ENDIF
-  }}}
-  \RETURN
-  \end{algorithmic}
-\end{algorithm}
+  move.acquire();
+  population ++;
 
-\begin{algorithm}[bpth]
-  \caption{The method \texttt{Rider()}}
-  \begin{algorithmic}[1]
-  \STATE \colorbox{green}{\texttt{Register.V();}}\\
-  \STATE \colorbox{yellow}{\texttt{AllSet.V();}\COMMENT{Tell the main thread that \texttt{AllMove} can be released now}}\\
-  \STATE \texttt{AllMove.acquire();}\\
-  \STATE \texttt{AllMove.release();}\\
-  \STATE \texttt{RiderMove.acquire();}\\
-  \STATE \colorbox{yellow}{\texttt{CVRiderMove.sleep();}\COMMENT{Ready to be called by $R$}}\\
-  \WHILE {\texttt{population} $\geq 3$}
-  \STATE\texttt{ChildRideToMolokai();}\\
-  \STATE\texttt{ChildRowToOahu()};\\
-  \STATE\texttt{CVRiderMove.wake();}\\
-  \STATE\texttt{CVRiderMove.sleep();}\\
-  \ENDWHILE
-  \STATE\texttt{ChildRideToMolokai();}\\
-  \STATE\texttt{CVRiderMove.wake();}\\
-  \STATE\texttt{RiderMove.release();}\\
-  \vbox{\colorbox{green}{\vbox{
-    \IF {Exception \texttt{e} is caught}
-    \STATE Throw to \texttt{ChildItinerary();}\\
-    \ENDIF
-  }}}
-  \RETURN
-    
-  \end{algorithmic}
-\end{algorithm}
+  mainMove.wake(); // initialization is finished. Start waiting
+  waitingMove.sleep();
+
+  // protocol part
+  isAdult = true;
+  rowerMove.wake();
+  passengerMove.sleep();
+  bg.AdultRowToMolokai();
+  population --;
+  rowerMove.wake();
+  move.release();
+
+}
+
+static void ChildItinerary()
+{
+  bg.initializeChild();
+  move.acquire();
+  population ++;
+  if(isRowerSet == false)
+  {
+    isRowerSet = true;
+    Rower();
+  }
+  else if(isRiderSet == false)
+  {
+    isRiderSet = true;
+    Rider();
+  }
+  else
+  {
+    mainMove.wake();
+    waitingMove.sleep();
+
+    // protocol part
+    isAdult = false;
+    rowerMove.wake();
+    passengerMove.sleep();
+    bg.ChildRideToMolokai();
+    population --;
+    rowerMove.wake();
+  }
+
+  move.release();
+}
+
+static void Rower()
+{
+  mainMove.wake();
+  rowerMove.sleep();
+  while(population >= 3)
+  {
+    waitingMove.wake();
+    rowerMove.sleep();
+    if(isAdult == true) // protocol for adult
+    {
+      bg.ChildRowToMolokai();
+      riderMove.wake();
+      rowerMove.sleep();
+      passengerMove.wake();
+      rowerMove.sleep();
+      bg.ChildRowToOahu();
+    }
+    else // protocol for children
+    {
+      bg.ChildRowToMolokai();
+      passengerMove.wake();
+      rowerMove.sleep();
+      bg.ChildRowToOahu();
+    }
+  }
+  bg.ChildRowToMolokai();
+  riderMove.wake();
+}
+
+static void Rider()
+{
+  mainMove.wake();
+  riderMove.sleep();
+
+  while(population >= 3)
+  {
+    bg.ChildRideToMolokai();
+    bg.ChildRowToOahu();
+    rowerMove.wake();
+    riderMove.sleep();
+  }
+
+  bg.ChildRideToMolokai();
+  mainMove.wake(); // wake up the main thread to finish
+}
+\end{lstlisting}
 
 \subsection{Test Taken}
 \subsubsection{Correctness Analysis}
-To test the correctness of the role-assigning strategy, we used a class \texttt{BoatChecker} to take charge of all testing tasks.\\
-When \texttt{begin()} is called, the BoatChecker \texttt{bc} is initialized with all people and the boat on Oahu. Each time someone row or ride the boat, it sends a message to \texttt{bc}, which will simulate the actual boat rowing and check for errors. Those errors can be divided into two kinds:
+To test the correctness of the role-assigning strategy, we created a class \texttt{BoatChecker extends BoatGrader} to take charge of all testing tasks.\\
+In our \texttt{selfTest()}, we called \texttt{begin} using a \texttt{BoatChecker} as the final argument. Each time a message is sent to the checker, it examines the following three kinds of errors:\\
 \begin{itemize}
-  \item State transition error: the state transition is not permitted. We will discuss this later on.\\
+  \item State transition error: the state transition is invalid. We will discuss this later on.\\
   \item Population error: all the numbers of children and adults on both side of the sea should be always non-negative. \texttt{bc} will update th epopulation for each call, and if a negative population number is detected, \texttt{bc} will throw out an exception indicating that population error.\\
   \item Halting error: upon halting there should not be anyone on side Oahu. If there are still people waiting for carring when \texttt{begin()} is going to halt, there is a halting error.\\
 \end{itemize}
@@ -732,126 +840,36 @@ The state of the boat rowing mechanism can be regarded as a DFA below:\\
     \node[state] (cdm) [below of = crm] {CDM};
     \node[state] (arm) [below of = cdm] {ARM};
 
-    \path[->] 
-    (str) edge [bend right] node {\texttt{AdultRowToMolokai()}} (arm)
-    (str) edge [bend right]node {\texttt{ChildRowToMolokai()}} (cdm)
-    (aro) edge [bend right]node {\texttt{AdultRowToMolokai()}} (arm)
-    (aro) edge [bend right]node {\texttt{ChildRowToMolokai()}} (cdm)
-    (cro) edge [bend right]node {\texttt{AdultRowToMolokai()}} (arm)
-    (cro) edge [bend right]node {\texttt{ChildRowToMolokai()}} (cdm)
-    (cdo) edge [bend right]node {\texttt{AdultRowToMolokai()}} (arm)
-    (cdo) edge [bend right]node {\texttt{ChildRowToMolokai()}} (cdm)
-    (crm) edge [bend right]node {\texttt{ChildRowToOahu()}} (cro)
-    (crm) edge [bend right] node {\texttt{AdultRowToOahu()}} (aro)
-    (cdm) edge [bend right] node {\texttt{ChildRowToOahu()}} (cro)
-    (cdm) edge [bend right] node {\texttt{AdultRowToOahu()}} (aro)
-    (arm) edge [bend right] node {\texttt{ChildRowToOahu()}} (cro)
-    (arm) edge [bend right] node {\texttt{AdultRowToOahu()}} (aro)
-    (cro) edge [bend right] node {\texttt{ChildRideToOahu()}} (cdo)
-    (crm) edge [bend right] node {\texttt{ChildRideToMolokai()}} (cdm)
-    (crm) edge [bend right] node {\texttt{Halting()}} (hlt)
-    (cdm) edge [bend right] node {\texttt{Halting()}} (hlt)
-    (arm) edge [bend right] node {\texttt{Halting()}} (hlt);
+    \path[->]
+    (str) edge (arm)
+    (str) edge (crm)
+    (cdo) edge (arm)
+    (cdo) edge (crm)
+    (cro) edge (arm)
+    (cro) edge (crm)
+    (aro) edge (arm)
+    (aro) edge (crm)
+    (crm) edge (cro)
+    (crm) edge (aro)
+    (cdm) edge (cro)
+    (cdm) edge (aro)
+    (arm) edge (cro)
+    (arm) edge (aro)
+    (crm) edge (cdm)
+    (cro) edge (cdo)
+    (crm) edge [bend right] (hlt)
+    (cdm) edge [bend right] (hlt)
+    (arm) edge [bend right] (hlt);
 \end{tikzpicture}
 \end{center}
-Each time a method is called, we check if the transition function is permissible. If so, \texttt{bc} updates the state inside it and waits for next call; otherwise \texttt{bc} will throw out an exception indicating that transition error.\\
+Here, a state indicates the function it has just implemented: for example, it is permissible to call \texttt{ChildRowToOahu()} (CRO) just after \texttt{ChildRowToMolokai()}, but it is not valid to call \texttt{ChildRideToMolokai()} after \texttt{ChildRowToOahu()}. The DFA is thus responsible for both the position of the boat and the number of person on the boat.\\
+Each time a method is called, we check if the transition function is permissible. If so, \texttt{bc} will output an error message.\\
 If none of the three kinds of errors occur, the boat rowing scheme will halt normally without any error message. Then \texttt{bc} will output a success message.\\
 \subsubsection{Efficiency Analysis}
-To carry $a$ adults and $b$ children across the sea, it can be proved that the minimum number of steps is $5a+3b-4$. Each time a method is called, \texttt{bc} will increment a counter \texttt{step}, which is initialized to be 0. When \texttt{begin()} halts normally, \texttt{bc} will output 
+To carry $a$ adults and $b$ children across the sea, it can be proved that the minimum number of steps is $5a+3b-4$. Each time a method is called, \texttt{bc} will increment a counter \texttt{step}, which is initialized to be 0. When \texttt{begin()} halts normally, \texttt{bc} will output
 $$\#\text{Steps taken/ \# Minimum steps}$$
-as a measure of efficiency. Analysis relative to the clocktick has not been implemented yet.\\
-\subsubsection{Sample Output for \texttt{begin(10, 8, bg)}}
-\begin{verbatim}
-A child has forked.
-A child has forked.
-A child has forked.
-A child has forked.
-A child has forked.
-A child has forked.
-A child has forked.
-A child has forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-An adult as forked.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-**Child rowing to Oahu.
-**Adult rowing to Molokai.
-**Child rowing to Oahu.
-**Child rowing to Molokai.
-**Child arrived on Molokai as a passenger.
-Successfully carried 10 adults and 8 children from Oahu to Molokai within 70/70 steps
-\end{verbatim}
+as a measure of efficiency. Analysis related to the clocktick has not been implemented yet.\\
 \end{spacing}
+To see the \texttt{BoatChecker} class, see \texttt{Boat.java}.\\
 \end{document}
 
