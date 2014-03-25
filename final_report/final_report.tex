@@ -413,6 +413,51 @@ To clarify how we manipulate data structure, we illustrate the implementation of
 \end{algorithm}
 
 \subsection{Testing Plan}
+\subsection{Testing Plan}
+We need to test the following things. The test is done in \texttt{selfTest()}
+\begin{itemize}
+\item The PriorityQueue of \texttt{java.util.PriorityQueue} works well(Automatically)
+\item The transfer of priority works well
+\item The transfer of priority will hold its property when queue updated
+\item \texttt{Acquire()} will work well, and add queue to the queue list
+\end{itemize}
+
+\begin{algorithm}
+  \caption{\texttt{selfTest}}
+\begin{algorithmic}[1]
+  \STATE Initialize a PriorityScheduler \texttt{s}
+  \STATE Create 5 threads
+  \STATE disable interrupt
+  \STATE
+  \STATE Thread 1 acquires resource 1
+  \STATE Thread 2 waits for resource 1
+  \STATE Thread 5 waits for resource 1
+  \STATE Thread 1 acquires resource 2
+  \STATE Thread 4 waits for resource 2
+  \STATE Thread 5 acquires resource 3
+  \STATE Thread 3 waits for resource 3
+  \STATE print all the information of the threads
+  \STATE
+  \STATE Thread 2 set priority to 4
+  \STATE print all the information of the threads
+  \STATE
+  \STATE Thread 4 waits for resource 2
+  \STATE Thread 3 set priority to 5
+  \STATE print all the information of the threads
+  \STATE
+  \STATE Thread 3 set priority to 3
+  \STATE print all the information of the threads
+  \STATE
+  \STATE Thread 1 release resource 1
+  \STATE print all the information of the threads
+  \STATE
+  \STATE Thread 4 set priority to 2
+  \STATE print all the information of the threads
+  \STATE
+  \STATE restore interrupt
+\end{algorithmic}
+\end{algorithm}
+
 
 \section{Task 6}
 
