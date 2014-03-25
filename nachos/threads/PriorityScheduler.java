@@ -312,16 +312,6 @@ public class PriorityScheduler extends Scheduler {
 		protected ThreadState pickNextThread() {
 			// implement me
 			// seems to have finished
-			boolean intStatus = Machine.interrupt().disable();
-
-			//ensure priorityQueue is properly ordered
-			//does this take the old priorityQueue and reorder it? YES!!!
-			/*
-			this.priorityQueue = new PriorityQueue<ThreadState>(priorityQueue);
-			*/
-			this.priorityQueue = new PriorityQueue<ThreadState>(priorityQueue);
-
-			Machine.interrupt().restore(intStatus);
 			return this.priorityQueue.peek();
 		}
 
@@ -382,7 +372,7 @@ public class PriorityScheduler extends Scheduler {
 		 */
 		public void updateEffectivePriority() {
 			int initialPriority = this.getPriority();
-			int maxEP = -1;
+			int maxEffectivePriority = initialPriority;
 			if (waitedBy.size() != 0){
 				//System.out.println(this.thread+", EffectPriority="+this.getEffectivePriority());
 				int size = waitedBy.size();
@@ -400,17 +390,13 @@ public class PriorityScheduler extends Scheduler {
 					ThreadState donator = current.pickNextThread();
 					if (donator != null){
 						// System.out.println(donator.thread+", EffectPriority="+donator.getEffectivePriority());
-						if ((donator.getEffectivePriority() > maxEP) && current.transferPriority)
-							maxEP = donator.getEffectivePriority();
+						if ((donator.getEffectivePriority() > maxEffectivePriority) && current.transferPriority)
+							maxEffectivePriority = donator.getEffectivePriority();
 					}
 				}
 			}
-			if (initialPriority > maxEP){
-				maxEP = initialPriority;
-			}
-			this.effectivePriority = maxEP;
-			//System.out.println(this.effectivePriority);
-			//now that my own effectivePriority Changes I have to recalculate the threads which i am waiting on
+			this.effectivePriority = maxEffectivePriority;
+			// pass the modification of effective on
 			if (this.waitingOn != null && this.waitingOn.dequeuedThread != null){
 				if (this.effectivePriority != this.waitingOn.dequeuedThread.effectivePriority){
 					this.waitingOn.dequeuedThread.updateEffectivePriority();
@@ -437,11 +423,15 @@ public class PriorityScheduler extends Scheduler {
 			// seems to have finished
 			if (this.priority == priority)
 				return;
-			//Pretty sure we doon't need following line since nothing should be accessing effectivePriority directly
-			//this.effectivePriority = effectivePriority - (this.priority - priority);
+			
+			/*
+			 * this was added since PriorityQueue do not reorder
+			 * itself when modified
+			 */
 			this.waitingOn.priorityQueue.remove(this);
 			this.priority = priority;
 			this.waitingOn.priorityQueue.add(this);
+
 			this.updateEffectivePriority();
 			if(this.waitingOn != null && this.waitingOn.dequeuedThread != null)
 				this.waitingOn.dequeuedThread.updateEffectivePriority();
@@ -462,8 +452,8 @@ public class PriorityScheduler extends Scheduler {
 		 */
 		public void waitForAccess(PriorityThreadQueue waitQueue) {
 			Lib.assertTrue(Machine.interrupt().disabled());
-			long time = Machine.timer().getTime();
-			this.age = time;
+			// added to avoid starvation
+			this.age = Machine.timer().getTime();
 			waitQueue.priorityQueue.add(this);
 			this.waitingOn = waitQueue;
 			this.updateEffectivePriority();
