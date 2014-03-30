@@ -7,7 +7,7 @@
 \usepackage{extramarks}
 \usepackage{chngpage}
 \usepackage{indentfirst}
-% \usepackage{soul,color}
+\usepackage{soul,color}
 \usepackage{graphicx,float,wrapfig}
 \usepackage{mathrsfs}
 \usepackage{algorithm}
@@ -63,6 +63,8 @@
   Zhou XuRen 2011012353}
 \newcommand{\StudentClass}{Yao Class}
 
+\definecolor{myyellow}{RGB}{255, 255, 60}
+
 % \author{\textbf{\StudentName}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -101,58 +103,46 @@ We use \texttt{LinkedList<PriorityQueue> waitBy} and \texttt{PriorityQueue waitO
 
 \subsection{Descriptions}
 
-The following algorithm describes the implementation of \texttt{getEffectivePriority} in high level.
+The following algorithm describes the implementation in high level.
 
 \begin{algorithm}
-  \caption{calculate effective priority}
+  \caption{int \texttt{handleCreate}(int vaddr)}
 \begin{algorithmic}[1]
-  \STATE Initialize EP and donatorEP as default priority
-  \STATE EP $\leftarrow$ priority
-\FORALL {wait queues whose resource has been acquired by me}
-  \STATE donatorEP $\leftarrow$ largest EP in that wait queue
-  \IF {donatorEP $>$ EP}
-    \STATE EP $\leftarrow$ donatorEP
+  \IF { vaddr is invalid}
+    \RETURN -1
   \ENDIF
-\ENDFOR
-\STATE recursively call calculate effective priority on the thread I am waiting on
-\RETURN EP
-\end{algorithmic}
-\end{algorithm}
-
-To clarify how we manipulate data structure, we illustrate the implementation of function \linebreak \texttt{PriorityQueue.waitForAccess}, \texttt{PriorityQueue.acquire} and \texttt{PriorityQueue.nextThread} (actually, \linebreak \texttt{waitForAccess} and \texttt{acquire} are implemented in class \texttt{ThreadState}).
-
-\begin{algorithm}
-  \caption{\texttt{ThreadState.wairForAccess(PriorityQueue waitQueue)}}
-\begin{algorithmic}[1]
-  \STATE waitQueue.add(this)  \COMMENT{add this thread to waitQueue}
-  \STATE this.waitingOn $\leftarrow$ waitQueue  \COMMENT{update waitingOn queue}
-  \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
-\RETURN
-\end{algorithmic}
-\end{algorithm}
-
-\begin{algorithm}
-  \caption{\texttt{ThreadState.acquire(PriorityQueue waitQueue)}}
-\begin{algorithmic}[1]
-  \STATE waitQueue.owner $\leftarrow$ this
-  \STATE this.waitingBy.insert(waitQueue)
-  \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
-\RETURN
-\end{algorithmic}
-\end{algorithm}
-
-\begin{algorithm}
-  \caption{\texttt{nextThread}}
-\begin{algorithmic}[1]
-  \STATE Initialize chosenThread as null
-  \STATE chosenThread $\leftarrow$ pickNextThread()
-  \IF {chosenThread != null}
-    \STATE remove this queue from current owner's waitingBy list
-    \STATE chosenThread.waitingOn $\leftarrow$ null
-    \STATE insert this queue into chosenThread's waitingBy list
+  \STATE filename $\leftarrow$ \texttt{readVirtualMemoryString}(vaddr, 256)
+  \IF { filename is invalid}
+    \RETURN -1
   \ENDIF
-  \STATE this.owner $\leftarrow$ chosenThread
-\RETURN chosenThread
+  \IF {$\exists$ free file descriptor $x$}
+    \STATE file $\leftarrow$ \texttt{ThreadedKernel.fileSystem.open}(filename, false)
+    \STATE fileDescriptorTable[x] $\leftarrow$ file
+    \RETURN $x$
+  \ELSE
+    \RETURN -1
+  \ENDIF 
+\end{algorithmic}
+\end{algorithm}
+
+To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{handleCreate} to following:
+\begin{algorithm}
+  \caption{int \texttt{handleOpen}(int vaddr)}
+\begin{algorithmic}[1]
+ \IF { vaddr is invalid}
+    \RETURN -1
+  \ENDIF
+  \STATE filename $\leftarrow$ \texttt{readVirtualMemoryString}(vaddr, 256)
+  \IF { filename is invalid}
+    \RETURN -1
+  \ENDIF
+  \IF {$\exists$ free file descriptor $x$}
+    \STATE \colorbox{myyellow}{file $\leftarrow$ \texttt{ThreadedKernel.fileSystem.open}(filename, true)}
+    \STATE fileDescriptorTable[x] $\leftarrow$ file
+    \RETURN $x$
+  \ELSE
+    \RETURN -1
+  \ENDIF 
 \end{algorithmic}
 \end{algorithm}
 
