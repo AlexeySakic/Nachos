@@ -40,8 +40,15 @@ public class Communicator {
     	}
     	noActiveSpeaker = false;
     	this.word = word;
-   // 	System.out.println("wake up");
-    	ListenerQueue.wakeAll();
+    	if(!noActiveListener) {
+        	ListenerQueue.wakeAll();
+    	} else {
+    		SpeakerQueue.sleep();
+    		noActiveSpeaker = true;
+    		noActiveListener = true;
+        	SpeakerQueue.wake();
+        	ListenerQueue.wake();
+    	}
     	lock.release();
     }
 
@@ -58,16 +65,16 @@ public class Communicator {
     		ListenerQueue.sleep();
     	}
     	noActiveListener = false;
-    	while(noActiveSpeaker){
-    //		System.out.println("sleep");
+    	if(!noActiveSpeaker) {
+    		SpeakerQueue.wakeAll();
+    	} else {
     		ListenerQueue.sleep();
+        	noActiveSpeaker = true;
+        	noActiveListener = true;
+        	SpeakerQueue.wake();
+        	ListenerQueue.wake();
     	}
     	result = word;
-    	
-    	noActiveSpeaker = true;
-    	noActiveListener = true;
-    	SpeakerQueue.wake();
-    	ListenerQueue.wake();
     	lock.release();
     	return result;
     }
@@ -150,13 +157,16 @@ public class Communicator {
     	thread1 = new KThread(new Speaker(1, com2, 0, -21));
     	thread2 = new KThread(new Speaker(2, com2, 0, -22));
     	thread3 = new KThread(new Listener(3, com2, 2));
+    	thread4 = new KThread(new Listener(4, com2, 10));
     	
     	thread1.fork();
     	thread2.fork();
     	thread3.fork();
+    	thread4.fork();
     	thread1.join();
     	thread2.join();
     	thread3.join();
+    	thread4.join();
     	
     	/**
     	 * Tests for case 3-1

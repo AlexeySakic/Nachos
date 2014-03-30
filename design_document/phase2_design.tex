@@ -1,0 +1,197 @@
+\documentclass{article}
+\usepackage{amsmath,amsfonts,amsthm,amssymb}
+\usepackage{setspace}
+\usepackage{paralist}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{extramarks}
+\usepackage{chngpage}
+% \usepackage{soul,color}
+\usepackage{graphicx,float,wrapfig}
+\usepackage{mathrsfs}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+% \usepackage{tikz}
+% \usepackage{pgffor}
+\newcommand{\xd}{\leqslant}
+\newcommand{\dd}{\geqslant}
+% In case you need to adjust margins:
+\topmargin=-0.45in      %
+\evensidemargin=0in     %
+\oddsidemargin=0in      %
+\textwidth=6.5in        %
+\textheight=9.0in       %
+\headsep=0.25in         %
+
+% Setup the header and footer
+\pagestyle{fancy}                                                       %
+% \lhead{\StudentName}                                                 %
+\chead{\Title}  %
+%\rhead{\firstxmark}                                                     %
+\lfoot{\lastxmark}                                                      %
+\cfoot{}                                                                %
+\rfoot{Page\ \thepage\ of\ \protect\pageref{LastPage}}                          %
+\renewcommand\headrulewidth{0.4pt}                                      %
+\renewcommand\footrulewidth{0.4pt}                                      %
+
+\newcommand{\Proof}{\ \\\textbf{Proof:} }
+\newcommand{\Answer}{\ \\\textbf{Answer:} }
+\newcommand{\Acknowledgement}[1]{\ \\{\bf Acknowledgement:} #1}
+
+\makeatletter
+\newcommand{\rmnum}[1]{\romannumeral #1}
+\newcommand{\Rmnum}[1]{\expandafter\@slowromancap\romannumeral #1@}
+\makeatother
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Make title
+\newcommand{\Class}{Operating System}
+\newcommand{\ClassInstructor}{Xu Wei}
+
+% Homework Specific Information. Change it to your own
+\newcommand{\Title}{Nachos Phase 2 Design Document}
+\newcommand{\DueDate}{April 1, 2014}
+\title{\textmd{\bf \Class: \Title}\\{\large Instructed by \textit{\ClassInstructor}}\\\normalsize\vspace{0.1in}\small{Due\ on\ \DueDate}}
+\date{}
+
+\author{%
+  Huang JiaChen 2011012358 \and
+  Wu YueXin 2011012061 \and
+  Yang Sheng 2011012359 \and
+  Yin HeZheng 2011012343 \and
+  Zhou XuRen 2011012353}
+\newcommand{\StudentClass}{Yao Class}
+
+% \author{\textbf{\StudentName}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  \begin{document}
+  \begin{spacing}{1.1}
+    \maketitle \thispagestyle{empty}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Begin edit from here
+
+ 
+\section{Task 1}
+\subsection{Overview}
+Task 1 asks us to implement file system calls  in Nachos by adding code to the \texttt{UserProcess} class. Particularly, in choosing which  thread to dequeue, the scheduler always choose a thread of the highest effective priority (choose the one that has been waiting in the queue longest if multiple threads with the same highest priority are waiting).
+
+The most difficulty lies in the function \texttt{Scheduler.getEffectivePriority}. To calculate one thread's effective priority (abbr. EP), we have to maintain a priority queue representing all threads it is getting priority from. Notice that when a thread's EP changes, threads' EP which that thread is waiting on may change as well. So we also need to maintain which thread is it waiting on for each thread.
+
+Specifically, we calculate a thread's prior it  by taking the max of the donor's and the recipient's priority. As for the transitive property of priority donation, we simply call \texttt{Scheduler.getEffectivePriority} recursively.
+
+To speed up the calculation of EP, we create a variable to cache EP in class \texttt{ThreadState}. Thus, we only need to recalculate a thread's effective priority when it is possible for it to change.
+
+\subsection{Correctness Constraints}
+
+\begin{asparaitem}
+\item All threads waiting in a queue are sorted by their effective priority\\
+\item All threads store a linked list of queues they own and its own effective priority for cache\\
+\item The effective priority of a thread is calculated by taking max between its initial priority and the largest effective priority stored in the linked list of queues.\\
+\item When a thread is selected from the queue to acquire the resource (\texttt{nextThread}) that thread is removed from the queue and the new thread is told to aquire the queue (\texttt{acquire}) The previous owner of the queue is told it no longer owns this queue, and this queue is removed from its linked list. At the same time, this queue is inserted into the linked list of new owner. The new owner of the queue gets the highest priority in the queue added to its priority cache and its effective priority updated. \\
+\item When a thread is added to the waiting queue (\texttt{waitForAccess}), it may have the highest priority of all threads in the queue. The owner of the queue then needs to update its effective priority to be greater than or equal to the new waiting thread.\\
+\item When a change occurs to a thread's effective priority, it must reinsert itself into the correct position in the queue and as a result may end up affecting the effective priority of that queue's owner.
+\end{asparaitem}
+
+\subsection{Declarations}
+
+We use \texttt{LinkedList<PriorityQueue> waitBy} and \texttt{PriorityQueue waitOn} to store threads waiting us and threads we are waiting separately. The class \texttt{PriorityQueue} is implemented by java.util.PriorityQueue.
+
+\subsection{Descriptions}
+
+The following algorithm describes the implementation of \texttt{getEffectivePriority} in high level.
+
+\begin{algorithm}
+  \caption{calculate effective priority}
+\begin{algorithmic}[1]
+  \STATE Initialize EP and donatorEP as default priority
+  \STATE EP $\leftarrow$ priority
+\FORALL {wait queues whose resource has been acquired by me}
+  \STATE donatorEP $\leftarrow$ largest EP in that wait queue
+  \IF {donatorEP $>$ EP}
+    \STATE EP $\leftarrow$ donatorEP
+  \ENDIF
+\ENDFOR
+\STATE recursively call calculate effective priority on the thread I am waiting on
+\RETURN EP
+\end{algorithmic}
+\end{algorithm}
+
+To clarify how we manipulate data structure, we illustrate the implementation of function \linebreak \texttt{PriorityQueue.waitForAccess}, \texttt{PriorityQueue.acquire} and \texttt{PriorityQueue.nextThread} (actually, \linebreak \texttt{waitForAccess} and \texttt{acquire} are implemented in class \texttt{ThreadState}).
+
+\begin{algorithm}
+  \caption{\texttt{ThreadState.wairForAccess(PriorityQueue waitQueue)}}
+\begin{algorithmic}[1]
+  \STATE waitQueue.add(this)  \COMMENT{add this thread to waitQueue}
+  \STATE this.waitingOn $\leftarrow$ waitQueue  \COMMENT{update waitingOn queue}
+  \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
+\RETURN
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{\texttt{ThreadState.acquire(PriorityQueue waitQueue)}}
+\begin{algorithmic}[1]
+  \STATE waitQueue.owner $\leftarrow$ this
+  \STATE this.waitingBy.insert(waitQueue)
+  \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
+\RETURN
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{\texttt{nextThread}}
+\begin{algorithmic}[1]
+  \STATE Initialize chosenThread as null
+  \STATE chosenThread $\leftarrow$ pickNextThread()
+  \IF {chosenThread != null}
+    \STATE remove this queue from current owner's waitingBy list
+    \STATE chosenThread.waitingOn $\leftarrow$ null
+    \STATE insert this queue into chosenThread's waitingBy list
+  \ENDIF
+  \STATE this.owner $\leftarrow$ chosenThread
+\RETURN chosenThread
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Testing Plan}
+We need to test the following things. The test is done in \texttt{selfTest()}
+\begin{itemize}
+\item The PriorityQueue of \texttt{java.util.PriorityQueue} works well(Automatically)
+\item The transfer of priority works well
+\item The transfer of priority will hold its property when queue updated
+\item \texttt{Acquire()} will work well, and add queue to the queue list
+\end{itemize}
+
+\begin{algorithm}
+  \caption{\texttt{selfTest}}
+\begin{algorithmic}[1]
+  \STATE Initialize a PriorityScheduler \texttt{s}
+  \STATE Initialize 3 ThreadQueue
+  \STATE Create 5 threads
+  \STATE disable interrupt
+  \STATE
+  \STATE queue1.acquare(thread1)
+  \STATE queue2.acquire(thread1)
+  \STATE queue1.waitForAccess(thread2)
+  \STATE queue3.acquire(thread3)
+  \STATE queue3.waitForAccess(thread1)
+  \STATE print all the information of the threads
+  \STATE
+  \STATE thread2.setPriority(3)
+  \STATE print all the information of the threads
+  \STATE
+  \STATE queue2.waitForAccess(thread4)
+  \STATE thread3.setPriority(5)
+  \STATE print all the information of the threads
+  \STATE
+  \STATE thread3.setPriority(2)
+  \STATE print all the information of the threads
+  \STATE
+  \STATE restore interrupt
+\end{algorithmic}
+\end{algorithm}
+
+
+\end{spacing}
+\end{document}

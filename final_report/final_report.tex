@@ -1,5 +1,5 @@
 \documentclass{article}
-\usepackage{amsmath,amsfonts,amsthm,amssymb}
+\usepackage{amsmath,amsfonts,amsthm,amssymb,ulem}
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{setspace}
@@ -95,61 +95,130 @@
 \theoremstyle{plain} \newtheorem{computational}{Definition}
     \section{Task 1}
 
-    \subsection{Correctness Constraints}
+\subsection{Correctness Constraints}
+\begin{enumerate}
+  \item[$\bullet$] Caller thread waits (sleep) until callee thread finishes.
+  \item[$\bullet$] If callee thread has finishes, \texttt{join()} just returns
+    directly.
+  \item[$\bullet$] All the threads except caller thread should not be effected. 
+\end{enumerate}
+
+\subsection{Declarations}
+Here, we can see that in order to implement \texttt{join()} method, we need callee
+thread sends a signal to caller thread once callee finished. Therefore, we use
+semaphore to reach this goal. 
+\begin{enumerate}
+  \item[$\bullet$] \textit{data structures}: \texttt{Semaphore}.
+  \item[$\bullet$] \textit{member variable}:
     \begin{enumerate}
-      \item[$\bullet$] Caller thread waits (sleep) until callee thread finishes.
-      \item[$\bullet$] If callee thread has finishes, \texttt{join()} just returns
-	directly.
-      \item[$\bullet$] All the threads except caller thread should not be effected.
-    \end{enumerate}
+  \item \textbf{private} \texttt{Semaphore KThread::finishSemaphore}, initially 0;
+\end{enumerate}
+indicate whether the thread is finished: \texttt{value} = 0 means unfinished, while
+\texttt{value} = 1 means finished.
 
-    \subsection{Declarations}
-    Here, we can see that in order to implement \texttt{join()} method, we need callee
-    thread sends a signal to caller thread once callee finished. Therefore, we use
-    semaphore to reach this goal.
+\end{enumerate}
+
+\subsection{Description}
+because \texttt{KThread::finishSemaphore} is a private
+member variable, we need to modify its value in methord \texttt{finish()}.
+The pseudo code is as follows:
+\begin{algorithm}[htbp]
+  \caption{\texttt{KThread::join()}}
+  \begin{algorithmic}[1]
+    \STATE /* the given code */
+    \STATE finishSemaphore.P();
+    \STATE finishSemaphore.V();
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[htbp]
+  \caption{\texttt{KThread::finish()}}
+  \begin{algorithmic}[1]
+    \STATE /* the given code except sleep() */
+    \STATE finishSemaphore.V();
+    \STATE sleep(); // this code is the last line in the orginal KThread::finish()
+  \end{algorithmic}
+\end{algorithm}
+{\color{red}Here, although the task description say that calling \texttt{join}() a second time is undefined, 
+our code well define the second calling of $\texttt{join}$(). Thus our test code will do call the same thread's
+\texttt{join} second time.}
+
+\subsection{Testing Plan}
+\subsubsection{Runnable Interface}
+We implement a \texttt{Runnable} to be \texttt{Caller}, it has following member variable:
+\begin{enumerate}
+  \item[$\bullet$] \texttt{which1}: index of caller thread.
+  \item[$\bullet$] \texttt{which2}: index of callee thread; if there is no callee thread,
+    it will be assigned with -1.
+  \item[$\bullet$] \texttt{calleeThread}: callee thread; if there is no callee thread, it 
+    will be assigned with \texttt{null}.
+  \item[$\bullet$] \texttt{times1}: the loop times before calling \texttt{join}().
+  \item[$\bullet$] \texttt{times2}: the loop times after calling \texttt{join}().
+\end{enumerate}
+When a thread is assigned with \texttt{Caller}, it will loop for \texttt{times1} times. Then if
+\texttt{calleeThread} is not \texttt{null}, it calls \texttt{calleeThread.join}(); o.w. does nothing.
+Then it will loop for \texttt{times2} times. Here we use empty loop to simulate the running of a thread.
+We will print the loop execution as ping test. And we will print the join start and finish information.
+\subsubsection{Case}
+\begin{enumerate}
+  \item[] case 1: 
     \begin{enumerate}
-      \item[$\bullet$] \textit{data structures}: \texttt{Semaphore}.
-      \item[$\bullet$] \textit{member variable}:
-	\begin{enumerate}
-	  \item \textbf{private} \texttt{Semaphore KThread::finishSemaphore}, initially 0;
-	\end{enumerate}
-	indicate whether the thread is finished: \texttt{value} = 0 means unfinished, while
-	\texttt{value} = 1 means finished.
-
-    \end{enumerate}
-
-    \subsection{Description}
-    because \texttt{KThread::finishSemaphore} is a private
-    member variable, we need to modify its value in methord \texttt{finish()}.
-    The pseudo code is as follows:
-    \begin{algorithm}[htbp]
-      \caption{\texttt{KThread::join()}}
-      \begin{algorithmic}[1]
-	\STATE /* the given code */
-	\STATE finishSemaphore.P();
-	\STATE finishSemaphore.V();
-      \end{algorithmic}
-    \end{algorithm}
-
-    \begin{algorithm}[htbp]
-      \caption{\texttt{KThread::finish()}}
-      \begin{algorithmic}[1]
-	\STATE /* the given code except sleep() */
-	\STATE finishSemaphore.V();
-	\STATE sleep(); // this code is the last line in the orginal KThread::finish()
-      \end{algorithmic}
-    \end{algorithm}
-
-    \subsection{Testing Plan}
-    \begin{enumerate}
-      \item[] case 1: Only 2 thread, \texttt{thread1} and \texttt{thread2}.
+      \item[$\bullet$] \textit{description}: Only 2 thread, \texttt{thread1} and \texttt{thread2}. 
 	\texttt{thread1} calls \texttt{thread2.join()} before \texttt{thread2} finishes.
-      \item[] case 2: Only 2 thread, \texttt{thread1} and \texttt{thread2}.
-	\texttt{thread1} calls \texttt{thread2.join()} after \texttt{thread2} finishes.
-      \item[] case 3: Only 3 thread, \texttt{thread1},\texttt{thread2} and
-	\texttt{thread3}. \texttt{thread1} calls \texttt{thread2.join()} while
-	\texttt{thread2} calls \texttt{thread3.join()}.
+      \item[$\bullet$] \textit{purpose}: To check whether \texttt{thread1} waits \texttt{thread2} to finish.
+      \item[$\bullet$] \textit{how it works}: According to the printed information, we can check that
+	after \texttt{thread2} joins into \texttt{thread1}, only \texttt{thread2} runs until it finishs
+	then \texttt{thread1} continues.
+      \item[$\bullet$] \textit{critical code}:
+	\begin{lstlisting}
+	thread2 = new KThread(new Caller(2, -1, null, 1, 3));
+	thread1 = new KThread(new Caller(1, 2, thread2, 2, 4));
+	\end{lstlisting} 
     \end{enumerate}
+  \item[] case 2:
+    \begin{enumerate}
+      \item[$\bullet$] \textit{description}: Only 2 thread, \texttt{thread1} and \texttt{thread2}.
+	\texttt{thread1} calls \texttt{thread2.join()} after \texttt{thread2} finishes.
+      \item[$\bullet$] \textit{purpose}: To check whether \texttt{join}() just returns if \texttt{thread2} has finished.
+      \item[$\bullet$] \textit{how it works}: According to the printed information, we see if \texttt{thread2}
+	still runs.
+      \item[$\bullet$] \textit{critical code}:
+	\begin{lstlisting}
+	thread2 = new KThread(new Caller(2, -1, null, 2, 0));
+	thread1 = new KThread(new Caller(1, 2, thread2, 4, 2));
+        \end{lstlisting}
+      \end{enumerate}
+  \item[] case 3:
+    \begin{enumerate}
+      \item[$\bullet$] \textit{description}: Only 3 thread, \texttt{thread1},\texttt{thread2} and
+	\texttt{thread3}. \texttt{thread1} calls \texttt{thread2.join()} while \texttt{thread2} calls \texttt{thread3.join()}.
+      \item[$\bullet$] \textit{purpose}: To check whether mutiple \texttt{join}() work well.
+      \item[$\bullet$] \textit{how it works}: \texttt{thread2} waits \texttt{thread3} and \texttt{thread1} waits \texttt{thread2}.
+      \item[$\bullet$] \textit{critical code}:
+	\begin{lstlisting}
+	thread3 = new KThread(new Caller(3, -1, null, 7, 0));
+	thread2 = new KThread(new Caller(2, 3, thread3, 1, 3));
+	thread1 = new KThread(new Caller(1, 2, thread2, 4, 2));
+        \end{lstlisting}
+    \end{enumerate}
+  \item[] case 4:
+    \begin{enumerate}
+      \item[$\bullet$] \textit{description}: Only 3 thread, \texttt{thread1},\texttt{thread2} and
+	\texttt{thread3}. \texttt{thread1} calls \texttt{thread2.join()}.
+      \item[$\bullet$] \textit{purpose}: To check that \texttt{thread3} will not be affected.
+      \item[$\bullet$] \textit{how it works}: To see that during \texttt{thread2} joins into \texttt{thread1}, 
+	\texttt{thread3} still runs.
+      \item[$\bullet$] \textit{critical code}:
+	\begin{lstlisting}
+	thread3 = new KThread(new Caller(4,-1, null, 10, 0));
+	thread2 = new KThread(new Caller(2, -1, null, 1, 3));
+	thread1 = new KThread(new Caller(1, 2, thread2, 2, 4));	
+        \end{lstlisting}
+    \end{enumerate}
+\end{enumerate}
+\subsubsection{Code Location}
+All these code is in \texttt{nachos.threads.KThread.java}, \texttt{Caller} is a implementation of \texttt{Runnable} 
+interface and test code is in \texttt{selfTest} methord.
     \section{Task 2}
     \subsection{Implementation}
     \texttt{sleep()}: we can first disable interrupts in order to make a small critical section, in which we only need to put it in a \texttt{ThreadQueue()} and announce it to sleep.
@@ -392,101 +461,109 @@
     \end{algorithmic}
   \end{algorithm}
 
-    \section{Task 4}
+\section{Task 4}
 
-    \subsection{Correctness Constraints}
+\subsection{Correctness Constraints}
+\begin{enumerate}
+  \item[$\bullet$] An active speaker should wait until an listener becomes active and 
+    recieves the word.
+  \item[$\bullet$] At any time, there should be at most one active speaker.
+  \item[$\bullet$] If there are some waiting speakers but no active speaker,
+    some waiting speaker should become active.
+  \item[$\bullet$] An active listener should wait until an active speaker becomes
+    active and the listener recieves the speaker's word.
+  \item[$\bullet$] At any time, there should be at most one active listener.
+  \item[$\bullet$] If there are some waiting listeners but no active listener,
+    some waiting listener should become active.
+  \item[$\bullet$] Once the listener recieves the word, both the speaker and
+    the listen should leave.
+\end{enumerate}
+
+\subsection{Declarations}
+Here we can see that the \texttt{Communicator} is a mutex resource, we need use
+a lock to protect this resource. And we can see that we need to maintain waiting
+speakers and listeners, we can use condition variables to manage them. {\color{red}\sout{And we 
+can find that active speaker and active listener need to cooperate with other
+threads, we also use condition variables to manage them.}} Finially, to check whether
+there is active speaker or listener, we use two boolean variables to indicate 
+respectively; {\color{red}\sout{and we use boolean variable to indicate whether the word is recieved.}}
+\begin{enumerate}
+  \item[$\bullet$] \textit{data structure}: \texttt{Semaphore}, \texttt{Lock}.
+  \item[$\bullet$] \textit{member variable}:
+    The following variables are all the member variables of \texttt{Communicator},
+    all of them are private. 
     \begin{enumerate}
-      \item[$\bullet$] An active speaker should wait until an listener becomes active and
-	recieves the word.
-      \item[$\bullet$] At any time, there should be at most one active speaker.
-      \item[$\bullet$] If there are some waiting speakers but no active speaker,
-	some waiting speaker should become active.
-      \item[$\bullet$] An active listener should wait until an active speaker becomes
-	active and the listener recieves the speaker's word.
-      \item[$\bullet$] At any time, there should be at most one active listener.
-      \item[$\bullet$] If there are some waiting listeners but no active listener,
-	some waiting listener should become active.
-      \item[$\bullet$] Once the listener recieves the word, both the speaker and
-	the listen should leave.
+      \item \texttt{Lock lock};
+      \item \texttt{Condition waitingSpeakerQueue}, initially \texttt{lock};
+      \item \texttt{Condition waitingListenerQueue}, initially \texttt{lock};
+      \item {\color{red}\sout{\texttt{Condition activeSpeaker}, initially \texttt{lock};}}
+      \item {\color{red}\sout{\texttt{Condition activeListener}, initially \texttt{lock};}}
+      \item \texttt{boolean noActiveSpeaker}, initially \texttt{true};
+      \item \texttt{boolean noActiveListener}, initially \texttt{true};
+      \item {\color{red}\sout{\texttt{boolean recieve}, initially \texttt{false};}}
+      \item \texttt{int word};
     \end{enumerate}
+\end{enumerate}
 
-    \subsection{Declarations}
-    Here we can see that the \texttt{Communicator} is a mutex resource, we need use
-    a lock to protect this resource. And we can see that we need to maintain waiting
-    speakers and listeners, we can use condition variables to manage them. And we
-    can find that active speaker and active listener need to cooperate with other
-    threads, we also use condition variables to manage them. Finially, to check whether
-    there is active speaker or listener, we use two boolean variables to indicate
-    respectively; and we use boolean variable to indicate whether the word is recieved.
-    \begin{enumerate}
-      \item[$\bullet$] \textit{data structure}: \texttt{Semaphore}, \texttt{Lock}.
-      \item[$\bullet$] \textit{member variable}:
-	The following variables are all the member variables of \texttt{Communicator},
-	all of them are private.
-	\begin{enumerate}
-	  \item \texttt{Lock lock};
-	  \item \texttt{Condition waitingSpeakerQueue}, initially \texttt{lock};
-	  \item \texttt{Condition waitingListenerQueue}, initially \texttt{lock};
-	  \item \texttt{Condition activeSpeaker}, initially \texttt{lock};
-	  \item \texttt{Condition activeListener}, initially \texttt{lock};
-	  \item \texttt{boolean noActiveSpeaker}, initially \texttt{true};
-	  \item \texttt{boolean noActiveListener}, initially \texttt{true};
-	  \item \texttt{boolean recieve}, initially \texttt{false};
-	  \item \texttt{int word};
-	\end{enumerate}
-    \end{enumerate}
+\subsection{Description}
 
-    \subsection{Description}
+\begin{algorithm}[htbp]
+  \caption{\texttt{Communicator::speak(w)}}
+  \begin{algorithmic}[1]
+    \STATE lock.acquire();
+    \WHILE{!noActiveSpeaker}
+    \STATE waitingSpeakerQueue.sleep();
+    \ENDWHILE
+    \STATE noActiveSpeaker $\leftarrow$ false;
+    \STATE word $\leftarrow$ w;
+    {\color{red}
+    \IF{!noActiveListener}
+    \STATE waitingListenerQueue.wakeAll();
+    \ELSE
+    \STATE waitingSpeakerQueue.sleep();
+    \STATE noActiveSpeaker, noActiveListener $\leftarrow$ true;
+    \STATE waitingSpeakerQueue.wake();
+    \STATE waitingListenerQueue.wake();
+    \ENDIF}
+    \STATE lock.release();
+  \end{algorithmic}
+\end{algorithm}
+{\color{red} Here, I do not give the code of \texttt{listen}(), because it is totally symmetric with
+\texttt{speak}(), we just need to change the position of $\texttt{waitingListenerQueue}$ and 
+$\texttt{waitingSpeakerQueue}$, and delete line 6, and add \texttt{result$\leftarrow$ word} after
+\textbf{end if} and return \texttt{result}; then we can get the code of \texttt{listen}().
+Compared with the initial doc, we do not use activeListener/Speaker condition variable; instead we put them into waiting
+queue. In this way, we can save two condition variables, and we can make the code symmetric. These are
+the reason I make these change.}
 
-    \begin{algorithm}[htbp]
-      \caption{\texttt{Communicator::speak(w)}}
-      \begin{algorithmic}[1]
-	\STATE lock.acquire();
-	\IF{!noActiveSpeaker}
-	\STATE waitingSpeakerQueue.sleep();
-	\ENDIF
-	\STATE noActiveSpeaker $\leftarrow$ false;
-	\STATE word $\leftarrow$ w;
-	\IF{noActiveListener or !recieve}
-	\STATE activeListener.wake();
-	\STATE activeSpeaker.sleep();
-	\ENDIF
-	\STATE noActiveSpeaker, noActiveListener $\leftarrow$ true;
-	\STATE recieve $\leftarrow$ false;
-	\STATE waitingSpeakerQueue.wake();
-	\STATE waitingListenerQueue.wake();
-	\STATE lock.release();
-      \end{algorithmic}
-    \end{algorithm}
-
-    \begin{algorithm}[htbp]
-      \caption{\texttt{Communicator::listen()}}
-      \begin{algorithmic}[1]
-	\STATE lock.acquire();
-	\IF{!noActiveListener}
-	\STATE waitingListenerQueue.sleep();
-	\ENDIF
-	\STATE noActiveListener $\leftarrow$ false;
-	\IF{noActiveSpeaker}
-	\STATE activeListener.sleep();
-	\ENDIF
-	\STATE activeSpeaker.wake();
-	\STATE result $\leftarrow$ word;
-	\STATE lock.release();
-	\RETURN result;
-      \end{algorithmic}
-    \end{algorithm}
-
-    \subsection{Testing Plan}
-    \begin{enumerate}
-      \item[] case 1: 1 speaker $\texttt{thread1}$ and 1 delay listener $\texttt{thread2}$,
-	and check if $\texttt{thread1}$ wait for $\texttt{thread2}$.
-      \item[] case 2: 2 speaker $\texttt{thread1}$,$\texttt{thread2}$ and
-	1 listener $\texttt{thread3}$, and check if $\texttt{thread2}$ is blocked.
-      \item[] case 3: exchange the position between speaker and listener in case 1 and 2.
-      \item[] case 4: 2 speaker and 2 listener and check if they form two pairs.(namely,
-	speaker $i$ only speaks to listen $i$, $i=1,2$)
-    \end{enumerate}
+\subsection{Testing Plan}
+\subsubsection{Runnable Interface}
+We implement two \texttt{Runnable} interfaces: \texttt{Speaker} and \texttt{Listener}. The member variables
+are almost the same except that \texttt{Listener} does not have \texttt{word}:
+\begin{enumerate}
+  \item[$\bullet$] \texttt{which}: index of speaker/listener thread.
+  \item[$\bullet$] \texttt{communicator}: communicator.
+  \item[$\bullet$] \texttt{times1}: the loop times before calling \texttt{speak/listen}.
+  \item[$\bullet$] \texttt{word}: message.
+\end{enumerate}
+When a thread is assigned with our implementation, it will loop for \texttt{times1} times and then call
+\texttt{speak/listen}. The necessary information will be printed for test.
+\subsubsection{Case}
+\begin{enumerate}
+  \item[] case 1: 1 speaker $\texttt{thread1}$ and 1 delay listener $\texttt{thread2}$,
+    and check if $\texttt{thread1}$ wait for $\texttt{thread2}$.
+  \item[] case 2: 2 speaker $\texttt{thread1}$,$\texttt{thread2}$ and
+    1 listener $\texttt{thread3}$, and check if $\texttt{thread2}$ is blocked.
+  \item[] case 3: exchange the position between speaker and listener in case 1 and 2.
+  \item[] case 4: 3 speaker and 3 listener and check if they form three pairs.(namely,
+    speaker $i$ only speaks to listen $i$, $i=1,2,3$)
+\end{enumerate}
+According to the printed information, we can check whether the purpose of each case is achieved. Due
+to the limit of pages, we don't give this part test code in this report, but we point out that to implement
+each case, we need to handle the running time of thread, which we can do by \texttt{times1} assignment.
+\subsubsection{Code Location}
+All these code is in \texttt{nachos.threads.Communicator.java}, \texttt{Listener} and \texttt{Speaker} are 
+implementation of \texttt{Runnable} interface and test code is in \texttt{selfTest} methord.
 \section{Task 5}
 \subsection{Overview}
 Task 5 asks us to implement priority scheduling in Nachos by completing the \texttt{PriorityScheduler} class. Particularly, in choosing which  thread to dequeue, the scheduler always choose a thread of the highest effective priority (choose the one that has been waiting in the queue longest if multiple threads with the same highest priority are waiting).
@@ -569,7 +646,6 @@ To clarify how we manipulate data structure, we illustrate the implementation of
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Testing Plan}
 \subsection{Testing Plan}
 We need to test the following things. The test is done in \texttt{selfTest()}
 \begin{itemize}
