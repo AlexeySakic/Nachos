@@ -74,23 +74,14 @@
  
 \section{Task 1}
 \subsection{Overview}
-Task 1 asks us to implement file system calls  in Nachos by adding code to the \texttt{UserProcess} class. Particularly, in choosing which  thread to dequeue, the scheduler always choose a thread of the highest effective priority (choose the one that has been waiting in the queue longest if multiple threads with the same highest priority are waiting).
-
-The most difficulty lies in the function \texttt{Scheduler.getEffectivePriority}. To calculate one thread's effective priority (abbr. EP), we have to maintain a priority queue representing all threads it is getting priority from. Notice that when a thread's EP changes, threads' EP which that thread is waiting on may change as well. So we also need to maintain which thread is it waiting on for each thread.
-
-Specifically, we calculate a thread's prior it  by taking the max of the donor's and the recipient's priority. As for the transitive property of priority donation, we simply call \texttt{Scheduler.getEffectivePriority} recursively.
-
-To speed up the calculation of EP, we create a variable to cache EP in class \texttt{ThreadState}. Thus, we only need to recalculate a thread's effective priority when it is possible for it to change.
+Task 1 asks us to implement file system calls  in Nachos by adding code to the \texttt{UserProcess} class. Here we are not asked to implement a file system from scratch, but to give user processes the ability to access a file system that have been implemented.\\
+The main requirements of the task can be divided into two categories: those to implement functionality, and those to ensure security.\\
+To implement functionality, we need to add additional attributes (file descriptors, file states, etc.) and additional system call handler methods. As system calls are already declared in the header \texttt{text/syscall.h}, we don't need to consider how to design the interface and we can just focus on the internal implementation inside the class \texttt{UserProcess}. Also, an example method \texttt{UserProcess.halt} has been implemented, which gives us yet more hints.\\
+For security constraints, we need to bullet-proof the Nachos kernel from user processes. We need to ensure that exceptions occurred inside the user process will not crash the system, and we also need to ensure that \texttt{halt()} can terminate the system only if it is called by the root process. Therefore we need some more attributes (e.g. pids) to distinguish process from process.\\
 
 \subsection{Correctness Constraints}
 
 \begin{asparaitem}
-\item All threads waiting in a queue are sorted by their effective priority\\
-\item All threads store a linked list of queues they own and its own effective priority for cache\\
-\item The effective priority of a thread is calculated by taking max between its initial priority and the largest effective priority stored in the linked list of queues.\\
-\item When a thread is selected from the queue to acquire the resource (\texttt{nextThread}) that thread is removed from the queue and the new thread is told to aquire the queue (\texttt{acquire}) The previous owner of the queue is told it no longer owns this queue, and this queue is removed from its linked list. At the same time, this queue is inserted into the linked list of new owner. The new owner of the queue gets the highest priority in the queue added to its priority cache and its effective priority updated. \\
-\item When a thread is added to the waiting queue (\texttt{waitForAccess}), it may have the highest priority of all threads in the queue. The owner of the queue then needs to update its effective priority to be greater than or equal to the new waiting thread.\\
-\item When a change occurs to a thread's effective priority, it must reinsert itself into the correct position in the queue and as a result may end up affecting the effective priority of that queue's owner.
 \end{asparaitem}
 
 \subsection{Declarations}
