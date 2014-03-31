@@ -99,11 +99,22 @@ For security constraints, we need to bullet-proof the Nachos kernel from user pr
 
 \subsection{Declarations}
 
-We use \texttt{LinkedList<PriorityQueue> waitBy} and \texttt{PriorityQueue waitOn} to store threads waiting us and threads we are waiting separately. The class \texttt{PriorityQueue} is implemented by java.util.PriorityQueue.
+We use \texttt{OpenFile[] fileDesriptorTable} to store the 16 files opened by this process.
 
 \subsection{Descriptions}
 
 The following algorithm describes the implementation in high level.
+
+\begin{algorithm}
+  \caption{int \texttt{handleHalt}()}
+\begin{algorithmic}[1]
+  \IF { processID != 0}
+    \RETURN 0
+  \ENDIF
+  \STATE \texttt{Machine.halt()}
+  \RETURN 0
+\end{algorithmic}
+\end{algorithm}
 
 \begin{algorithm}
   \caption{int \texttt{handleCreate}(int vaddr)}
@@ -146,43 +157,78 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Testing Plan}
-We need to test the following things. The test is done in \texttt{selfTest()}
-\begin{itemize}
-\item The PriorityQueue of \texttt{java.util.PriorityQueue} works well(Automatically)
-\item The transfer of priority works well
-\item The transfer of priority will hold its property when queue updated
-\item \texttt{Acquire()} will work well, and add queue to the queue list
-\end{itemize}
-
 \begin{algorithm}
-  \caption{\texttt{selfTest}}
+  \caption{int \texttt{handleRead}(int fileDescriptor, int bufferAddr, int count)}
 \begin{algorithmic}[1]
-  \STATE Initialize a PriorityScheduler \texttt{s}
-  \STATE Initialize 3 ThreadQueue
-  \STATE Create 5 threads
-  \STATE disable interrupt
-  \STATE
-  \STATE queue1.acquare(thread1)
-  \STATE queue2.acquire(thread1)
-  \STATE queue1.waitForAccess(thread2)
-  \STATE queue3.acquire(thread3)
-  \STATE queue3.waitForAccess(thread1)
-  \STATE print all the information of the threads
-  \STATE
-  \STATE thread2.setPriority(3)
-  \STATE print all the information of the threads
-  \STATE
-  \STATE queue2.waitForAccess(thread4)
-  \STATE thread3.setPriority(5)
-  \STATE print all the information of the threads
-  \STATE
-  \STATE thread3.setPriority(2)
-  \STATE print all the information of the threads
-  \STATE
-  \STATE restore interrupt
+ \IF { fileDescriptor is invalid}
+    \RETURN -1
+  \ENDIF
+  \STATE file $\leftarrow$ \texttt{fileDescriptorTable}[fileDesriptor]
+  \IF { file is invalid $||$ count $<$ 0}
+    \RETURN -1
+  \ENDIF
+  \STATE Initialize buffer to read from file
+  \STATE bytesRead $\leftarrow$ file.\texttt{read}(buffer, 0, count)
+  \IF {bytesRead $==$ -1}
+    \RETURN -1
+  \ELSE
+    \STATE bytesReturn $\leftarrow$ \texttt{writeVirtualMemory(bufferAddr, buffer, 0, bytesRead)}
+    \RETURN bytesReturn
+  \ENDIF 
 \end{algorithmic}
 \end{algorithm}
+
+\texttt{handWrite} is quite similar to \texttt{handleRead}:
+
+\begin{algorithm}
+  \caption{int \texttt{handleWrite}(int fileDescriptor, int bufferAddr, int count)}
+\begin{algorithmic}[1]
+ \IF { fileDescriptor is invalid}
+    \RETURN -1
+  \ENDIF
+  \STATE file $\leftarrow$ \texttt{fileDescriptorTable}[fileDesriptor]
+  \IF { file is invalid $||$ count $<$ 0}
+    \RETURN -1
+  \ENDIF
+  \STATE Initialize buffer to read from virtual memory
+  \STATE bytesWritten $\leftarrow$ \texttt{readVirtualMemory}(bufferAddr, buffer, 0, count)
+  \IF {bytesWritten != count}
+    \RETURN -1
+  \ENDIF
+  \STATE bytesReturn $\leftarrow$ file.\texttt{write}(buffer, 0, bytesWritten)
+  \IF {bytesReturn != count}
+    \RETURN -1
+  \ENDIF
+  \RETURN bytesReturn
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{int \texttt{handleClose}(int fileDescriptor)}
+\begin{algorithmic}[1]
+ \IF { fileDescriptor is invalid}
+    \RETURN -1
+  \ENDIF
+  \STATE \texttt{fileDescriptorTable}[fileDesriptor].\texttt{close}()
+  \STATE  \texttt{fileDescriptorTable}[fileDesriptor] $\leftarrow$ null
+  \RETURN 0
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{int \texttt{handleUnlink}(string name)}
+\begin{algorithmic}[1]
+  \STATE  success $\leftarrow$ \texttt{ThreadedKernel.fileSystem.remove}(name)
+ \IF { ! success}
+    \RETURN -1
+  \ENDIF
+  \RETURN 0
+\end{algorithmic}
+\end{algorithm}
+
+
+
+\subsection{Testing Plan}
 
 
 \end{spacing}
