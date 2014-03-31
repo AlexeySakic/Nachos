@@ -11,5 +11,5 @@ onexit () {
 OLDSTTYSTATE=`stty -g`
 trap onexit 0
 stty -icanon min 1 -echo
-java nachos.machine.Machine -[] nachos/proj1/nachos.conf $@
+java nachos.machine.Machine -[] nachos/proj2/nachos.conf $@
 
