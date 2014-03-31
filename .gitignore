@@ -1,4 +1,6 @@
 # Ignore generated files
+*.o
+*.coff
 *.log
 *.aux
 *.bak
