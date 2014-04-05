@@ -14,8 +14,7 @@
 \usepackage{algorithmic}
 % \usepackage{tikz}
 % \usepackage{pgffor}
-\newcommand{\xd}{\leqslant}
-\newcommand{\dd}{\geqslant}
+\newcommand{\eq}{$\leftarrow$}
 % In case you need to adjust margins:
 \topmargin=-0.45in      %
 \evensidemargin=0in     %
@@ -74,7 +73,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Begin edit from here
 
- 
+
 \section{Task 1}
 \subsection{Overview}
 Task 1 asks us to implement file system calls  in Nachos by adding code to the \texttt{UserProcess} class. Here we are not asked to implement a file system from scratch, but to give user processes the ability to access a file system that have been implemented.
@@ -132,7 +131,7 @@ The following algorithm describes the implementation in high level.
     \RETURN $x$
   \ELSE
     \RETURN -1
-  \ENDIF 
+  \ENDIF
 \end{algorithmic}
 \end{algorithm}
 
@@ -153,7 +152,7 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
     \RETURN $x$
   \ELSE
     \RETURN -1
-  \ENDIF 
+  \ENDIF
 \end{algorithmic}
 \end{algorithm}
 
@@ -174,7 +173,7 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
   \ELSE
     \STATE bytesReturn $\leftarrow$ \texttt{writeVirtualMemory(bufferAddr, buffer, 0, bytesRead)}
     \RETURN bytesReturn
-  \ENDIF 
+  \ENDIF
 \end{algorithmic}
 \end{algorithm}
 
@@ -231,5 +230,149 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
 \subsection{Testing Plan}
 
 
+
+\section{Task 3}
+\subsection{Overview}
+In Task 2, we have to implement three system calls (\texttt{exec, join} and \texttt{exit}) as documented in \texttt{syscall.h}. All of them require us to add codes for \texttt{handleSyscall} in class \texttt{UserProcess}.
+
+For \texttt{exec}, we have to create a subprocess and run its \texttt{execute()} function and create standard input output file descriptors.
+
+As \texttt{join} deals with subprocesses and can only be used between parents and children, we need to use references to record a process's parent process and a list for its children. And when the function is called, we have to check by using \texttt{UserKernel.currentProcess()} in case of illegal joins.
+
+And when \texttt{exit} is called, we also need to free up memory, close open files and also inform the parent process of the information so that \texttt{join} can no longer be called. We also have to notify its subprocesses the termination. Besides, since the last process calling \texttt{exit} should invoke \texttt{Kernel.kernel.terminate()}, we should keep a global list making sure that we know which one to do the closing.
+
+Notice that we do not have to modify \texttt{Uthread.finish()} to do the same closing, since as is suggested in file \texttt{start.s}, a normal return from \texttt{main()} would call \texttt{exit} at last. Thus, we only need to care unhandled exceptions and \texttt{exit}. And the process ID is distributed at the construction function of the process.
+\subsection{Correctness Constraints}
+\begin{asparaitem}
+  \item \texttt{exec} and \texttt{join} will first check the validity of its input, and \texttt{join} would make sure of the legitimacy of the caller and the callee.
+  \item References of parents and children are kept in case of \texttt{join}.
+  \item A global list is kept to record which process is the last to call \texttt{exit}.
+  \item Cleanups are done both in \texttt{exit} and unhandled exceptions.
+\end{asparaitem}
+\subsection{Declarations}
+\texttt{private boolean normalExit} for whether the program exits normally
+
+\texttt{private in exitStatus} for the simplicity of transferring the status to its joining parent
+
+\texttt{private UserProcess parentProcess} is the reference to its parent (\texttt{null} as default)
+
+\texttt{private static int nextProcessID} denotes the next process ID to assign
+
+\texttt{private int processID} denotes the ID assigned to ``this'' process
+
+\texttt{private static HashMap<Integer, UserProcess> userProcessList} denotes the list containing all main processes (without fathers)
+
+\texttt{private LinkedList<UserProcess> childProcessList} denotes the list containing all child processes of ``this'' process
+
+\texttt{private Semaphore joinSemaphore} denotes the semaphore used in function \texttt{join}
+
+\subsection{Descriptions}
+\begin{algorithm}
+\caption{int \texttt{handleExec}(int file, int argc, int argv)}
+  \begin{algorithmic}
+    \IF {(fileDescriptorTable = new OpenFile[16]) is invalid}
+      \RETURN -1
+    \ENDIF
+    \STATE fileDescriptorTable[0] = UserProcess.console.openForReading()
+    \STATE fileDescriptorTable[1] = UserProcess.console.openForWriting()
+    \STATE fileName\eq\texttt{readVirtualMemoryString}(file,256)
+    \IF {(fileDescriptorTable[0,1] is invalid) or (fileName is invalid) or (argc $<$ 0)}
+      \RETURN -1
+    \ENDIF
+    \IF {fileName does not end with \texttt{.coff}}
+      \RETURN -1
+    \ENDIF
+      \STATE String[] args = new String[argc]
+      \FOR {i = 0; i $<$ argc; i++}
+        \STATE args[i]\eq\texttt{readVirtualMemoryString(argv, 256)}
+        \IF {args[i] == \texttt{null}}
+          \RETURN -1
+        \ENDIF
+        \STATE {\color{blue}//since $\backslash0$  occupies one char}
+        \STATE argv += args[i].length + 1
+      \ENDFOR
+    \STATE UserProcess childProcess = new UserProcess()
+    \IF {childProcess is not valid}
+      \RETURN -1
+    \ENDIF
+    \STATE childProcess.setParent(this)
+    %%??
+    \STATE childProcessList.add(childProcess);
+    \STATE userProcessTable.put(childProcess.getID(), childProcess)
+    \IF {not child.\texttt{execute}(fileName, args)}
+      \RETURN -1
+    \ENDIF
+    \RETURN childProcess.getID()
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{boolean \texttt{join}(int status)}
+  \begin{algorithmic}
+    \STATE {\color{blue} //note that we have to keep both exitStatus and normalExit since the exit status is not required to be consistent with a normal exit}
+    \STATE joinSemaphore.P()
+    \STATE {\color{blue} //assume an integer is of 4 bytes and the processor is little endian}
+    \STATE byte[] data = new byte[4]
+    \FOR {i = 0; i $<$ 4; i++}
+      \STATE data[3 - i] = status $>>$ (i * 8)
+    \ENDFOR
+    \STATE writeVirtualMemory(status, data)
+    \STATE joinSemaphore.V()
+    \RETURN normalExit
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{int \texttt{HandleJoin}(int processID, int status)}
+  \begin{algorithmic}
+    \STATE {\color{blue}//check validity}
+    \STATE UserProcess joinProcess = userProcessTable.get(processID)
+    \IF {not (joinProcess.parent.getID() == UserThread.currentProcess().getID())}
+      \RETURN -1
+    \ENDIF
+    \IF {joinProcess.join(status)}
+      \RETURN 1
+    \ENDIF
+    \RETURN 0
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{void \texttt{cleanUp}()}
+  \begin{algorithmic}
+    \FOR {file in fileDesriptorTable}
+      \STATE {handleClose(file)}
+    \ENDFOR
+    \FOR {child in childProcessList}
+      \STATE child.setParent(null)
+    \ENDFOR
+    \STATE \colorbox{myyellow}{need free up memory!}
+    \STATE userProcessTable.remove(UserThread.getCurrentProcess().getID())
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{void \texttt{HandleExit}(int status, boolean normalExit)}
+  \begin{algorithmic}
+    \STATE {\color{blue}// we also use this function to handle unhandled exceptions except that we manually set status}
+    \STATE \texttt{cleanUp}()
+    \IF {userProcessTable.isEmpty()}
+      \STATE UserKernel.kernel.terminate()
+    \ENDIF
+    \STATE exitStatus = status
+    \STATE this.normalExit = normalExit
+    \STATE joinSemaphore.V()
+  \end{algorithmic}
+\end{algorithm}
+
+\subsection{Testing Plan}
+\begin{asparaitem}
+  \item A program with $argc=0$.
+  \item Processes killed midway to test whether the parent can receive the correct information and make sure that the cleanups are correctly done.
+  \item Console for inputs and outputs can not be established (???the first step needs check).
+  \item Interrupt at userProcessTable putting in new pairs???
+  \item whether use equals of java object???
+  \item join on a finished process
+\end{asparaitem}
 \end{spacing}
 \end{document}
