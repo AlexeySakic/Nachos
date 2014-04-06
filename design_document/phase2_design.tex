@@ -374,5 +374,22 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
   \item whether use equals of java object???
   \item join on a finished process
 \end{asparaitem}
+
+\section{Task 4}
+
+\subsection{Overview}
+In task 4, we need to implement a lottery scheduler which extends \texttt{PriorityScheduler}. In lottery scheduling, tickets are used to represent the share of a resource that a process(or thread) should receive. So instead of donating priority, waiting threads transfer tickets to threads they wait for. The major difference is that a waiting thread always adds its ticket count to the ticket count of the current queue owner; that is, the owner's ticket count is the sum of its own tickets and the tickets of all its waiters, not the max.
+
+To implements this feature, we have to override \texttt{nextThread} method of class \texttt{PriorityThreadedQueue} and \texttt{updateEffectivePriority} method of class \texttt{ThreadState} and add some short helper methods. We override \texttt{nextThread} method in order to hold a lottery when \texttt{PriorityThreadedQueue} is going to pick a thread from its \texttt{PriorityQueue}. We override \texttt{updateEffectivePriority} to calculate the EP by taking sum instead of taking max.
+
+\subsection{Correctness Constraints}
+
+\subsection{Declaration}
+
+\subsection{Description}
+
+\subsection{Testing Plan}
+
+
 \end{spacing}
 \end{document}
