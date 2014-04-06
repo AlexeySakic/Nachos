@@ -384,6 +384,13 @@ To implements this feature, we have to override \texttt{nextThread} method of cl
 
 \subsection{Correctness Constraints}
 
+\begin{asparaitem}
+\item Ensure that the owner's ticket count is the sum of its own tickets and the tickets of all waiters
+\item Implementation should work even if there are billions of tickets in the system.
+\item The number of tickets held by a process should be incremented by 1 when \texttt{LotterySchedulerincreasePriority()} is called.
+\item The total number of tickets in the system is guaranteed not to exceed \texttt{Integer.MAX}\_\texttt{VALUE}.
+\end{asparaitem}
+
 \subsection{Declaration}
 
 \subsection{Description}
