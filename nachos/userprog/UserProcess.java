@@ -7,6 +7,8 @@ import nachos.threads.*;
 import nachos.userprog.*;
 
 import java.io.EOFException;
+import java.util.HashMap;
+import java.util.LinkedList;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -21,6 +23,7 @@ import java.io.EOFException;
  * @see	nachos.network.NetProcess
  */
 public class UserProcess {
+
 	/**
 	 * Allocate a new process.
 	 */
@@ -29,6 +32,16 @@ public class UserProcess {
 		pageTable = new TranslationEntry[numPhysPages];
 		for (int i=0; i<numPhysPages; i++)
 			pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+		
+		//assign appropriate fileDescrptors
+		fileDescriptorTable = new OpenFile[16];
+		fileDescriptorTable[0] = UserKernel.console.openForReading();
+		fileDescriptorTable[1] = UserKernel.console.openForWriting();
+		//assign a legal process ID
+		idMutex.P();
+		processID = nextProcessID;
+		nextProcessID++;
+		idMutex.V();
 	}
 
 	/**
@@ -63,6 +76,7 @@ public class UserProcess {
 	 * Save the state of this process in preparation for a context switch.
 	 * Called by <tt>UThread.saveState()</tt>.
 	 */
+	//need modification?
 	public void saveState() {
 	}
 
@@ -337,6 +351,45 @@ public class UserProcess {
 	}
 
 	/**
+	 * Set the parent process.
+	 */
+	private void setParent(UserProcess parent) {
+		this.parentProcess = parent;
+	}
+	/**
+	 * Set the process ID.
+	 */
+	private int getID() {
+		return processID;
+	}
+	/**
+	 * real join() method.
+	 */
+	private boolean join(int status) {
+		joinSemaphore.P();
+		byte[] data = Lib.bytesFromInt(exitStatus);
+		writeVirtualMemory(status, data);
+		joinSemaphore.V();
+		return normalExit;
+	}
+	/**
+	 * cleanups at exit
+	 */
+	private void cleanUp() {
+		for (OpenFile file : fileDescriptorTable) 
+			if (file != null)
+				file.close();
+		unloadSections();
+		for (UserProcess child : childProcessList)
+			if (child != null)
+				child.setParent(null);
+		tableMutex.P();
+		userProcessTable.remove(UserKernel.currentProcess().getID());
+		tableMutex.V();
+		childProcessList.clear();
+	}
+	
+	/**
 	 * Handle the halt() system call.
 	 */
 	private int handleHalt() {
@@ -346,7 +399,66 @@ public class UserProcess {
 		Lib.assertNotReached("Machine.halt() did not halt machine!");
 		return 0;
 	}
-
+	
+	/**
+	 * Handle the exec(char* file, int argc, char* argv[]) system call.
+	 */
+	private int handleExec(int file, int argc, int argv) {
+		String fileName = readVirtualMemoryString(file, 256);
+		if ((fileName == null) || (argc < 0))
+			return -1;
+		if (!fileName.toLowerCase().endsWith(".coff"))
+			return -1;
+		byte[] pointer = new byte[4];
+		String[] args = new String[argc];
+		for (int i = 0; i < argc; i++) {
+			readVirtualMemory(argv, pointer);
+			int pos = Lib.bytesToInt(pointer, argv);
+			args[i] = readVirtualMemoryString(pos, 256);
+			argv += 4;
+		}
+		UserProcess childProcess = new UserProcess();
+		if (childProcess == null)
+			return -1;
+		childProcess.setParent(this);
+		childProcessList.add(childProcess);
+		tableMutex.P();
+		userProcessTable.put(childProcess.getID(), childProcess);
+		tableMutex.V();
+		if (!childProcess.execute(fileName, args))
+			return -1;
+		return childProcess.getID();
+	}
+	
+	/**
+	 * Handle the join(int processID, int* status) system call.
+	 */
+	private int handleJoin(int processID, int status) {
+		tableMutex.P();
+		UserProcess joinProcess = userProcessTable.get(processID);
+		tableMutex.V();
+		if (joinProcess.parentProcess.getID() != 
+				UserKernel.currentProcess().getID())
+			return -1;
+		int retVal = joinProcess.join(status) ? 1 : 0;
+		childProcessList.remove(joinProcess);
+		return retVal;
+	}
+	
+	/**
+	 * Handle exit system calls and abnormal exits
+	 */
+	private int handleExit(int status, boolean normalExit) {
+		cleanUp();
+		if (userProcessTable.isEmpty())
+			//threadedkernel??
+			Kernel.kernel.terminate();
+		exitStatus = status;
+		this.normalExit = normalExit;
+		joinSemaphore.V();
+		KThread.finish();
+		return status;
+	}
 
 	private static final int
 	syscallHalt = 0,
@@ -392,11 +504,18 @@ public class UserProcess {
 		switch (syscall) {
 		case syscallHalt:
 			return handleHalt();
-
+		case syscallExit:
+			return handleExit(a0, true);
+		case syscallJoin:
+			return handleJoin(a0, a1);
+		case syscallExec:
+			return handleExec(a0, a1, a2);
 
 		default:
 			Lib.debug(dbgProcess, "Unknown syscall " + syscall);
 			Lib.assertNotReached("Unknown system call!");
+			//default as exited abnormally
+			handleExit(a0, false);
 		}
 		return 0;
 	}
@@ -447,4 +566,19 @@ public class UserProcess {
 
 	private static final int pageSize = Processor.pageSize;
 	private static final char dbgProcess = 'a';
+	//implement by us
+	private OpenFile[] fileDescriptorTable;
+	private int exitStatus;
+	private boolean normalExit;
+	private OpenFile[] file;
+	private UserProcess parentProcess = null;
+	private LinkedList<UserProcess> childProcessList
+	= new LinkedList<UserProcess>();
+	private static HashMap<Integer, UserProcess> userProcessTable
+	= new HashMap<Integer, UserProcess>();
+	private static int nextProcessID = 0;
+	private int processID;
+	private static Semaphore joinSemaphore = new Semaphore(0);
+	private static Semaphore idMutex = new Semaphore(1);
+	private static Semaphore tableMutex = new Semaphore(1);
 }

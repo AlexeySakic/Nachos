@@ -50,7 +50,7 @@
 
 % Homework Specific Information. Change it to your own
 \newcommand{\Title}{Nachos Phase 2 Design Document}
-\newcommand{\DueDate}{April 1, 2014}
+\newcommand{\DueDate}{April 8, 2014}
 \title{\textmd{\bf \Class: \Title}\\{\large Instructed by \textit{\ClassInstructor}}\\\normalsize\vspace{0.1in}\small{Due\ on\ \DueDate}}
 \date{}
 
@@ -87,12 +87,12 @@ For security constraints, we need to bullet-proof the Nachos kernel from user pr
 \subsection{Correctness Constraints}
 
 \begin{asparaitem}
-\item Implement the system calls: \texttt{create}, \texttt{open}, \texttt{read}, \texttt{write}, \texttt{close} and \texttt{unlink}\\
-\item Bullet-proof the Nachos Kernel from user program errors: validating input and ensuring that errors are handled gracefully\\
-\item Error condition of a system call should be indicated by a return value of -1 instead of throw an exception within the kernel\\
-\item Ensure that halt can only be called from the root process (the first process in the system)\\
-\item Each file that a process has opened should have a unique file descriptor associated with it.\\
-\item When any process is started, its file descriptors 0 and 1 must refer to standard input and standard output.\\
+\item Implement the system calls: \texttt{create}, \texttt{open}, \texttt{read}, \texttt{write}, \texttt{close} and \texttt{unlink}
+\item Bullet-proof the Nachos Kernel from user program errors: validating input and ensuring that errors are handled gracefully
+\item Error condition of a system call should be indicated by a return value of -1 instead of throw an exception within the kernel
+\item Ensure that halt can only be called from the root process (the first process in the system)
+\item Each file that a process has opened should have a unique file descriptor associated with it.
+\item When any process is started, its file descriptors 0 and 1 must refer to standard input and standard output.
 \item 16 files should be able to be opened simultaneously in a single process
 \end{asparaitem}
 
@@ -231,9 +231,10 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
 
 
 
+
 \section{Task 3}
 \subsection{Overview}
-In Task 2, we have to implement three system calls (\texttt{exec, join} and \texttt{exit}) as documented in \texttt{syscall.h}. All of them require us to add codes for \texttt{handleSyscall} in class \texttt{UserProcess}.
+In Task 3, we have to implement three system calls (\texttt{exec, join} and \texttt{exit}) as documented in \texttt{syscall.h}. All of them require us to add codes for \texttt{handleSyscall} in class \texttt{UserProcess}.
 
 For \texttt{exec}, we have to create a subprocess and run its \texttt{execute()} function and create standard input output file descriptors.
 
@@ -266,31 +267,42 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
 
 \texttt{private Semaphore joinSemaphore} denotes the semaphore used in function \texttt{join}
 
+\texttt{private Semaphore idMutex} denotes the semaphore used in the protection of changing \texttt{processID}
+
+\texttt{private Semaphore tableMutex} denotes the semaphore used in the protection of changing \texttt{userProcessTable}
 \subsection{Descriptions}
+\begin{algorithm}
+\caption{\texttt{UserProcess}()}
+  \begin{algorithmic}
+    \STATE {fileDescriptorTable = new OpenFile[16]}
+    \STATE fileDescriptorTable[0] = UserKernel.console.openForReading()
+    \STATE fileDescriptorTable[1] = UserKernel.console.openForWriting()
+    \STATE \colorbox{myyellow}{idMutex.P()}
+	\STATE processID = nextProcessID
+	\STATE nextProcessID++
+	\STATE \colorbox{myyellow}{idMutex.V()}
+  \end{algorithmic}
+\end{algorithm}
+
 \begin{algorithm}
 \caption{int \texttt{handleExec}(int file, int argc, int argv)}
   \begin{algorithmic}
-    \IF {(fileDescriptorTable = new OpenFile[16]) is invalid}
-      \RETURN -1
-    \ENDIF
-    \STATE fileDescriptorTable[0] = UserProcess.console.openForReading()
-    \STATE fileDescriptorTable[1] = UserProcess.console.openForWriting()
     \STATE fileName\eq\texttt{readVirtualMemoryString}(file,256)
-    \IF {(fileDescriptorTable[0,1] is invalid) or (fileName is invalid) or (argc $<$ 0)}
+    \IF {(fileName is invalid) or (argc $<$ 0)}
       \RETURN -1
     \ENDIF
     \IF {fileName does not end with \texttt{.coff}}
       \RETURN -1
     \ENDIF
+      \STATE byte[] pointer = new byte[4]
       \STATE String[] args = new String[argc]
       \FOR {i = 0; i $<$ argc; i++}
-        \STATE args[i]\eq\texttt{readVirtualMemoryString(argv, 256)}
-        \IF {args[i] == \texttt{null}}
-          \RETURN -1
-        \ENDIF
-        \STATE {\color{blue}//since $\backslash0$  occupies one char}
-        \STATE argv += args[i].length + 1
-      \ENDFOR
+        \STATE \texttt{readVirtualMemory}(pointer, argv)
+        \STATE int pos = Lib.bytesToInt(pointer, 0)
+        \STATE args[i] = \texttt{readVirtualMemoryString}(pos, args[i])
+        \STATE \colorbox{myyellow}{// in a 4-byte alignment situation}
+        \STATE argv += 4
+        \ENDFOR
     \STATE UserProcess childProcess = new UserProcess()
     \IF {childProcess is not valid}
       \RETURN -1
@@ -298,8 +310,10 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
     \STATE childProcess.setParent(this)
     %%??
     \STATE childProcessList.add(childProcess);
+    \STATE \colorbox{myyellow}{tableMutex.P()}
     \STATE userProcessTable.put(childProcess.getID(), childProcess)
-    \IF {not child.\texttt{execute}(fileName, args)}
+    \STATE \colorbox{myyellow}{tableMutex.V()}
+    \IF {not childProcess.\texttt{execute}(fileName, args)}
       \RETURN -1
     \ENDIF
     \RETURN childProcess.getID()
@@ -312,10 +326,7 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
     \STATE {\color{blue} //note that we have to keep both exitStatus and normalExit since the exit status is not required to be consistent with a normal exit}
     \STATE joinSemaphore.P()
     \STATE {\color{blue} //assume an integer is of 4 bytes and the processor is little endian}
-    \STATE byte[] data = new byte[4]
-    \FOR {i = 0; i $<$ 4; i++}
-      \STATE data[3 - i] = status $>>$ (i * 8)
-    \ENDFOR
+    \STATE byte[] data = Lib.bytesFromInt(exitStatus)
     \STATE writeVirtualMemory(status, data)
     \STATE joinSemaphore.V()
     \RETURN normalExit
@@ -323,17 +334,19 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
 \end{algorithm}
 
 \begin{algorithm}
-\caption{int \texttt{HandleJoin}(int processID, int status)}
+\caption{int \texttt{handleJoin}(int processID, int status)}
   \begin{algorithmic}
     \STATE {\color{blue}//check validity}
+    \STATE \colorbox{myyellow}{tableMutex.P()}
     \STATE UserProcess joinProcess = userProcessTable.get(processID)
-    \IF {not (joinProcess.parent.getID() == UserThread.currentProcess().getID())}
+    \STATE \colorbox{myyellow}{tableMutex.V()}
+    \IF {not (joinProcess.parentProcess.getID() == UserThread.currentProcess().getID())}
       \RETURN -1
     \ENDIF
-    \IF {joinProcess.join(status)}
-      \RETURN 1
-    \ENDIF
-    \RETURN 0
+    \STATE int retVal = joinProcess.join(status) ? 1 : 0
+    \STATE {\color{blue} //only need to remove the child in join since only join accesses children}
+    \STATE childProcessList.remove(joinProcess)
+    \RETURN retVal
   \end{algorithmic}
 \end{algorithm}
 
@@ -341,27 +354,37 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
 \caption{void \texttt{cleanUp}()}
   \begin{algorithmic}
     \FOR {file in fileDesriptorTable}
-      \STATE {handleClose(file)}
+    \IF {file != null}
+      \STATE {file.close()}
+    \ENDIF
     \ENDFOR
+    \STATE \colorbox{myyellow}{//need free up memory!}
+    \STATE unloadSections()
     \FOR {child in childProcessList}
+    \IF {child != null}
       \STATE child.setParent(null)
+    \ENDIF
     \ENDFOR
-    \STATE \colorbox{myyellow}{need free up memory!}
-    \STATE userProcessTable.remove(UserThread.getCurrentProcess().getID())
+    \STATE \colorbox{myyellow}{tableMutex.P()}
+    \STATE userProcessTable.remove(UserKernel.getCurrentProcess().getID())
+    \STATE \colorbox{myyellow}{tableMutex.V()}
+    \STATE childProcessList.clear()
   \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}
-\caption{void \texttt{HandleExit}(int status, boolean normalExit)}
+\caption{int \texttt{handleExit}(int status, boolean normalExit)}
   \begin{algorithmic}
     \STATE {\color{blue}// we also use this function to handle unhandled exceptions except that we manually set status}
     \STATE \texttt{cleanUp}()
     \IF {userProcessTable.isEmpty()}
-      \STATE UserKernel.kernel.terminate()
+      \STATE Kernel.kernel.terminate()
     \ENDIF
     \STATE exitStatus = status
     \STATE this.normalExit = normalExit
     \STATE joinSemaphore.V()
+    \STATE \colorbox{myyellow}{KThread.finish()}
+    \RETURN status
   \end{algorithmic}
 \end{algorithm}
 
@@ -374,6 +397,7 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
   \item whether use equals of java object???
   \item join on a finished process
 \end{asparaitem}
+
 
 \section{Task 4}
 
