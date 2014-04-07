@@ -230,6 +230,128 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
 \subsection{Testing Plan}
 
 
+\section{Task 2}
+
+\subsection{Correctness Constraints}
+\begin{enumerate}
+  \item[$\bullet$] Different processes do not overlap in their physical memory usage.
+  \item[$\bullet$] Make use of ``gaps'' in the free memory pool.
+  \item[$\bullet$] Only valid virtual memory can be read; only valid and writable
+    memory can be written.
+  \item[$\bullet$] All of a process's memory is freed on exit.
+\end{enumerate}
+
+\subsection{Declarations}
+We use a public static \texttt{Queue} to maintain the free physical pages and a public
+static \texttt{Semaphore} to make the access sychronous. Once we allocate a
+page, we delete it from the queue; and once we free a page, we add it
+into the queue. We use a 
+\texttt{TranslationEntry} array to construct the pageTable. In the 
+\texttt{UserProcess.loadSections()} we build the pageTable to associate vpn and ppn.
+We implement \texttt{UserProcess.unloadSection} to release the physical pages
+allocated by $\texttt{loadSections()}$.
+Then we modify \texttt{UserProcess.readVirtualMemory} and 
+\texttt{UserProcess.writeVirtualMemory} to use pageTable to access physical
+memory through virtual memory. Here, we transfer the data in a unit of one page.
+\begin{enumerate}
+  \item[$\bullet$] \textit{data structure}: \texttt{Queue}, \texttt{Semaphore},
+    \texttt{TranslationEntry}.
+  \item[$\bullet$] \textit{member variable}:
+    \begin{enumerate}
+      \item \texttt{public static Queue<Integer> UserKernel::freePPNList};
+      \item \texttt{public static Semaphore UserKernel::ppnListSemaphore}, initially 1;
+      \item \texttt{protected TranslationEntry[] UserProcess::pageTable};
+      \end{enumerate}
+\end{enumerate}
+
+\subsection{Description}
+\begin{algorithm}
+  \caption{\texttt{UserKernel::initialize()}}
+  \begin{algorithmic}[1]
+    \STATE $\dots$ \textit{given code} $\dots$
+    \STATE $ppnListSemaphore.P()$;
+    \FOR{all ppn $i$}
+    \STATE $freePPNList.enqueue(i)$;
+    \ENDFOR
+    \STATE $ppnListSemaphore.V()$;
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{\texttt{UserProcess::loadSections()}}
+  \begin{algorithmic}[1]
+    \STATE $ppnListSemaphore.P()$;
+    \IF{$numPages > freePPNList.size()$}
+    \RETURN \textbf{false};
+    \ENDIF
+    \STATE $pageTable.size \leftarrow numPages$;
+    \FOR{all section $s$ and all virtual pages $vpn$}
+    \STATE $ppn \leftarrow freePPNList.dequeue()$;
+    \STATE $pageTable[vpn]\leftarrow(vpn,ppn,true,s.isReadOnly(),false,false)$;
+    \STATE Load the $i$ page's content into the physical memory page $ppn$;
+    \ENDFOR
+    \FOR{all stack pages $vpn$}
+    \STATE $ppn \leftarrow freePPNList.dequeue()$;
+    \STATE $pageTable[vpn]\leftarrow (vpn,ppn,true, false,false,false)$;
+    \ENDFOR
+    \STATE $ppnListSemaphore.V()$;
+    \RETURN \textbf{true};
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{\texttt{UserProcess::readVirtualMemory(vaddr, data, offset, length)}}
+  \begin{algorithmic}[1]
+    \IF{$vaddr < 0$}
+    \RETURN 0;
+    \ENDIF
+    \STATE $start\leftarrow vpn(vaddr)$;
+    \STATE $end\leftarrow vpn(vaddr+length)$;
+    \STATE $e\leftarrow \min\{end, pageTable.size()\}$;
+    \STATE $amount\leftarrow 0$;
+    \FOR{$i=start$ \textbf{to} $e$}
+    \IF{$pageTable[i].valid = \textbf{false}$}
+    \RETURN{$amount$};
+    \ENDIF
+    \STATE $s\leftarrow 0, e\leftarrow pageSize$;
+    \IF{$i=start$}
+    \STATE $s\leftarrow offset(vaddr)$;
+    \ENDIF
+    \IF{$i=end$}
+    \STATE $e\leftarrow offset(vaddr+length)$;
+    \ENDIF
+    \STATE $paddr = ppn*pageSize + s$;
+    \STATE $System.arraycopy(memory, paddr, data, offset, e-s)$;
+    \STATE $pageTable[i].used\leftarrow \textbf{true}$;
+    \STATE $amount \leftarrow amount + e - s$;
+    \STATE $offset \leftarrow offset + e - s$;
+    \ENDFOR
+    \RETURN{$amount$};
+  \end{algorithmic}
+\end{algorithm} 
+The algorithm of \texttt{writeVirtualMemory} is almost the same as 
+\texttt{readVirtualMemory}.
+We only need to change line 9 into: \\
+\begin{center}
+  \textbf{if} $pageTable[i].valid = \textbf{false} || pageTable[i].readOnly = 
+  \textbf{true}$ \textbf{then}
+\end{center}
+and add a line between line 21 and line 22 as: 
+\[ pageTable[i].dirty \leftarrow \textbf{true}; \]
+
+\subsection{Testing Plan}
+\begin{enumerate}
+  \item[$\bullet$] Let two process $p_1$ and $p_2$ run at the same time and see
+    their ppn.
+  \item[$\bullet$] Only run one process $p_1$, then check the ppn of $p_1$
+    and the free ppn, then finish $p_1$ and check free ppn.
+  \item[$\bullet$] At a same vpn, we first do \texttt{writeVirtualMemory},
+    and do \texttt{readVirtualMemory} and then do \texttt{writeVirtualMemory},
+    and do \texttt{readVirtualMemory}.
+  \item[$\bullet$] Try to write in the readonly section.
+  \item[$\bullet$] Try to read the memory that not in the sections.
+\end{enumerate}
+
 
 
 \section{Task 3}
