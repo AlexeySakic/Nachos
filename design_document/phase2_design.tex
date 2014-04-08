@@ -12,6 +12,9 @@
 \usepackage{mathrsfs}
 \usepackage{algorithm}
 \usepackage{algorithmic}
+\usepackage[pdfauthor={XeLaTeX},%
+pdftitle={Design Document}]{hyperref}
+
 % \usepackage{tikz}
 % \usepackage{pgffor}
 \newcommand{\eq}{$\leftarrow$}
@@ -108,9 +111,10 @@ We use \texttt{OpenFile[] fileDesriptorTable} to store the 16 files opened by th
 
 \subsection{Descriptions}
 
-The following algorithm describes the implementation in high level.
+The following algorithms \ref{alg:handleHalt} and \ref{alg:handleCreate} describes the implementation in high level.
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
+  \label{alg:handleHalt}
   \caption{int \texttt{handleHalt}()}
 \begin{algorithmic}[1]
   \IF { processID != 0}
@@ -121,7 +125,8 @@ The following algorithm describes the implementation in high level.
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
+  \label{alg:handleCreate}
   \caption{int \texttt{handleCreate}(int vaddr)}
 \begin{algorithmic}[1]
   \IF { vaddr is invalid}
@@ -141,8 +146,9 @@ The following algorithm describes the implementation in high level.
 \end{algorithmic}
 \end{algorithm}
 
-To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{handleCreate} to following:
-\begin{algorithm}
+To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{handleCreate} to following algorithm \ref{alg:handleOpen}:
+\begin{algorithm}[htbp]
+  \label{alg:handleOpen}
   \caption{int \texttt{handleOpen}(int vaddr)}
 \begin{algorithmic}[1]
  \IF { vaddr is invalid}
@@ -162,7 +168,7 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{int \texttt{handleRead}(int fileDescriptor, int bufferAddr, int count)}
 \begin{algorithmic}[1]
  \IF { fileDescriptor is invalid}
@@ -185,7 +191,7 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
 
 \texttt{handWrite} is quite similar to \texttt{handleRead}:
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{int \texttt{handleWrite}(int fileDescriptor, int bufferAddr, int count)}
 \begin{algorithmic}[1]
  \IF { fileDescriptor is invalid}
@@ -208,7 +214,7 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{int \texttt{handleClose}(int fileDescriptor)}
 \begin{algorithmic}[1]
  \IF { fileDescriptor is invalid}
@@ -220,7 +226,7 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{int \texttt{handleUnlink}(string name)}
 \begin{algorithmic}[1]
   \STATE  success $\leftarrow$ \texttt{ThreadedKernel.fileSystem.remove}(name)
@@ -271,91 +277,91 @@ memory through virtual memory. Here, we transfer the data in a unit of one page.
 \end{enumerate}
 
 \subsection{Description}
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{\texttt{UserKernel::initialize()}}
   \begin{algorithmic}[1]
     \STATE $\dots$ \textit{given code} $\dots$
-    \STATE $ppnListSemaphore.P()$;
+    \STATE \texttt{ppnListSemaphore.P()};
     \FOR{all ppn $i$}
-    \STATE $freePPNList.enqueue(i)$;
+    \STATE \texttt{freePPNList.enqueue(i)};
     \ENDFOR
-    \STATE $ppnListSemaphore.V()$;
+    \STATE \texttt{ppnListSemaphore.V()};
   \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{\texttt{UserProcess::loadSections()}}
   \begin{algorithmic}[1]
-    \STATE $ppnListSemaphore.P()$;
-    \IF{$numPages > freePPNList.size()$}
+    \STATE \texttt{ppnListSemaphore.P()};
+    \IF{\texttt{numPages $>$ freePPNList.size()}}
     \RETURN \textbf{false};
     \ENDIF
-    \STATE $pageTable.size \leftarrow numPages$;
+    \STATE \texttt{pageTable.size $\gets$ numPages};
     \FOR{all section $s$ and all virtual pages $vpn$}
-    \STATE $ppn \leftarrow freePPNList.dequeue()$;
-    \STATE $pageTable[vpn]\leftarrow(vpn,ppn,true,s.isReadOnly(),false,false)$;
+    \STATE \texttt{ppn $\gets$ freePPNList.dequeue()};
+    \STATE \texttt{pageTable[vpn] $\gets$ (vpn,ppn,true,s.isReadOnly(),false,false)};
     \STATE Load the $i$ page's content into the physical memory page $ppn$;
     \ENDFOR
     \FOR{all stack pages $vpn$}
-    \STATE $ppn \leftarrow freePPNList.dequeue()$;
-    \STATE $pageTable[vpn]\leftarrow (vpn,ppn,true, false,false,false)$;
+    \STATE \texttt{ppn $\gets$ freePPNList.dequeue()};
+    \STATE \texttt{pageTable[vpn] $\gets$ (vpn,ppn,true, false,false,false)};
     \ENDFOR
-    \STATE $ppnListSemaphore.V()$;
+    \STATE \texttt{ppnListSemaphore.V()};
     \RETURN \textbf{true};
   \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{\texttt{UserProcess::readVirtualMemory(vaddr, data, offset, length)}}
   \begin{algorithmic}[1]
-    \IF{$vaddr < 0$}
+    \IF{\texttt{vaddr < 0}}
     \RETURN 0;
     \ENDIF
-    \STATE $start\leftarrow vpn(vaddr)$;
-    \STATE $end\leftarrow vpn(vaddr+length)$;
-    \STATE $e\leftarrow \min\{end, pageTable.size()\}$;
-    \STATE $amount\leftarrow 0$;
-    \FOR{$i=start$ \textbf{to} $e$}
-    \IF{$pageTable[i].valid = \textbf{false}$}
-    \RETURN{$amount$};
+    \STATE \texttt{start $\gets$  vpn(vaddr)};
+    \STATE \texttt{end $\gets$  vpn(vaddr+length)};
+    \STATE \texttt{e $\gets \min$\{end, pageTable.size()\}};
+    \STATE \texttt{amount $\gets$  0};
+    \FOR{\texttt{$i=$start} \textbf{to} \texttt{e}}
+    \IF{\texttt{pageTable[$i$].valid = \textbf{false}}}
+    \RETURN{\texttt{amount}};
     \ENDIF
-    \STATE $s\leftarrow 0, e\leftarrow pageSize$;
-    \IF{$i=start$}
-    \STATE $s\leftarrow offset(vaddr)$;
+    \STATE \texttt{$s \gets 0, e \gets$ pageSize};
+    \IF{\texttt{$i=$start}}
+    \STATE \texttt{$s \gets$  offset(vaddr)};
     \ENDIF
-    \IF{$i=end$}
-    \STATE $e\leftarrow offset(vaddr+length)$;
+    \IF{\texttt{$i=$end}}
+    \STATE \texttt{$e \gets$  offset(vaddr+length)};
     \ENDIF
-    \STATE $paddr = ppn*pageSize + s$;
-    \STATE $System.arraycopy(memory, paddr, data, offset, e-s)$;
-    \STATE $pageTable[i].used\leftarrow \textbf{true}$;
-    \STATE $amount \leftarrow amount + e - s$;
-    \STATE $offset \leftarrow offset + e - s$;
+    \STATE \texttt{paddr = ppn*pageSize + s};
+    \STATE \texttt{System.arraycopy(memory, paddr, data, offset, e-s)};
+    \STATE \texttt{pageTable[i].used $\gets$  \textbf{true}};
+    \STATE \texttt{amount  $\gets$  amount + e - s};
+    \STATE \texttt{offset  $\gets$  offset + e - s};
     \ENDFOR
-    \RETURN{$amount$};
+    \RETURN{\texttt{amount}};
   \end{algorithmic}
 \end{algorithm} 
 The algorithm of \texttt{writeVirtualMemory} is almost the same as 
 \texttt{readVirtualMemory}.
 We only need to change line 9 into: \\
 \begin{center}
-  \textbf{if} $pageTable[i].valid = \textbf{false} || pageTable[i].readOnly = 
-  \textbf{true}$ \textbf{then}
+  \textbf{if} \texttt{pageTable[i].valid = \textbf{false} || pageTable[i].readOnly = 
+  \textbf{true}} \textbf{then}
 \end{center}
 and add a line between line 21 and line 22 as: 
-\[ pageTable[i].dirty \leftarrow \textbf{true}; \]
+\[ \texttt{pageTable[i].dirty}  \gets  \textbf{true}; \]
 
 \subsection{Testing Plan}
-\begin{enumerate}
-  \item[$\bullet$] Let two process $p_1$ and $p_2$ run at the same time and see
+\begin{enumerate}[$\bullet$]
+  \item Let two process $p_1$ and $p_2$ run at the same time and see
     their ppn.
-  \item[$\bullet$] Only run one process $p_1$, then check the ppn of $p_1$
+  \item Only run one process $p_1$, then check the ppn of $p_1$
     and the free ppn, then finish $p_1$ and check free ppn.
-  \item[$\bullet$] At a same vpn, we first do \texttt{writeVirtualMemory},
+  \item At a same vpn, we first do \texttt{writeVirtualMemory},
     and do \texttt{readVirtualMemory} and then do \texttt{writeVirtualMemory},
     and do \texttt{readVirtualMemory}.
-  \item[$\bullet$] Try to write in the readonly section.
-  \item[$\bullet$] Try to read the memory that not in the sections.
+  \item Try to write in the readonly section.
+  \item Try to read the memory that not in the sections.
 \end{enumerate}
 
 
@@ -381,7 +387,7 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
 \subsection{Declarations}
 \texttt{private boolean normalExit} for whether the program exits normally
 
-\texttt{private in exitStatus} for the simplicity of transferring the status to its joining parent
+\texttt{private int exitStatus} for the simplicity of transferring the status to its joining parent
 
 \texttt{private UserProcess parentProcess} is the reference to its parent (\texttt{null} as default)
 
@@ -397,11 +403,13 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
 
 \texttt{private Semaphore idMutex} denotes the semaphore used in the protection of changing \texttt{processID}
 
-\texttt{private Semaphore tableMutex} denotes the semaphore used in the protection of changing \texttt{userProcessTable}
+\texttt{private Semaphore tableMutex} denotes the semaphore used in the protection of changing \linebreak \texttt{userProcessTable}
 \subsection{Descriptions}
-\begin{algorithm}
+Below are pseudocode for \texttt{UserProcess} \ref{alg:UserProcess}, \texttt{handleExec} \ref{alg:handleExec}, \texttt{join} \ref{alg:join}, \texttt{handleJoin} \ref{alg:handleJoin}, \texttt{cleanUp} \ref{alg:cleanUp} and \texttt{handleExit} \ref{alg:handleExit}.
+\begin{algorithm}[htbp]
+  \label{alg:UserProcess}
 \caption{\texttt{UserProcess}()}
-  \begin{algorithmic}
+  \begin{algorithmic}[1]
     \STATE {fileDescriptorTable = new OpenFile[16]}
     \STATE fileDescriptorTable[0] = UserKernel.console.openForReading()
     \STATE fileDescriptorTable[1] = UserKernel.console.openForWriting()
@@ -412,9 +420,10 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
   \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
+\label{alg:handleExec}
 \caption{int \texttt{handleExec}(int file, int argc, int argv)}
-  \begin{algorithmic}
+  \begin{algorithmic}[1]
     \STATE fileName\eq\texttt{readVirtualMemoryString}(file,256)
     \IF {(fileName is invalid) or (argc $<$ 0)}
       \RETURN -1
@@ -448,10 +457,11 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
   \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
+\label{alg:join}
 \caption{boolean \texttt{join}(int status)}
   \begin{algorithmic}
-    \STATE {\color{blue} //note that we have to keep both exitStatus and normalExit since the exit status is not required to be consistent with a normal exit}
+    \STATE {\color{blue}//note that we have to keep both exitStatus and normalExit since the exit status is not required to be consistent with a normal exit}
     \STATE joinSemaphore.P()
     \STATE {\color{blue} //assume an integer is of 4 bytes and the processor is little endian}
     \STATE byte[] data = Lib.bytesFromInt(exitStatus)
@@ -461,7 +471,8 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
   \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
+\label{alg:handleJoin}
 \caption{int \texttt{handleJoin}(int processID, int status)}
   \begin{algorithmic}
     \STATE {\color{blue}//check validity}
@@ -478,7 +489,8 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
   \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
+\label{alg:cleanUp}
 \caption{void \texttt{cleanUp}()}
   \begin{algorithmic}
     \FOR {file in fileDesriptorTable}
@@ -500,7 +512,8 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
   \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
+\label{alg:handleExit}
 \caption{int \texttt{handleExit}(int status, boolean normalExit)}
   \begin{algorithmic}
     \STATE {\color{blue}// we also use this function to handle unhandled exceptions except that we manually set status}
@@ -539,7 +552,7 @@ To implements this feature, we have to override \texttt{nextThread} method of cl
 \begin{asparaitem}
 \item Ensure that the owner's ticket count is the sum of its own tickets and the tickets of all waiters
 \item Implementation should work even if there are billions of tickets in the system.
-\item The number of tickets held by a process should be incremented by 1 when \texttt{LotterySchedulerincreasePriority()} is called.
+\item The number of tickets held by a process should be incremented by 1 when\linebreak \texttt{LotterySchedulerincreasePriority()} is called.
 \item The total number of tickets in the system is guaranteed not to exceed \texttt{Integer.MAX}\_\texttt{VALUE}.
 \end{asparaitem}
 
@@ -553,13 +566,13 @@ To implements this feature, we have to override \texttt{nextThread} method of cl
 
 \subsection{Description}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{KThread \texttt{nextThread}()}
 \begin{algorithmic}[1]
-  \STATE totalTickets $\leftarrow$ 0
+  \STATE totalTickets $\gets$ 0
   \FORALL { \texttt{ThreadState} ts in \texttt{priorityQueue}}
-    \STATE effectiveTickets $\leftarrow$ ts.\texttt{updateEffectivePriority()}
-    \STATE totalTickets $\leftarrow$ totalTickets + effectiveTickets
+    \STATE effectiveTickets $\gets$ ts.\texttt{updateEffectivePriority()}
+    \STATE totalTickets $\gets$ totalTickets + effectiveTickets
     \STATE threads.\texttt{add}(ts)
     \STATE tickets.\texttt{add}(effectiveTickets)
   \ENDFOR
@@ -583,7 +596,7 @@ To implements this feature, we have to override \texttt{nextThread} method of cl
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{void \texttt{updateEffectivePriority}()}
 \begin{algorithmic}[1]
   \STATE Initialize initialEP $\leftarrow$ \texttt{getEffectivePriority}(), initialP $\leftarrow$ \texttt{getPriority}(), transferedEP $\leftarrow$ 0
@@ -597,7 +610,7 @@ To implements this feature, we have to override \texttt{nextThread} method of cl
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[htbp]
   \caption{void \texttt{addEP}(int amount)}
 \begin{algorithmic}[1]
   \STATE  \texttt{effectivePriority} $\leftarrow$ \texttt{effectivePriorirty} + amount

@@ -13,6 +13,7 @@
 *~
 *.htm
 *.html
+*.out
 auto
 auto/*
 doc
