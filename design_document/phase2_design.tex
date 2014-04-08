@@ -341,7 +341,7 @@ memory through virtual memory. Here, we transfer the data in a unit of one page.
   \caption{\texttt{UserProcess::unloadSections()}}
   \begin{algorithmic}[1]
     \STATE \texttt{ppnListSemaphore.P()};
-    \FOR{\texttt{all entry $i$ of \texttt{pageTable}};
+    \FOR{all entry \texttt{i} of \texttt{pageTable}}
     \STATE \texttt{freePPNList.enqueue(pageTable[i].ppn)};
     \ENDFOR
     \STATE \texttt{ppnListSemaphore.V()};
@@ -357,9 +357,9 @@ memory through virtual memory. Here, we transfer the data in a unit of one page.
     \ENDIF
     \STATE \texttt{start $\gets$  vpn(vaddr)};
     \STATE \texttt{end $\gets$  vpn(vaddr+length)};
-    \STATE \texttt{e $\gets \min$\{end, pageTable.size()\}};
+    \STATE \texttt{en $\gets \min$\{end, pageTable.size()\}};
     \STATE \texttt{amount $\gets$  0};
-    \FOR{\texttt{$\texttt{i}=$start} \textbf{to} \texttt{e}}
+    \FOR{\texttt{$\texttt{i}=$start} \textbf{to} \texttt{en}}
     \IF{\texttt{pageTable[$\texttt{i}$].valid = \textbf{false}}}
     \RETURN{\texttt{amount}};
     \ENDIF
@@ -372,7 +372,7 @@ memory through virtual memory. Here, we transfer the data in a unit of one page.
     \ENDIF
     \STATE \texttt{paddr = ppn*pageSize + s};
     \STATE \texttt{System.arraycopy(memory, paddr, data, offset, e-s)};
-    \STATE \texttt{pageTable[i].used $\gets$  \textbf{true}};
+    \STATE \texttt{pageTable[i].used $\gets$}  \textbf{true};
     \STATE \texttt{amount  $\gets$  amount + e - s};
     \STATE \texttt{offset  $\gets$  offset + e - s};
     \ENDFOR
@@ -388,6 +388,9 @@ We only need to change line 9 into: \\
 \end{center}
 and add a line between line 21 and line 22 as: 
 \[ \texttt{pageTable[i].dirty}  \gets  \textbf{true}; \]
+and change line 21 into: \\
+\[ \texttt{System.arraycopy(data, offset, memory, paddr, e-s)}; \]
+
 
 \subsection{Testing Plan}
 \begin{enumerate}[$\bullet$]
