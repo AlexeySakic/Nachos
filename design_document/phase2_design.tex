@@ -362,11 +362,11 @@ and add a line between line 21 and line 22 as:
 
 \section{Task 3}
 \subsection{Overview}
-In Task 3, we have to implement three system calls (\texttt{exec, join} and \texttt{exit}) as documented in \texttt{syscall.h}. All of them require us to add codes for \texttt{handleSyscall} in class \texttt{UserProcess}.
+In Task 3, we need to implement three system calls (\texttt{exec, join} and \texttt{exit}) as documented in \texttt{syscall.h}. All of them require us to add codes for \texttt{handleSyscall} in class \texttt{UserProcess}.
 
-For \texttt{exec}, we have to create a subprocess and run its \texttt{execute()} function and create standard input output file descriptors.
+For \texttt{exec}, we need to create a subprocess and run its \texttt{execute()} function and create standard input output file descriptors.
 
-As \texttt{join} deals with subprocesses and can only be used between parents and children, we need to use references to record a process's parent process and a list for its children. And when the function is called, we have to check by using \texttt{UserKernel.currentProcess()} in case of illegal joins.
+As \texttt{join} deals with subprocesses and can only be used between parents and children, we need to use references to record a process's parent process and a list for its children. And when the function is called, we need to check it by using \texttt{UserKernel.currentProcess()} in case of illegal joins.
 
 And when \texttt{exit} is called, we also need to free up memory, close open files and also inform the parent process of the information so that \texttt{join} can no longer be called. We also have to notify its subprocesses the termination. Besides, since the last process calling \texttt{exit} should invoke \texttt{Kernel.kernel.terminate()}, we should keep a global list making sure that we know which one to do the closing.
 
@@ -517,13 +517,14 @@ Notice that we do not have to modify \texttt{Uthread.finish()} to do the same cl
 \end{algorithm}
 
 \subsection{Testing Plan}
+The following cases should be tested:
 \begin{asparaitem}
   \item A program with $argc=0$.
   \item Processes killed midway to test whether the parent can receive the correct information and make sure that the cleanups are correctly done.
-  \item Console for inputs and outputs can not be established (???the first step needs check).
-  \item Interrupt at userProcessTable putting in new pairs???
-  \item whether use equals of java object???
-  \item join on a finished process
+  \item Console for inputs and outputs can not be established (the first step needs check).
+  \item Interrupt at userProcessTable putting in new pairs
+  \item That whether use equals of java object
+  \item Joining on a finished process
 \end{asparaitem}
 
 
