@@ -86,7 +86,7 @@ For security constraints, we need to bullet-proof the Nachos kernel from user pr
 
 According to \texttt{syscall.h}, when \texttt{unlink}() is called,  if no processes have the file open, the file is deleted immediately and the space it was using is made available for reuse. But if any processes still have the file open, the file will remain in existence until the last file descriptor referring to it it closed. However, \texttt{create}() and \texttt{open}() will not be able to return new file descriptors for the file until it is deleted.
 
-To implement this mechanism, a new member class \texttt{FileManager} is defined within \texttt{UserKernel} class to keep track of files opened by each process. So that if unlink on a file is called, it can wait until all processes have closed the file before actually deleted it. A single instance of FileManager is instantiated and kept as a public instance member of \texttt{UserKernel}. This instance is used by function \texttt{close}, \texttt{open} and \texttt{unlink}.
+To implement this mechanism, a new member class \texttt{FileManager} is defined within \texttt{UserKernel} class to keep track of files opened by each process. So that if unlink on a file is called, it can wait until all processes have closed the file before actually deleted it. A single instance of FileManager is instantiated and kept as a public instance member of \texttt{UserKernel}. This instance is used by function \texttt{close}, \texttt{open}, \texttt{create} and \texttt{unlink}.
 
 
 
@@ -104,7 +104,8 @@ To implement this mechanism, a new member class \texttt{FileManager} is defined 
 
 \subsection{Declarations}
 
-We use \texttt{OpenFile[] fileDesriptorTable} to store the 16 files opened by this process.
+ \texttt{OpenFile[] fileDesriptorTable} to store the 16 files opened by this process.
+ \texttt{FileManager fileManager} to implement \texttt{unlink} mechanism
 
 \subsection{Descriptions}
 
@@ -124,14 +125,15 @@ The following algorithm describes the implementation in high level.
 \begin{algorithm}
   \caption{int \texttt{handleCreate}(int vaddr)}
 \begin{algorithmic}[1]
-  \IF { vaddr is invalid}
+ \IF { vaddr is invalid}
     \RETURN -1
   \ENDIF
   \STATE filename $\leftarrow$ \texttt{readVirtualMemoryString}(vaddr, 256)
-  \IF { filename is invalid}
+  \IF { fileManager.isUnlinked(filename)}
     \RETURN -1
   \ENDIF
   \IF {$\exists$ free file descriptor $x$}
+    \STATE fileManager.openFile(filename)
     \STATE file $\leftarrow$ \texttt{ThreadedKernel.fileSystem.open}(filename, false)
     \STATE fileDescriptorTable[x] $\leftarrow$ file
     \RETURN $x$
@@ -149,10 +151,11 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
     \RETURN -1
   \ENDIF
   \STATE filename $\leftarrow$ \texttt{readVirtualMemoryString}(vaddr, 256)
-  \IF { filename is invalid}
+  \IF { fileManager.isUnlinked(filename)}
     \RETURN -1
   \ENDIF
   \IF {$\exists$ free file descriptor $x$}
+    \STATE fileManager.openFile(filename)
     \STATE \colorbox{myyellow}{file $\leftarrow$ \texttt{ThreadedKernel.fileSystem.open}(filename, true)}
     \STATE fileDescriptorTable[x] $\leftarrow$ file
     \RETURN $x$
@@ -214,8 +217,9 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
  \IF { fileDescriptor is invalid}
     \RETURN -1
   \ENDIF
-  \STATE \texttt{fileDescriptorTable}[fileDesriptor].\texttt{close}()
-  \STATE  \texttt{fileDescriptorTable}[fileDesriptor] $\leftarrow$ null
+  \STATE fileManager.decrementCount(fileDescriptorTable[fileDescriptor].name)
+  \STATE fileDescriptorTable[fileDesriptor].close()
+  \STATE fileDescriptorTable[fileDesriptor] $\leftarrow$ null
   \RETURN 0
 \end{algorithmic}
 \end{algorithm}
@@ -223,8 +227,7 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
 \begin{algorithm}
   \caption{int \texttt{handleUnlink}(string name)}
 \begin{algorithmic}[1]
-  \STATE  success $\leftarrow$ \texttt{ThreadedKernel.fileSystem.remove}(name)
- \IF { ! success}
+ \IF { ! fileManager.unlinkFile(name) }
     \RETURN -1
   \ENDIF
   \RETURN 0
