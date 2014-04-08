@@ -550,22 +550,55 @@ To implements this feature, we have to override \texttt{nextThread} method of cl
 \begin{algorithm}
   \caption{KThread \texttt{nextThread}()}
 \begin{algorithmic}[1]
-  \IF { vaddr is invalid}
-    \RETURN -1
-  \ENDIF
-  \STATE filename $\leftarrow$ \texttt{readVirtualMemoryString}(vaddr, 256)
-  \IF { filename is invalid}
-    \RETURN -1
-  \ENDIF
-  \IF {$\exists$ free file descriptor $x$}
-    \STATE file $\leftarrow$ \texttt{ThreadedKernel.fileSystem.open}(filename, false)
-    \STATE fileDescriptorTable[x] $\leftarrow$ file
-    \RETURN $x$
-  \ELSE
-    \RETURN -1
-  \ENDIF
+  \STATE totalTickets $\leftarrow$ 0
+  \FORALL { \texttt{ThreadState} ts in \texttt{priorityQueue}}
+    \STATE effectiveTickets $\leftarrow$ ts.\texttt{updateEffectivePriority()}
+    \STATE totalTickets $\leftarrow$ totalTickets + effectiveTickets
+    \STATE threads.\texttt{add}(ts)
+    \STATE tickets.\texttt{add}(effectiveTickets)
+  \ENDFOR
+  \STATE Initialize pickedThread $\leftarrow$ null, notFound $\leftarrow$ true, ticketsSoFar $\leftarrow$ 0, counter $\leftarrow$ 0
+  \STATE winTicket $\leftarrow$ \texttt{random}(totalTickets)
+  \WHILE { notFound $\&\&$ counter $<$ threads.\texttt{size()}}
+    \STATE ticketsSoFar $\leftarrow$ ticketsSoFar + tickets.\texttt{get}(counter)
+    \IF {winTicket $<=$ ticketsSoFar}
+      \STATE pickedThread $\leftarrow$ threads.\texttt{get}(counter)
+      \STATE notFound $\leftarrow$ false
+    \ENDIF
+    \STATE counter $\leftarrow$ counter + 1
+  \ENDWHILE
+  \STATE \texttt{dequeuedThread}.\texttt{removeQueue}(this)
+  \STATE pickedThread.waiting $\leftarrow$ null
+  \STATE pickedThread.\texttt{addQueue}(this)
+  \STATE \texttt{dequeuedThread} $\leftarrow$ pickedThread
+  \STATE \texttt{priorityQueue}.\texttt{remove}(\texttt{dequeuedThread})
+  \STATE \texttt{dequeuedThread}.\texttt{updateEffectivePriority}()
+  \RETURN \texttt{dequeuedThread}.thread
 \end{algorithmic}
 \end{algorithm}
+
+\begin{algorithm}
+  \caption{void \texttt{updateEffectivePriority}()}
+\begin{algorithmic}[1]
+  \STATE Initialize initialEP $\leftarrow$ \texttt{getEffectivePriority}(), initialP $\leftarrow$ \texttt{getPriority}(), transferedEP $\leftarrow$ 0
+  \FORALL { \texttt{PriorityThreadedQueue} ptq in \texttt{waitedBy}}
+    \FORALL {\texttt{ThreadState} ts in ptq}
+      \STATE transferedEP $\leftarrow$ transferedEP + ts.\texttt{updateEffectivePriority}()
+    \ENDFOR
+  \ENDFOR
+  \STATE finalEP $\leftarrow$ initialP + transferedEP
+  \STATE \texttt{waiting}.dequeuedThread.\texttt{addEP}(finalEP-initialEP)
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{void \texttt{addEP}(int amount)}
+\begin{algorithmic}[1]
+  \STATE  \texttt{effectivePriority} $\leftarrow$ \texttt{effectivePriorirty} + amount
+  \STATE \texttt{waiting}.dequeuedThread.\texttt{addEP}(amount)
+\end{algorithmic}
+\end{algorithm}
+
 
 \subsection{Testing Plan}
 
