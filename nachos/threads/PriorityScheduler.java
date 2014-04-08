@@ -176,8 +176,12 @@ public class PriorityScheduler extends Scheduler {
 		System.out.println("Thread 5 waits for resource 1");
 		queue2.acquire(thread1);
 		System.out.println("Thread 1 acquires resource 2");
+		s.getThreadState(thread4).setPriority(4);
+		System.out.println("Thread 4 set priority to 4");
+		/*
 		queue2.waitForAccess(thread4);
 		System.out.println("Thread 4 waits for resource 2");
+		*/
 		queue3.acquire(thread5);
 		System.out.println("Thread 5 acquires resource 3");
 		queue3.waitForAccess(thread3);
@@ -312,6 +316,13 @@ public class PriorityScheduler extends Scheduler {
 		protected ThreadState pickNextThread() {
 			// implement me
 			// seems to have finished
+			boolean intStatus = Machine.interrupt().disable();
+
+			//ensure priorityQueue is properly ordered
+			//does this take the old priorityQueue and reorder it? YES!!!
+			this.priorityQueue = new PriorityQueue<ThreadState>(priorityQueue);
+
+			Machine.interrupt().restore(intStatus);
 			return this.priorityQueue.peek();
 		}
 
@@ -428,9 +439,11 @@ public class PriorityScheduler extends Scheduler {
 			 * this was added since PriorityQueue do not reorder
 			 * itself when modified
 			 */
-			this.waitingOn.priorityQueue.remove(this);
 			this.priority = priority;
-			this.waitingOn.priorityQueue.add(this);
+			if (this.waitingOn != null){
+			    this.waitingOn.priorityQueue.remove(this);
+			    this.waitingOn.priorityQueue.add(this);
+            }
 
 			this.updateEffectivePriority();
 			if(this.waitingOn != null && this.waitingOn.dequeuedThread != null)
