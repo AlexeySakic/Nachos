@@ -318,19 +318,19 @@ memory through virtual memory. Here, we transfer the data in a unit of one page.
 \begin{algorithm}[htbp]
   \caption{\texttt{UserProcess::loadSections()}}
   \begin{algorithmic}[1]
-    \STATE \texttt{ppnListSemaphore.P()};
     \IF{\texttt{numPages $>$ freePPNList.size()}}
     \RETURN \textbf{false};
     \ENDIF
+    \STATE \texttt{ppnListSemaphore.P()};
     \STATE \texttt{pageTable.size $\gets$ numPages};
-    \FOR{all section $s$ and all virtual pages $vpn$}
+    \FOR{all section \texttt{s} and all virtual pages \texttt{vpn} in \texttt{s}}
     \STATE \texttt{ppn $\gets$ freePPNList.dequeue()};
     \STATE \texttt{pageTable[vpn] $\gets$ (vpn,ppn,true,s.isReadOnly(),false,false)};
-    \STATE Load the $i$ page's content into the physical memory page $ppn$;
+    \STATE Load the $\texttt{vpn}$ page's content into the physical memory page $\texttt{ppn}$;
     \ENDFOR
-    \FOR{all stack pages $vpn$}
+    \FOR{all stack pages $\texttt{vpn}$}
     \STATE \texttt{ppn $\gets$ freePPNList.dequeue()};
-    \STATE \texttt{pageTable[vpn] $\gets$ (vpn,ppn,true, false,false,false)};
+    \STATE \texttt{pageTable[vpn] $\gets$ (vpn,ppn,true,false,false,false)};
     \ENDFOR
     \STATE \texttt{ppnListSemaphore.V()};
     \RETURN \textbf{true};
@@ -338,8 +338,20 @@ memory through virtual memory. Here, we transfer the data in a unit of one page.
 \end{algorithm}
 
 \begin{algorithm}[htbp]
+  \caption{\texttt{UserProcess::unloadSections()}}
+  \begin{algorithmic}[1]
+    \STATE \texttt{ppnListSemaphore.P()};
+    \FOR{\texttt{all entry $i$ of \texttt{pageTable}};
+    \STATE \texttt{freePPNList.enqueue(pageTable[i].ppn)};
+    \ENDFOR
+    \STATE \texttt{ppnListSemaphore.V()};
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[htbp]
   \caption{\texttt{UserProcess::readVirtualMemory(vaddr, data, offset, length)}}
   \begin{algorithmic}[1]
+    \STATE $\dots$ some constrains of the parameters in the given code $\dots$ 
     \IF{\texttt{vaddr < 0}}
     \RETURN 0;
     \ENDIF
@@ -347,16 +359,16 @@ memory through virtual memory. Here, we transfer the data in a unit of one page.
     \STATE \texttt{end $\gets$  vpn(vaddr+length)};
     \STATE \texttt{e $\gets \min$\{end, pageTable.size()\}};
     \STATE \texttt{amount $\gets$  0};
-    \FOR{\texttt{$i=$start} \textbf{to} \texttt{e}}
-    \IF{\texttt{pageTable[$i$].valid = \textbf{false}}}
+    \FOR{\texttt{$\texttt{i}=$start} \textbf{to} \texttt{e}}
+    \IF{\texttt{pageTable[$\texttt{i}$].valid = \textbf{false}}}
     \RETURN{\texttt{amount}};
     \ENDIF
-    \STATE \texttt{$s \gets 0, e \gets$ pageSize};
-    \IF{\texttt{$i=$start}}
-    \STATE \texttt{$s \gets$  offset(vaddr)};
+    \STATE \texttt{s $\gets$ 0, e $\gets$ pageSize};
+    \IF{\texttt{i$=$start}}
+    \STATE \texttt{s $\gets$  offset(vaddr)};
     \ENDIF
-    \IF{\texttt{$i=$end}}
-    \STATE \texttt{$e \gets$  offset(vaddr+length)};
+    \IF{\texttt{i$=$end}}
+    \STATE \texttt{e $\gets$  offset(vaddr+length)};
     \ENDIF
     \STATE \texttt{paddr = ppn*pageSize + s};
     \STATE \texttt{System.arraycopy(memory, paddr, data, offset, e-s)};
