@@ -417,7 +417,33 @@ To implements this feature, we have to override \texttt{nextThread} method of cl
 
 \subsection{Declaration}
 
+\texttt{protected PriorityQueue<ThreadState> priorityQueue} to store all threads waiting in a \texttt{PriorityThreadedQueue}.
+
+\texttt{LinkedList<ThreadState> threads} to temporarily store \texttt{priorityQueue} in another order
+
+\texttt{LinkedList<Integer> tickets} to store corresponding tickets in the same order of \texttt{threads}
+
 \subsection{Description}
+
+\begin{algorithm}
+  \caption{KThread \texttt{nextThread}()}
+\begin{algorithmic}[1]
+  \IF { vaddr is invalid}
+    \RETURN -1
+  \ENDIF
+  \STATE filename $\leftarrow$ \texttt{readVirtualMemoryString}(vaddr, 256)
+  \IF { filename is invalid}
+    \RETURN -1
+  \ENDIF
+  \IF {$\exists$ free file descriptor $x$}
+    \STATE file $\leftarrow$ \texttt{ThreadedKernel.fileSystem.open}(filename, false)
+    \STATE fileDescriptorTable[x] $\leftarrow$ file
+    \RETURN $x$
+  \ELSE
+    \RETURN -1
+  \ENDIF
+\end{algorithmic}
+\end{algorithm}
 
 \subsection{Testing Plan}
 
