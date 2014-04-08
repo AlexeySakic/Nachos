@@ -114,6 +114,18 @@ To implement this mechanism, a new member class \texttt{FileManager} is defined 
 
 The following algorithms \ref{alg:handleHalt} and \ref{alg:handleCreate} describes the implementation in high level.
 
+Note we also need to handle all the exceptions from \texttt{Machine.Process}. We just add to the switch inside \texttt{handleException}, and call \texttt{handleExit} if necessary.
+\begin{enumerate}[$\bullet$]
+\item \texttt{exceptionSyscall}
+\item \texttt{exceptionPageFault}
+\item \texttt{exceptionTLBMiss}
+\item \texttt{exceptionReadOnly}
+\item \texttt{exceptionBusError}
+\item \texttt{exceptionAddressError}
+\item \texttt{exceptionOverflow}
+\item \texttt{exceptionIllegalInstruction}
+\end{enumerate}
+
 \begin{algorithm}[htbp]
   \label{alg:handleHalt}
   \caption{int \texttt{handleHalt}()}
@@ -243,7 +255,18 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
 
 
 \subsection{Testing Plan}
-
+\begin{enumerate}
+\item call \texttt{halt} from non-root process
+\item reading from a non-existence file
+\item read from file without reading permission
+\item write to existing file
+\item write to file without writing permission
+\item creating an existing file
+\item passing invalid file descriptor to read/write
+\item passing \texttt{count=0} to read/write
+\item double closing some file
+\item write to closed file
+\end{enumerate}
 
 \section{Task 2}
 
@@ -556,7 +579,7 @@ To implements this feature, we have to override \texttt{nextThread} method of cl
 \begin{asparaitem}
 \item Ensure that the owner's ticket count is the sum of its own tickets and the tickets of all waiters
 \item Implementation should work even if there are billions of tickets in the system.
-\item The number of tickets held by a process should be incremented by 1 when\linebreak \texttt{LotterySchedulerincreasePriority()} is called.
+\item The number of tickets held by a process should be incremented by 1 when\linebreak \texttt{LotteryScheduler.increasePriority()} is called.
 \item The total number of tickets in the system is guaranteed not to exceed \texttt{Integer.MAX}\_\texttt{VALUE}.
 \end{asparaitem}
 
@@ -624,7 +647,13 @@ To implements this feature, we have to override \texttt{nextThread} method of cl
 
 
 \subsection{Testing Plan}
-
+\begin{enumerate}
+\item All the tests in \texttt{PriorityScheduler}
+\item Call \texttt{increasePriority}
+\item Call \texttt{setPriority}
+\item set priority to millions or more
+\item pressure test, adding thousands or more threads to run
+\end{enumerate}
 
 \end{spacing}
 \end{document}
