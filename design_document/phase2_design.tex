@@ -381,7 +381,7 @@ memory through virtual memory. Here, we transfer the data in a unit of one page.
 \end{algorithm} 
 The algorithm of \texttt{writeVirtualMemory} is almost the same as 
 \texttt{readVirtualMemory}.
-We only need to change line 9 into: \\
+We only need to change line 10 into: \\
 \begin{center}
   \textbf{if} \texttt{pageTable[i].valid = \textbf{false} || pageTable[i].readOnly = 
   \textbf{true}} \textbf{then}
