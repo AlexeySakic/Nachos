@@ -84,6 +84,12 @@ To implement functionality, we need to add additional attributes (file descripto
 
 For security constraints, we need to bullet-proof the Nachos kernel from user processes. We need to ensure that exceptions occurred inside the user process will not crash the system, and we also need to ensure that \texttt{halt()} can terminate the system only if it is called by the root process. Therefore we need some more attributes (e.g. pids) to distinguish process from process.
 
+According to \texttt{syscall.h}, when \texttt{unlink}() is called,  if no processes have the file open, the file is deleted immediately and the space it was using is made available for reuse. But if any processes still have the file open, the file will remain in existence until the last file descriptor referring to it it closed. However, \texttt{create}() and \texttt{open}() will not be able to return new file descriptors for the file until it is deleted.
+
+To implement this mechanism, a new member class \texttt{FileManager} is defined within \texttt{UserKernel} class to keep track of files opened by each process. So that if unlink on a file is called, it can wait until all processes have closed the file before actually deleted it. A single instance of FileManager is instantiated and kept as a public instance member of \texttt{UserKernel}. This instance is used by function \texttt{close}, \texttt{open} and \texttt{unlink}.
+
+
+
 \subsection{Correctness Constraints}
 
 \begin{asparaitem}
