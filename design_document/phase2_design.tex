@@ -11,7 +11,9 @@
 \usepackage{graphicx,float,wrapfig}
 \usepackage{mathrsfs}
 \usepackage{algorithm}
-\usepackage{algorithmic}
+% \usepackage{algorithmic}
+\usepackage{algpseudocode}
+% \usepackage{algorithm2e}
 \usepackage[pdfauthor={XeLaTeX},%
 pdftitle={Design Document}]{hyperref}
 
@@ -130,11 +132,11 @@ Note we also need to handle all the exceptions from \texttt{Machine.Process}. We
   \label{alg:handleHalt}
   \caption{int \texttt{handleHalt}()}
 \begin{algorithmic}[1]
-  \IF { processID != 0}
-    \RETURN 0
-  \ENDIF
-  \STATE \texttt{Machine.halt()}
-  \RETURN 0
+  \If { processID != 0}
+    \Return 0
+  \EndIf
+  \State \texttt{Machine.halt()}
+  \Return 0
 \end{algorithmic}
 \end{algorithm}
 
@@ -142,21 +144,21 @@ Note we also need to handle all the exceptions from \texttt{Machine.Process}. We
   \label{alg:handleCreate}
   \caption{int \texttt{handleCreate}(int vaddr)}
 \begin{algorithmic}[1]
- \IF { vaddr is invalid}
-    \RETURN -1
-  \ENDIF
-  \STATE filename $\leftarrow$ \texttt{readVirtualMemoryString}(vaddr, 256)
-  \IF { fileManager.isUnlinked(filename)}
-    \RETURN -1
-  \ENDIF
-  \IF {$\exists$ free file descriptor $x$}
-    \STATE fileManager.openFile(filename)
-    \STATE file $\leftarrow$ \texttt{ThreadedKernel.fileSystem.open}(filename, false)
-    \STATE fileDescriptorTable[x] $\leftarrow$ file
-    \RETURN $x$
-  \ELSE
-    \RETURN -1
-  \ENDIF
+ \If { vaddr is invalid}
+    \Return -1
+  \EndIf
+  \State filename $\leftarrow$ \texttt{readVirtualMemoryString}(vaddr, 256)
+  \If { fileManager.isUnlinked(filename)}
+    \Return -1
+  \EndIf
+  \If {$\exists$ free file descriptor $x$}
+    \State fileManager.openFile(filename)
+    \State file $\leftarrow$ \texttt{ThreadedKernel.fileSystem.open}(filename, false)
+    \State fileDescriptorTable[x] $\leftarrow$ file
+    \Return $x$
+  \Else
+    \Return -1
+  \EndIf
 \end{algorithmic}
 \end{algorithm}
 
@@ -165,42 +167,42 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
   \label{alg:handleOpen}
   \caption{int \texttt{handleOpen}(int vaddr)}
 \begin{algorithmic}[1]
- \IF { vaddr is invalid}
-    \RETURN -1
-  \ENDIF
-  \STATE filename $\leftarrow$ \texttt{readVirtualMemoryString}(vaddr, 256)
-  \IF { fileManager.isUnlinked(filename)}
-    \RETURN -1
-  \ENDIF
-  \IF {$\exists$ free file descriptor $x$}
-    \STATE fileManager.openFile(filename)
-    \STATE \colorbox{myyellow}{file $\leftarrow$ \texttt{ThreadedKernel.fileSystem.open}(filename, true)}
-    \STATE fileDescriptorTable[x] $\leftarrow$ file
-    \RETURN $x$
-  \ELSE
-    \RETURN -1
-  \ENDIF
+ \If { vaddr is invalid}
+    \Return -1
+  \EndIf
+  \State filename $\leftarrow$ \texttt{readVirtualMemoryString}(vaddr, 256)
+  \If { fileManager.isUnlinked(filename)}
+    \Return -1
+  \EndIf
+  \If {$\exists$ free file descriptor $x$}
+    \State fileManager.openFile(filename)
+    \State \colorbox{myyellow}{file $\leftarrow$ \texttt{ThreadedKernel.fileSystem.open}(filename, true)}
+    \State fileDescriptorTable[x] $\leftarrow$ file
+    \Return $x$
+  \Else
+    \Return -1
+  \EndIf
 \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}[htbp]
   \caption{int \texttt{handleRead}(int fileDescriptor, int bufferAddr, int count)}
 \begin{algorithmic}[1]
- \IF { fileDescriptor is invalid}
-    \RETURN -1
-  \ENDIF
-  \STATE file $\leftarrow$ \texttt{fileDescriptorTable}[fileDesriptor]
-  \IF { file is invalid $||$ count $<$ 0}
-    \RETURN -1
-  \ENDIF
-  \STATE Initialize buffer to read from file
-  \STATE bytesRead $\leftarrow$ file.\texttt{read}(buffer, 0, count)
-  \IF {bytesRead $==$ -1}
-    \RETURN -1
-  \ELSE
-    \STATE bytesReturn $\leftarrow$ \texttt{writeVirtualMemory(bufferAddr, buffer, 0, bytesRead)}
-    \RETURN bytesReturn
-  \ENDIF
+ \If { fileDescriptor is invalid}
+    \Return -1
+  \EndIf
+  \State file $\leftarrow$ \texttt{fileDescriptorTable}[fileDesriptor]
+  \If { file is invalid $||$ count $<$ 0}
+    \Return -1
+  \EndIf
+  \State Initialize buffer to read from file
+  \State bytesRead $\leftarrow$ file.\texttt{read}(buffer, 0, count)
+  \If {bytesRead $==$ -1}
+    \Return -1
+  \Else
+    \State bytesReturn $\leftarrow$ \texttt{writeVirtualMemory(bufferAddr, buffer, 0, bytesRead)}
+    \Return bytesReturn
+  \EndIf
 \end{algorithmic}
 \end{algorithm}
 
@@ -209,46 +211,46 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
 \begin{algorithm}[htbp]
   \caption{int \texttt{handleWrite}(int fileDescriptor, int bufferAddr, int count)}
 \begin{algorithmic}[1]
- \IF { fileDescriptor is invalid}
-    \RETURN -1
-  \ENDIF
-  \STATE file $\leftarrow$ \texttt{fileDescriptorTable}[fileDesriptor]
-  \IF { file is invalid $||$ count $<$ 0}
-    \RETURN -1
-  \ENDIF
-  \STATE Initialize buffer to read from virtual memory
-  \STATE bytesWritten $\leftarrow$ \texttt{readVirtualMemory}(bufferAddr, buffer, 0, count)
-  \IF {bytesWritten != count}
-    \RETURN -1
-  \ENDIF
-  \STATE bytesReturn $\leftarrow$ file.\texttt{write}(buffer, 0, bytesWritten)
-  \IF {bytesReturn != count}
-    \RETURN -1
-  \ENDIF
-  \RETURN bytesReturn
+ \If { fileDescriptor is invalid}
+    \Return -1
+  \EndIf
+  \State file $\leftarrow$ \texttt{fileDescriptorTable}[fileDesriptor]
+  \If { file is invalid $||$ count $<$ 0}
+    \Return -1
+  \EndIf
+  \State Initialize buffer to read from virtual memory
+  \State bytesWritten $\leftarrow$ \texttt{readVirtualMemory}(bufferAddr, buffer, 0, count)
+  \If {bytesWritten != count}
+    \Return -1
+  \EndIf
+  \State bytesReturn $\leftarrow$ file.\texttt{write}(buffer, 0, bytesWritten)
+  \If {bytesReturn != count}
+    \Return -1
+  \EndIf
+  \Return bytesReturn
 \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}[htbp]
   \caption{int \texttt{handleClose}(int fileDescriptor)}
 \begin{algorithmic}[1]
- \IF { fileDescriptor is invalid}
-    \RETURN -1
-  \ENDIF
-  \STATE fileManager.decrementCount(fileDescriptorTable[fileDescriptor].name)
-  \STATE fileDescriptorTable[fileDesriptor].close()
-  \STATE fileDescriptorTable[fileDesriptor] $\leftarrow$ null
-  \RETURN 0
+ \If { fileDescriptor is invalid}
+    \Return -1
+  \EndIf
+  \State fileManager.decrementCount(fileDescriptorTable[fileDescriptor].name)
+  \State fileDescriptorTable[fileDesriptor].close()
+  \State fileDescriptorTable[fileDesriptor] $\leftarrow$ null
+  \Return 0
 \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}[htbp]
   \caption{int \texttt{handleUnlink}(string name)}
 \begin{algorithmic}[1]
- \IF { ! fileManager.unlinkFile(name) }
-    \RETURN -1
-  \ENDIF
-  \RETURN 0
+ \If { ! fileManager.unlinkFile(name) }
+    \Return -1
+  \EndIf
+  \Return 0
 \end{algorithmic}
 \end{algorithm}
 
@@ -306,77 +308,77 @@ memory through virtual memory. Here, we transfer the data in a unit of one page.
 \begin{algorithm}[htbp]
   \caption{\texttt{UserKernel::initialize()}}
   \begin{algorithmic}[1]
-    \STATE $\dots$ \textit{given code} $\dots$
-    \STATE \texttt{ppnListSemaphore.P()};
-    \FOR{all ppn $i$}
-    \STATE \texttt{freePPNList.enqueue(i)};
-    \ENDFOR
-    \STATE \texttt{ppnListSemaphore.V()};
+    \State $\dots$ \textit{given code} $\dots$
+    \State \texttt{ppnListSemaphore.P()};
+    \For{all ppn $i$}
+    \State \texttt{freePPNList.enqueue(i)};
+    \EndFor
+    \State \texttt{ppnListSemaphore.V()};
   \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}[htbp]
   \caption{\texttt{UserProcess::loadSections()}}
   \begin{algorithmic}[1]
-    \IF{\texttt{numPages $>$ freePPNList.size()}}
-    \RETURN \textbf{false};
-    \ENDIF
-    \STATE \texttt{ppnListSemaphore.P()};
-    \STATE \texttt{pageTable.size $\gets$ numPages};
-    \FOR{all section \texttt{s} and all virtual pages \texttt{vpn} in \texttt{s}}
-    \STATE \texttt{ppn $\gets$ freePPNList.dequeue()};
-    \STATE \texttt{pageTable[vpn] $\gets$ (vpn,ppn,true,s.isReadOnly(),false,false)};
-    \STATE Load the $\texttt{vpn}$ page's content into the physical memory page $\texttt{ppn}$;
-    \ENDFOR
-    \FOR{all stack pages $\texttt{vpn}$}
-    \STATE \texttt{ppn $\gets$ freePPNList.dequeue()};
-    \STATE \texttt{pageTable[vpn] $\gets$ (vpn,ppn,true,false,false,false)};
-    \ENDFOR
-    \STATE \texttt{ppnListSemaphore.V()};
-    \RETURN \textbf{true};
+    \If{\texttt{numPages $>$ freePPNList.size()}}
+    \Return \textbf{false};
+    \EndIf
+    \State \texttt{ppnListSemaphore.P()};
+    \State \texttt{pageTable.size $\gets$ numPages};
+    \For{all section \texttt{s} and all virtual pages \texttt{vpn} in \texttt{s}}
+    \State \texttt{ppn $\gets$ freePPNList.dequeue()};
+    \State \texttt{pageTable[vpn] $\gets$ (vpn,ppn,true,s.isReadOnly(),false,false)};
+    \State Load the $\texttt{vpn}$ page's content into the physical memory page $\texttt{ppn}$;
+    \EndFor
+    \For{all stack pages $\texttt{vpn}$}
+    \State \texttt{ppn $\gets$ freePPNList.dequeue()};
+    \State \texttt{pageTable[vpn] $\gets$ (vpn,ppn,true,false,false,false)};
+    \EndFor
+    \State \texttt{ppnListSemaphore.V()};
+    \Return \textbf{true};
   \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}[htbp]
   \caption{\texttt{UserProcess::unloadSections()}}
   \begin{algorithmic}[1]
-    \STATE \texttt{ppnListSemaphore.P()};
-    \FOR{all entry \texttt{i} of \texttt{pageTable}}
-    \STATE \texttt{freePPNList.enqueue(pageTable[i].ppn)};
-    \ENDFOR
-    \STATE \texttt{ppnListSemaphore.V()};
+    \State \texttt{ppnListSemaphore.P()};
+    \For{all entry \texttt{i} of \texttt{pageTable}}
+    \State \texttt{freePPNList.enqueue(pageTable[i].ppn)};
+    \EndFor
+    \State \texttt{ppnListSemaphore.V()};
   \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}[htbp]
   \caption{\texttt{UserProcess::readVirtualMemory(vaddr, data, offset, length)}}
   \begin{algorithmic}[1]
-    \STATE $\dots$ some constrains of the parameters in the given code $\dots$ 
-    \IF{\texttt{vaddr < 0}}
-    \RETURN 0;
-    \ENDIF
-    \STATE \texttt{start $\gets$  vpn(vaddr)};
-    \STATE \texttt{end $\gets$  vpn(vaddr+length)};
-    \STATE \texttt{en $\gets \min$\{end, pageTable.size()\}};
-    \STATE \texttt{amount $\gets$  0};
-    \FOR{\texttt{$\texttt{i}=$start} \textbf{to} \texttt{en}}
-    \IF{\texttt{pageTable[$\texttt{i}$].valid = \textbf{false}}}
-    \RETURN{\texttt{amount}};
-    \ENDIF
-    \STATE \texttt{s $\gets$ 0, e $\gets$ pageSize};
-    \IF{\texttt{i$=$start}}
-    \STATE \texttt{s $\gets$  offset(vaddr)};
-    \ENDIF
-    \IF{\texttt{i$=$end}}
-    \STATE \texttt{e $\gets$  offset(vaddr+length)};
-    \ENDIF
-    \STATE \texttt{paddr = ppn*pageSize + s};
-    \STATE \texttt{System.arraycopy(memory, paddr, data, offset, e-s)};
-    \STATE \texttt{pageTable[i].used $\gets$}  \textbf{true};
-    \STATE \texttt{amount  $\gets$  amount + e - s};
-    \STATE \texttt{offset  $\gets$  offset + e - s};
-    \ENDFOR
-    \RETURN{\texttt{amount}};
+    \State $\dots$ some constrains of the parameters in the given code $\dots$ 
+    \If{\texttt{vaddr < 0}}
+    \Return 0;
+    \EndIf
+    \State \texttt{start $\gets$  vpn(vaddr)};
+    \State \texttt{end $\gets$  vpn(vaddr+length)};
+    \State \texttt{en $\gets \min$\{end, pageTable.size()\}};
+    \State \texttt{amount $\gets$  0};
+    \For{\texttt{$\texttt{i}=$start} \textbf{to} \texttt{en}}
+    \If{\texttt{pageTable[$\texttt{i}$].valid = \textbf{false}}}
+    \Return{\texttt{amount}};
+    \EndIf
+    \State \texttt{s $\gets$ 0, e $\gets$ pageSize};
+    \If{\texttt{i$=$start}}
+    \State \texttt{s $\gets$  offset(vaddr)};
+    \EndIf
+    \If{\texttt{i$=$end}}
+    \State \texttt{e $\gets$  offset(vaddr+length)};
+    \EndIf
+    \State \texttt{paddr = ppn*pageSize + s};
+    \State \texttt{System.arraycopy(memory, paddr, data, offset, e-s)};
+    \State \texttt{pageTable[i].used $\gets$}  \textbf{true};
+    \State \texttt{amount  $\gets$  amount + e - s};
+    \State \texttt{offset  $\gets$  offset + e - s};
+    \EndFor
+    \Return{\texttt{amount}};
   \end{algorithmic}
 \end{algorithm} 
 The algorithm of \texttt{writeVirtualMemory} is almost the same as 
@@ -451,13 +453,13 @@ Below are pseudocode for \texttt{UserProcess} \ref{alg:UserProcess}, \texttt{han
   \label{alg:UserProcess}
 \caption{\texttt{UserProcess}()}
   \begin{algorithmic}[1]
-    \STATE {fileDescriptorTable = new OpenFile[16]}
-    \STATE fileDescriptorTable[0] = UserKernel.console.openForReading()
-    \STATE fileDescriptorTable[1] = UserKernel.console.openForWriting()
-    \STATE \colorbox{myyellow}{idMutex.P()}
-	\STATE processID = nextProcessID
-	\STATE nextProcessID++
-	\STATE \colorbox{myyellow}{idMutex.V()}
+    \State {fileDescriptorTable = new OpenFile[16]}
+    \State fileDescriptorTable[0] = UserKernel.console.openForReading()
+    \State fileDescriptorTable[1] = UserKernel.console.openForWriting()
+    \State \colorbox{myyellow}{idMutex.P()}
+	\State processID = nextProcessID
+	\State nextProcessID++
+	\State \colorbox{myyellow}{idMutex.V()}
   \end{algorithmic}
 \end{algorithm}
 
@@ -465,36 +467,36 @@ Below are pseudocode for \texttt{UserProcess} \ref{alg:UserProcess}, \texttt{han
 \label{alg:handleExec}
 \caption{int \texttt{handleExec}(int file, int argc, int argv)}
   \begin{algorithmic}[1]
-    \STATE fileName\eq\texttt{readVirtualMemoryString}(file,256)
-    \IF {(fileName is invalid) or (argc $<$ 0)}
-      \RETURN -1
-    \ENDIF
-    \IF {fileName does not end with \texttt{.coff}}
-      \RETURN -1
-    \ENDIF
-      \STATE byte[] pointer = new byte[4]
-      \STATE String[] args = new String[argc]
-      \FOR {i = 0; i $<$ argc; i++}
-        \STATE \texttt{readVirtualMemory}(pointer, argv)
-        \STATE int pos = Lib.bytesToInt(pointer, 0)
-        \STATE args[i] = \texttt{readVirtualMemoryString}(pos, args[i])
-        \STATE \colorbox{myyellow}{// in a 4-byte alignment situation}
-        \STATE argv += 4
-        \ENDFOR
-    \STATE UserProcess childProcess = new UserProcess()
-    \IF {childProcess is not valid}
-      \RETURN -1
-    \ENDIF
-    \STATE childProcess.setParent(this)
+    \State fileName\eq\texttt{readVirtualMemoryString}(file,256)
+    \If {(fileName is invalid) or (argc $<$ 0)}
+      \Return -1
+    \EndIf
+    \If {fileName does not end with \texttt{.coff}}
+      \Return -1
+    \EndIf
+      \State byte[] pointer = new byte[4]
+      \State String[] args = new String[argc]
+      \For {i = 0; i $<$ argc; i++}
+        \State \texttt{readVirtualMemory}(pointer, argv)
+        \State int pos = Lib.bytesToInt(pointer, 0)
+        \State args[i] = \texttt{readVirtualMemoryString}(pos, args[i])
+        \State \colorbox{myyellow}{// in a 4-byte alignment situation}
+        \State argv += 4
+        \EndFor
+    \State UserProcess childProcess = new UserProcess()
+    \If {childProcess is not valid}
+      \Return -1
+    \EndIf
+    \State childProcess.setParent(this)
     %%??
-    \STATE childProcessList.add(childProcess);
-    \STATE \colorbox{myyellow}{tableMutex.P()}
-    \STATE userProcessTable.put(childProcess.getID(), childProcess)
-    \STATE \colorbox{myyellow}{tableMutex.V()}
-    \IF {not childProcess.\texttt{execute}(fileName, args)}
-      \RETURN -1
-    \ENDIF
-    \RETURN childProcess.getID()
+    \State childProcessList.add(childProcess);
+    \State \colorbox{myyellow}{tableMutex.P()}
+    \State userProcessTable.put(childProcess.getID(), childProcess)
+    \State \colorbox{myyellow}{tableMutex.V()}
+    \If {not childProcess.\texttt{execute}(fileName, args)}
+      \Return -1
+    \EndIf
+    \Return childProcess.getID()
   \end{algorithmic}
 \end{algorithm}
 
@@ -502,13 +504,13 @@ Below are pseudocode for \texttt{UserProcess} \ref{alg:UserProcess}, \texttt{han
 \label{alg:join}
 \caption{boolean \texttt{join}(int status)}
   \begin{algorithmic}
-    \STATE {\color{blue}//note that we have to keep both exitStatus and normalExit since the exit status is not required to be consistent with a normal exit}
-    \STATE joinSemaphore.P()
-    \STATE {\color{blue} //assume an integer is of 4 bytes and the processor is little endian}
-    \STATE byte[] data = Lib.bytesFromInt(exitStatus)
-    \STATE writeVirtualMemory(status, data)
-    \STATE joinSemaphore.V()
-    \RETURN normalExit
+    \State {\color{blue}//note that we have to keep both exitStatus and normalExit since the exit status is not required to be consistent with a normal exit}
+    \State joinSemaphore.P()
+    \State {\color{blue} //assume an integer is of 4 bytes and the processor is little endian}
+    \State byte[] data = Lib.bytesFromInt(exitStatus)
+    \State writeVirtualMemory(status, data)
+    \State joinSemaphore.V()
+    \Return normalExit
   \end{algorithmic}
 \end{algorithm}
 
@@ -516,17 +518,17 @@ Below are pseudocode for \texttt{UserProcess} \ref{alg:UserProcess}, \texttt{han
 \label{alg:handleJoin}
 \caption{int \texttt{handleJoin}(int processID, int status)}
   \begin{algorithmic}
-    \STATE {\color{blue}//check validity}
-    \STATE \colorbox{myyellow}{tableMutex.P()}
-    \STATE UserProcess joinProcess = userProcessTable.get(processID)
-    \STATE \colorbox{myyellow}{tableMutex.V()}
-    \IF {not (joinProcess.parentProcess.getID() == UserThread.currentProcess().getID())}
-      \RETURN -1
-    \ENDIF
-    \STATE int retVal = joinProcess.join(status) ? 1 : 0
-    \STATE {\color{blue} //only need to remove the child in join since only join accesses children}
-    \STATE childProcessList.remove(joinProcess)
-    \RETURN retVal
+    \State {\color{blue}//check validity}
+    \State \colorbox{myyellow}{tableMutex.P()}
+    \State UserProcess joinProcess = userProcessTable.get(processID)
+    \State \colorbox{myyellow}{tableMutex.V()}
+    \If {not (joinProcess.parentProcess.getID() == UserThread.currentProcess().getID())}
+      \Return -1
+    \EndIf
+    \State int retVal = joinProcess.join(status) ? 1 : 0
+    \State {\color{blue} //only need to remove the child in join since only join accesses children}
+    \State childProcessList.remove(joinProcess)
+    \Return retVal
   \end{algorithmic}
 \end{algorithm}
 
@@ -534,22 +536,22 @@ Below are pseudocode for \texttt{UserProcess} \ref{alg:UserProcess}, \texttt{han
 \label{alg:cleanUp}
 \caption{void \texttt{cleanUp}()}
   \begin{algorithmic}
-    \FOR {file in fileDesriptorTable}
-    \IF {file != null}
-      \STATE {file.close()}
-    \ENDIF
-    \ENDFOR
-    \STATE \colorbox{myyellow}{//need free up memory!}
-    \STATE unloadSections()
-    \FOR {child in childProcessList}
-    \IF {child != null}
-      \STATE child.setParent(null)
-    \ENDIF
-    \ENDFOR
-    \STATE \colorbox{myyellow}{tableMutex.P()}
-    \STATE userProcessTable.remove(UserKernel.getCurrentProcess().getID())
-    \STATE \colorbox{myyellow}{tableMutex.V()}
-    \STATE childProcessList.clear()
+    \For {file in fileDesriptorTable}
+    \If {file != null}
+      \State {file.close()}
+    \EndIf
+    \EndFor
+    \State \colorbox{myyellow}{//need free up memory!}
+    \State unloadSections()
+    \For {child in childProcessList}
+    \If {child != null}
+      \State child.setParent(null)
+    \EndIf
+    \EndFor
+    \State \colorbox{myyellow}{tableMutex.P()}
+    \State userProcessTable.remove(UserKernel.getCurrentProcess().getID())
+    \State \colorbox{myyellow}{tableMutex.V()}
+    \State childProcessList.clear()
   \end{algorithmic}
 \end{algorithm}
 
@@ -557,16 +559,16 @@ Below are pseudocode for \texttt{UserProcess} \ref{alg:UserProcess}, \texttt{han
 \label{alg:handleExit}
 \caption{int \texttt{handleExit}(int status, boolean normalExit)}
   \begin{algorithmic}
-    \STATE {\color{blue}// we also use this function to handle unhandled exceptions except that we manually set status}
-    \STATE \texttt{cleanUp}()
-    \IF {userProcessTable.isEmpty()}
-      \STATE Kernel.kernel.terminate()
-    \ENDIF
-    \STATE exitStatus = status
-    \STATE this.normalExit = normalExit
-    \STATE joinSemaphore.V()
-    \STATE \colorbox{myyellow}{KThread.finish()}
-    \RETURN status
+    \State {\color{blue}// we also use this function to handle unhandled exceptions except that we manually set status}
+    \State \texttt{cleanUp}()
+    \If {userProcessTable.isEmpty()}
+      \State Kernel.kernel.terminate()
+    \EndIf
+    \State exitStatus = status
+    \State this.normalExit = normalExit
+    \State joinSemaphore.V()
+    \State \colorbox{myyellow}{KThread.finish()}
+    \Return status
   \end{algorithmic}
 \end{algorithm}
 
@@ -611,52 +613,52 @@ To implements this feature, we have to override \texttt{nextThread} method of cl
 \begin{algorithm}[htbp]
   \caption{KThread \texttt{nextThread}()}
 \begin{algorithmic}[1]
-  \STATE totalTickets $\gets$ 0
-  \FORALL { \texttt{ThreadState} ts in \texttt{priorityQueue}}
-    \STATE effectiveTickets $\gets$ ts.\texttt{updateEffectivePriority()}
-    \STATE totalTickets $\gets$ totalTickets + effectiveTickets
-    \STATE threads.\texttt{add}(ts)
-    \STATE tickets.\texttt{add}(effectiveTickets)
-  \ENDFOR
-  \STATE Initialize pickedThread $\leftarrow$ null, notFound $\leftarrow$ true, ticketsSoFar $\leftarrow$ 0, counter $\leftarrow$ 0
-  \STATE winTicket $\leftarrow$ \texttt{random}(totalTickets)
-  \WHILE { notFound $\&\&$ counter $<$ threads.\texttt{size()}}
-    \STATE ticketsSoFar $\leftarrow$ ticketsSoFar + tickets.\texttt{get}(counter)
-    \IF {winTicket $<=$ ticketsSoFar}
-      \STATE pickedThread $\leftarrow$ threads.\texttt{get}(counter)
-      \STATE notFound $\leftarrow$ false
-    \ENDIF
-    \STATE counter $\leftarrow$ counter + 1
-  \ENDWHILE
-  \STATE \texttt{dequeuedThread}.\texttt{removeQueue}(this)
-  \STATE pickedThread.waiting $\leftarrow$ null
-  \STATE pickedThread.\texttt{addQueue}(this)
-  \STATE \texttt{dequeuedThread} $\leftarrow$ pickedThread
-  \STATE \texttt{priorityQueue}.\texttt{remove}(\texttt{dequeuedThread})
-  \STATE \texttt{dequeuedThread}.\texttt{updateEffectivePriority}()
-  \RETURN \texttt{dequeuedThread}.thread
+  \State totalTickets $\gets$ 0
+  \ForAll { \texttt{ThreadState} ts in \texttt{priorityQueue}}
+    \State effectiveTickets $\gets$ ts.\texttt{updateEffectivePriority()}
+    \State totalTickets $\gets$ totalTickets + effectiveTickets
+    \State threads.\texttt{add}(ts)
+    \State tickets.\texttt{add}(effectiveTickets)
+  \EndFor
+  \State Initialize pickedThread $\leftarrow$ null, notFound $\leftarrow$ true, ticketsSoFar $\leftarrow$ 0, counter $\leftarrow$ 0
+  \State winTicket $\leftarrow$ \texttt{random}(totalTickets)
+  \While { notFound $\&\&$ counter $<$ threads.\texttt{size()}}
+    \State ticketsSoFar $\leftarrow$ ticketsSoFar + tickets.\texttt{get}(counter)
+    \If {winTicket $<=$ ticketsSoFar}
+      \State pickedThread $\leftarrow$ threads.\texttt{get}(counter)
+      \State notFound $\leftarrow$ false
+    \EndIf
+    \State counter $\leftarrow$ counter + 1
+  \EndWhile
+  \State \texttt{dequeuedThread}.\texttt{removeQueue}(this)
+  \State pickedThread.waiting $\leftarrow$ null
+  \State pickedThread.\texttt{addQueue}(this)
+  \State \texttt{dequeuedThread} $\leftarrow$ pickedThread
+  \State \texttt{priorityQueue}.\texttt{remove}(\texttt{dequeuedThread})
+  \State \texttt{dequeuedThread}.\texttt{updateEffectivePriority}()
+  \Return \texttt{dequeuedThread}.thread
 \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}[htbp]
   \caption{void \texttt{updateEffectivePriority}()}
 \begin{algorithmic}[1]
-  \STATE Initialize initialEP $\leftarrow$ \texttt{getEffectivePriority}(), initialP $\leftarrow$ \texttt{getPriority}(), transferedEP $\leftarrow$ 0
-  \FORALL { \texttt{PriorityThreadedQueue} ptq in \texttt{waitedBy}}
-    \FORALL {\texttt{ThreadState} ts in ptq}
-      \STATE transferedEP $\leftarrow$ transferedEP + ts.\texttt{updateEffectivePriority}()
-    \ENDFOR
-  \ENDFOR
-  \STATE finalEP $\leftarrow$ initialP + transferedEP
-  \STATE \texttt{waiting}.dequeuedThread.\texttt{addEP}(finalEP-initialEP)
+  \State Initialize initialEP $\leftarrow$ \texttt{getEffectivePriority}(), initialP $\leftarrow$ \texttt{getPriority}(), transferedEP $\leftarrow$ 0
+  \ForAll { \texttt{PriorityThreadedQueue} ptq in \texttt{waitedBy}}
+    \ForAll {\texttt{ThreadState} ts in ptq}
+      \State transferedEP $\leftarrow$ transferedEP + ts.\texttt{updateEffectivePriority}()
+    \EndFor
+  \EndFor
+  \State finalEP $\leftarrow$ initialP + transferedEP
+  \State \texttt{waiting}.dequeuedThread.\texttt{addEP}(finalEP-initialEP)
 \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}[htbp]
   \caption{void \texttt{addEP}(int amount)}
 \begin{algorithmic}[1]
-  \STATE  \texttt{effectivePriority} $\leftarrow$ \texttt{effectivePriorirty} + amount
-  \STATE \texttt{waiting}.dequeuedThread.\texttt{addEP}(amount)
+  \State  \texttt{effectivePriority} $\leftarrow$ \texttt{effectivePriorirty} + amount
+  \State \texttt{waiting}.dequeuedThread.\texttt{addEP}(amount)
 \end{algorithmic}
 \end{algorithm}
 
