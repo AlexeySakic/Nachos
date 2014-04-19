@@ -12,8 +12,9 @@
 % \usepackage{soul,color}
 \usepackage{graphicx,float,wrapfig}
 \usepackage{mathrsfs}
-\usepackage{algorithm}
-\usepackage{algorithmic}
+% \usepackage{algorithm}
+% \usepackage{algorithmic}
+\usepackage{algorithm, algpseudocode}
 \usepackage{tikz}
 \definecolor{pblue}{rgb}{0.13,0.13,1}
 \definecolor{pgreen}{rgb}{0,0.5,0}
@@ -111,6 +112,7 @@ semaphore to reach this goal.
   \item[$\bullet$] \textit{data structures}: \texttt{Semaphore}.
   \item[$\bullet$] \textit{member variable}:
     \begin{enumerate}
+
   \item \textbf{private} \texttt{Semaphore KThread::finishSemaphore}, initially 0;
 \end{enumerate}
 indicate whether the thread is finished: \texttt{value} = 0 means unfinished, while
@@ -125,18 +127,18 @@ The pseudo code is as follows:
 \begin{algorithm}[htbp]
   \caption{\texttt{KThread::join()}}
   \begin{algorithmic}[1]
-    \STATE /* the given code */
-    \STATE finishSemaphore.P();
-    \STATE finishSemaphore.V();
+    \State /* the given code */
+    \State finishSemaphore.P();
+    \State finishSemaphore.V();
   \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}[htbp]
   \caption{\texttt{KThread::finish()}}
   \begin{algorithmic}[1]
-    \STATE /* the given code except sleep() */
-    \STATE finishSemaphore.V();
-    \STATE sleep(); // this code is the last line in the orginal KThread::finish()
+    \State /* the given code except sleep() */
+    \State finishSemaphore.V();
+    \State sleep(); // this code is the last line in the orginal KThread::finish()
   \end{algorithmic}
 \end{algorithm}
 {\color{red}Here, although the task description say that calling \texttt{join}() a second time is undefined, 
@@ -233,35 +235,35 @@ interface and test code is in \texttt{selfTest} methord.
     \begin{algorithm}[htbp]
       \caption{ \texttt{void Condition2::sleep()}}
       \begin{algorithmic}
-	\STATE Disable interrupts
-	\STATE Release \texttt{conditionLock}
-	\STATE \texttt{waitQueue.waitForAccess(KThread.currentThread())}
-	\STATE	\texttt{KThread.sleep()}
-	\STATE Acquire \texttt{conditionLock}
-	\STATE Enable interrupts
+	\State Disable interrupts
+	\State Release \texttt{conditionLock}
+	\State \texttt{waitQueue.waitForAccess(KThread.currentThread())}
+	\State	\texttt{KThread.sleep()}
+	\State Acquire \texttt{conditionLock}
+	\State Enable interrupts
       \end{algorithmic}
     \end{algorithm}
 
     \begin{algorithm}[htbp]
       \caption{ \texttt{void Condition2::wake()}}
       \begin{algorithmic}
-	\STATE Disable interrupts
-	\IF {\texttt{thread = waitQueue.nextThread() != null}}
-	\STATE \texttt{thread.ready()}
-	\ENDIF
-	\STATE Enable interrupts
+	\State Disable interrupts
+	\If {\texttt{thread = waitQueue.nextThread() != null}}
+	\State \texttt{thread.ready()}
+	\EndIf
+	\State Enable interrupts
       \end{algorithmic}
     \end{algorithm}
 
     \begin{algorithm}[htbp]
       \caption{ \texttt{void Condition2::wakeAll()}}
       \begin{algorithmic}
-	\STATE Disable interrupts
-	\WHILE {\texttt{thread = waitQueue.nextThread() != null}}
-	\STATE \texttt{thread.ready()}
-	\STATE \texttt{thread = waitQueue.nextThread()}
-	\ENDWHILE
-	\STATE Enable interrupts
+	\State Disable interrupts
+	\While {\texttt{thread = waitQueue.nextThread() != null}}
+	\State \texttt{thread.ready()}
+	\State \texttt{thread = waitQueue.nextThread()}
+	\EndWhile
+	\State Enable interrupts
       \end{algorithmic}
     \end{algorithm}
 
@@ -278,75 +280,75 @@ interface and test code is in \texttt{selfTest} methord.
     \begin{algorithm}[htbp]
       \caption{\texttt{Producer::run()}}
       \begin{algorithmic}
-        \STATE \texttt{//enqueue items }
-        \FOR{\texttt{int i = 0; i < numProducts; i++}}
-        \STATE \texttt{lock.acquire(); }
-        \STATE \texttt{System.out.println("*** producer " + which + " adds item. "); }
-        \STATE \texttt{sharedata.add(which); }
-        \STATE \texttt{dataready.wake(); }
-        \STATE \texttt{lock.release(); }
-        \ENDFOR
+        \State \texttt{//enqueue items }
+        \For{\texttt{int i = 0; i < numProducts; i++}}
+        \State \texttt{lock.acquire(); }
+        \State \texttt{System.out.println("*** producer " + which + " adds item. "); }
+        \State \texttt{sharedata.add(which); }
+        \State \texttt{dataready.wake(); }
+        \State \texttt{lock.release(); }
+        \EndFor
       \end{algorithmic}
     \end{algorithm}
 
     \begin{algorithm}[htbp]
       \caption{\texttt{Consumer::run()}}
       \begin{algorithmic}
-        \STATE \texttt{//dequeue items }
-        \STATE \texttt{lock.acquire(); }
-        \STATE \texttt{System.out.println("*** consumer " + which + " enters. "); }
-        \WHILE{\texttt{sharedata.isEmpty()}}
-        \STATE \texttt{System.out.println("*** consumer " + which + " sleeps. "); }
-        \STATE \texttt{dataready.sleep(); }
-        \ENDWHILE
-        \STATE \texttt{System.out.println("*** consumer " + which + " gets " + sharedata.pop() }
-        \STATE \texttt{+ "'s item. "); }
-        \STATE \texttt{lock.release(); }
+        \State \texttt{//dequeue items }
+        \State \texttt{lock.acquire(); }
+        \State \texttt{System.out.println("*** consumer " + which + " enters. "); }
+        \While{\texttt{sharedata.isEmpty()}}
+        \State \texttt{System.out.println("*** consumer " + which + " sleeps. "); }
+        \State \texttt{dataready.sleep(); }
+        \EndWhile
+        \State \texttt{System.out.println("*** consumer " + which + " gets " + sharedata.pop() }
+        \State \texttt{+ "'s item. "); }
+        \State \texttt{lock.release(); }
       \end{algorithmic}
     \end{algorithm}
     \begin{algorithm}[htbp]
       \caption{\texttt{ProducerConsumerTest::ProducerConsumerTest(int numProducer, int numConsumer, int productsPerProducer=1)}}
       \begin{algorithmic}
-            \STATE \texttt{\color{blue}//Initialize producers and consumers }
-            \FOR{\texttt{int i = 0; i < numProducer; i++}}
-            \STATE \texttt{producers.push(new Producer(i, productsPerProducer)); }
-            \STATE \texttt{order.push(1); }
-            \ENDFOR
-            \FOR{\texttt{int i = numProducer; i < numProducer + numConsumer; i++}}
-            \STATE \texttt{consumers.push(new Consumer(i)); }
-            \STATE \texttt{order.push(2); }
-            \ENDFOR
-            \STATE\texttt{\color{blue} //use random order to execute producers and consumers}
-            \STATE \texttt{Collections.shuffle(order); }
-            \STATE \texttt{Stack<KThread> joinStack = new Stack<KThread>(); }
-            \FOR{\texttt{int i = 0; i < numProducer + numConsumer; i++}}
-            \STATE \texttt{int currentNumber = order.pop(); }
-            \IF{\texttt{currentNumber == 1}}
-            \STATE \texttt{joinStack.push(new KThread(producers.pop())); }
-            \STATE \texttt{joinStack.peek().fork(); }
-            \ELSIF{(currentNumber == 2)}
-              \STATE \texttt{joinStack.push(new KThread(consumers.pop())); }
-              \STATE \texttt{joinStack.peek().fork(); }
-            \ENDIF
-            \ENDFOR
-            \WHILE{\texttt{!joinStack.isEmpty()}}
-            \STATE \texttt{joinStack.pop().join(); }
-            \ENDWHILE
+            \State \texttt{\color{blue}//Initialize producers and consumers }
+            \For{\texttt{int i = 0; i < numProducer; i++}}
+            \State \texttt{producers.push(new Producer(i, productsPerProducer)); }
+            \State \texttt{order.push(1); }
+            \EndFor
+            \For{\texttt{int i = numProducer; i < numProducer + numConsumer; i++}}
+            \State \texttt{consumers.push(new Consumer(i)); }
+            \State \texttt{order.push(2); }
+            \EndFor
+            \State\texttt{\color{blue} //use random order to execute producers and consumers}
+            \State \texttt{Collections.shuffle(order); }
+            \State \texttt{Stack<KThread> joinStack = new Stack<KThread>(); }
+            \For{\texttt{int i = 0; i < numProducer + numConsumer; i++}}
+            \State \texttt{int currentNumber = order.pop(); }
+            \If{\texttt{currentNumber == 1}}
+            \State \texttt{joinStack.push(new KThread(producers.pop())); }
+            \State \texttt{joinStack.peek().fork(); }
+            \ElsIf{(currentNumber == 2)}
+              \State \texttt{joinStack.push(new KThread(consumers.pop())); }
+              \State \texttt{joinStack.peek().fork(); }
+            \EndIf
+            \EndFor
+            \While{\texttt{!joinStack.isEmpty()}}
+            \State \texttt{joinStack.pop().join(); }
+            \EndWhile
           \end{algorithmic}
         \end{algorithm}
 
     \begin{algorithm}[htbp]
       \caption{\texttt{Condition2::selfTest()}}
       \begin{algorithmic}
-        \STATE {\color{blue}\texttt{//Case 1: 1 producer, 1 consumer }}
-        \STATE \texttt{System.out.println("Case 1:"); }
-        \STATE \texttt{new ProducerConsumerTest(1, 1); }
-        \STATE {\color{blue}\texttt{ //Case 2: 1 producer, several consumers }}
-        \STATE \texttt{System.out.println("Case 2:"); }
-        \STATE \texttt{new ProducerConsumerTest(1, 4, 4); }
-        \STATE {\color{blue}\texttt{ //Case 3: 3 producer3, 3 consumer3 }}
-        \STATE \texttt{System.out.println("Case 3:"); }
-        \STATE \texttt{new ProducerConsumerTest(3, 3); }
+        \State {\color{blue}\texttt{//Case 1: 1 producer, 1 consumer }}
+        \State \texttt{System.out.println("Case 1:"); }
+        \State \texttt{new ProducerConsumerTest(1, 1); }
+        \State {\color{blue}\texttt{ //Case 2: 1 producer, several consumers }}
+        \State \texttt{System.out.println("Case 2:"); }
+        \State \texttt{new ProducerConsumerTest(1, 4, 4); }
+        \State {\color{blue}\texttt{ //Case 3: 3 producer3, 3 consumer3 }}
+        \State \texttt{System.out.println("Case 3:"); }
+        \State \texttt{new ProducerConsumerTest(3, 3); }
       \end{algorithmic}
     \end{algorithm}
     \begin{lstlisting}
@@ -419,65 +421,132 @@ interface and test code is in \texttt{selfTest} methord.
   \begin{algorithm}[htbp]
     \caption{\texttt{sleepThread::run()}}
     \begin{algorithmic}
-\STATE \texttt{long startTime = Machine.timer().getTime();  }
-\STATE \texttt{System.out.println("*** thread " + which + " sleep for " + x + " ticks\ n\ tat time " + startTime); }
-\STATE \texttt{ThreadedKernel.alarm.waitUntil(x); }
-\STATE \texttt{long currentTime = Machine.timer().getTime(); }
-\STATE \texttt{System.out.println("*** thread " + which + " wakes after " }
-\STATE \texttt{+ (currentTime - startTime) }
-\STATE \texttt{+ " ticks\ n\ tat time " + currentTime); }
+\State \texttt{long startTime = Machine.timer().getTime();  }
+\State \texttt{System.out.println("*** thread " + which + " sleep for " + x + " ticks\ n\ tat time " + startTime); }
+\State \texttt{ThreadedKernel.alarm.waitUntil(x); }
+\State \texttt{long currentTime = Machine.timer().getTime(); }
+\State \texttt{System.out.println("*** thread " + which + " wakes after " }
+\State \texttt{+ (currentTime - startTime) }
+\State \texttt{+ " ticks\ n\ tat time " + currentTime); }
     \end{algorithmic}
   \end{algorithm}
 
   \begin{algorithm}[htbp]
     \caption{\texttt{Alarm::selfTest()}}
     \begin{algorithmic}
-      \STATE {\color{blue}\texttt{//Case 1 }}
-      \STATE \texttt{System.out.println("Case 1:"); }
-      \STATE \texttt{KThread thread = new KThread(new sleepThread(0, 0)); }
-      \STATE \texttt{thread.fork(); }
-      \STATE \texttt{thread.join(); }
-      \STATE {\color{blue}\texttt{//Case 2 }}
-      \STATE \texttt{System.out.println("Case 2:"); }
-      \STATE \texttt{thread = new KThread(new sleepThread(1, 100)); }
-      \STATE \texttt{thread.fork(); }
-      \STATE \texttt{thread.join(); }
-      \STATE {\color{blue}\texttt{//Case 3 }}
-      \STATE \texttt{System.out.println("Case 3:"); }
-      \STATE \texttt{thread = new KThread(new sleepThread(2, 600)); }
-      \STATE \texttt{thread.fork(); }
-      \STATE \texttt{thread.join(); }
-      \STATE {\color{blue}\texttt{//Case 4 }}
-      \STATE \texttt{System.out.println("Case 4:"); }
-      \STATE \texttt{LinkedList<KThread> threadList = new LinkedList<KThread>();}
-      \STATE \texttt{Random rand = new Random(); }
-      \FOR{\texttt{int i = 0; i < 5; i++}}
-      \STATE \texttt{threadList.add(new KThread(new sleepThread(i + 3, rand.nextInt(400) + 300))); }
-      \STATE \texttt{threadList.get(i).fork(); }
-      \ENDFOR
-      \FOR{\texttt{int i = 0; i < 5; i++}}
-      \STATE \texttt{threadList.poll().join(); }
-      \ENDFOR
+      \State {\color{blue}\texttt{//Case 1 }}
+      \State \texttt{System.out.println("Case 1:"); }
+      \State \texttt{KThread thread = new KThread(new sleepThread(0, 0)); }
+      \State \texttt{thread.fork(); }
+      \State \texttt{thread.join(); }
+      \State {\color{blue}\texttt{//Case 2 }}
+      \State \texttt{System.out.println("Case 2:"); }
+      \State \texttt{thread = new KThread(new sleepThread(1, 100)); }
+      \State \texttt{thread.fork(); }
+      \State \texttt{thread.join(); }
+      \State {\color{blue}\texttt{//Case 3 }}
+      \State \texttt{System.out.println("Case 3:"); }
+      \State \texttt{thread = new KThread(new sleepThread(2, 600)); }
+      \State \texttt{thread.fork(); }
+      \State \texttt{thread.join(); }
+      \State {\color{blue}\texttt{//Case 4 }}
+      \State \texttt{System.out.println("Case 4:"); }
+      \State \texttt{LinkedList<KThread> threadList = new LinkedList<KThread>();}
+      \State \texttt{Random rand = new Random(); }
+      \For{\texttt{int i = 0; i < 5; i++}}
+      \State \texttt{threadList.add(new KThread(new sleepThread(i + 3, rand.nextInt(400) + 300))); }
+      \State \texttt{threadList.get(i).fork(); }
+      \EndFor
+      \For{\texttt{int i = 0; i < 5; i++}}
+      \State \texttt{threadList.poll().join(); }
+      \EndFor
     \end{algorithmic}
   \end{algorithm}
 
-\section{Task 4}
+    \section{Task 4}
 
-\subsection{Correctness Constraints}
-\begin{enumerate}
-  \item[$\bullet$] An active speaker should wait until an listener becomes active and 
-    recieves the word.
-  \item[$\bullet$] At any time, there should be at most one active speaker.
-  \item[$\bullet$] If there are some waiting speakers but no active speaker,
-    some waiting speaker should become active.
-  \item[$\bullet$] An active listener should wait until an active speaker becomes
-    active and the listener recieves the speaker's word.
-  \item[$\bullet$] At any time, there should be at most one active listener.
-  \item[$\bullet$] If there are some waiting listeners but no active listener,
-    some waiting listener should become active.
-  \item[$\bullet$] Once the listener recieves the word, both the speaker and
-    the listen should leave.
-\end{enumerate}
+    \subsection{Correctness Constraints}
+    \begin{enumerate}
+      \item[$\bullet$] An active speaker should wait until an listener becomes active and
+	recieves the word.
+      \item[$\bullet$] At any time, there should be at most one active speaker.
+      \item[$\bullet$] If there are some waiting speakers but no active speaker,
+	some waiting speaker should become active.
+      \item[$\bullet$] An active listener should wait until an active speaker becomes
+	active and the listener recieves the speaker's word.
+      \item[$\bullet$] At any time, there should be at most one active listener.
+      \item[$\bullet$] If there are some waiting listeners but no active listener,
+	some waiting listener should become active.
+      \item[$\bullet$] Once the listener recieves the word, both the speaker and
+	the listen should leave.
+    \end{enumerate}
+
+    \subsection{Declarations}
+    Here we can see that the \texttt{Communicator} is a mutex resource, we need use
+    a lock to protect this resource. And we can see that we need to maintain waiting
+    speakers and listeners, we can use condition variables to manage them. And we
+    can find that active speaker and active listener need to cooperate with other
+    threads, we also use condition variables to manage them. Finially, to check whether
+    there is active speaker or listener, we use two boolean variables to indicate
+    respectively; and we use boolean variable to indicate whether the word is recieved.
+    \begin{enumerate}
+      \item[$\bullet$] \textit{data structure}: \texttt{Semaphore}, \texttt{Lock}.
+      \item[$\bullet$] \textit{member variable}:
+	The following variables are all the member variables of \texttt{Communicator},
+	all of them are private.
+	\begin{enumerate}
+	  \item \texttt{Lock lock};
+	  \item \texttt{Condition waitingSpeakerQueue}, initially \texttt{lock};
+	  \item \texttt{Condition waitingListenerQueue}, initially \texttt{lock};
+	  \item \texttt{Condition activeSpeaker}, initially \texttt{lock};
+	  \item \texttt{Condition activeListener}, initially \texttt{lock};
+	  \item \texttt{boolean noActiveSpeaker}, initially \texttt{true};
+	  \item \texttt{boolean noActiveListener}, initially \texttt{true};
+	  \item \texttt{boolean recieve}, initially \texttt{false};
+	  \item \texttt{int word};
+	\end{enumerate}
+    \end{enumerate}
+
+    \subsection{Description}
+
+    \begin{algorithm}
+      \caption{\texttt{Communicator::speak(w)}}
+      \begin{algorithmic}[1]
+	\State lock.acquire();
+	\If{!noActiveSpeaker}
+	\State waitingSpeakerQueue.sleep();
+	\EndIf
+	\State noActiveSpeaker $\leftarrow$ false;
+	\State word $\leftarrow$ w;
+	\If{noActiveListener or !recieve}
+	\State activeListener.wake();
+	\State activeSpeaker.sleep();
+	\EndIf
+	\State noActiveSpeaker, noActiveListener $\leftarrow$ true;
+	\State recieve $\leftarrow$ false;
+	\State waitingSpeakerQueue.wake();
+	\State waitingListenerQueue.wake();
+	\State lock.release();
+      \end{algorithmic}
+    \end{algorithm}
+
+    \begin{algorithm}
+      \caption{\texttt{Communicator::listen()}}
+      \begin{algorithmic}[1]
+	\State lock.acquire();
+	\If{!noActiveListener}
+	\State waitingListenerQueue.sleep();
+	\EndIf
+	\State noActiveListener $\leftarrow$ false;
+	\If{noActiveSpeaker}
+	\State activeListener.sleep();
+	\EndIf
+	\State activeSpeaker.wake();
+	\State result $\leftarrow$ word;
+	\State lock.release();
+	\Return result;
+      \end{algorithmic}
+    \end{algorithm}
 
 \subsection{Declarations}
 Here we can see that the \texttt{Communicator} is a mutex resource, we need use
@@ -510,22 +579,22 @@ respectively; {\color{red}\sout{and we use boolean variable to indicate whether 
 \begin{algorithm}[htbp]
   \caption{\texttt{Communicator::speak(w)}}
   \begin{algorithmic}[1]
-    \STATE lock.acquire();
-    \WHILE{!noActiveSpeaker}
-    \STATE waitingSpeakerQueue.sleep();
-    \ENDWHILE
-    \STATE noActiveSpeaker $\leftarrow$ false;
-    \STATE word $\leftarrow$ w;
+    \State lock.acquire();
+    \While{!noActiveSpeaker}
+    \State waitingSpeakerQueue.sleep();
+    \EndWhile
+    \State noActiveSpeaker $\leftarrow$ false;
+    \State word $\leftarrow$ w;
     {\color{red}
-    \IF{!noActiveListener}
-    \STATE waitingListenerQueue.wakeAll();
-    \ELSE
-    \STATE waitingSpeakerQueue.sleep();
-    \STATE noActiveSpeaker, noActiveListener $\leftarrow$ true;
-    \STATE waitingSpeakerQueue.wake();
-    \STATE waitingListenerQueue.wake();
-    \ENDIF}
-    \STATE lock.release();
+    \If{!noActiveListener}
+    \State waitingListenerQueue.wakeAll();
+    \Else
+    \State waitingSpeakerQueue.sleep();
+    \State noActiveSpeaker, noActiveListener $\leftarrow$ true;
+    \State waitingSpeakerQueue.wake();
+    \State waitingListenerQueue.wake();
+    \EndIf}
+    \State lock.release();
   \end{algorithmic}
 \end{algorithm}
 {\color{red} Here, I do not give the code of \texttt{listen}(), because it is totally symmetric with
@@ -596,16 +665,16 @@ The following algorithm describes the implementation of \texttt{getEffectivePrio
 \begin{algorithm}[htbp]
   \caption{calculate effective priority}
 \begin{algorithmic}[1]
-  \STATE Initialize EP and donatorEP as default priority
-  \STATE EP $\leftarrow$ priority
-\FORALL {wait queues whose resource has been acquired by me}
-  \STATE donatorEP $\leftarrow$ largest EP in that wait queue
-  \IF {donatorEP $>$ EP}
-    \STATE EP $\leftarrow$ donatorEP
-  \ENDIF
-\ENDFOR
-\STATE recursively call calculate effective priority on the thread I am waiting on
-\RETURN EP
+  \State Initialize EP and donatorEP as default priority
+  \State EP $\leftarrow$ priority
+\ForAll {wait queues whose resource has been acquired by me}
+  \State donatorEP $\leftarrow$ largest EP in that wait queue
+  \If {donatorEP $>$ EP}
+    \State EP $\leftarrow$ donatorEP
+  \EndIf
+\EndFor
+\State recursively call calculate effective priority on the thread I am waiting on
+\Return EP
 \end{algorithmic}
 \end{algorithm}
 
@@ -614,35 +683,35 @@ To clarify how we manipulate data structure, we illustrate the implementation of
 \begin{algorithm}[htbp]
   \caption{\texttt{ThreadState.wairForAccess(PriorityQueue waitQueue)}}
 \begin{algorithmic}[1]
-  \STATE waitQueue.add(this)  \COMMENT{add this thread to waitQueue}
-  \STATE this.waitingOn $\leftarrow$ waitQueue  \COMMENT{update waitingOn queue}
-  \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
-\RETURN
+  \State waitQueue.add(this)  \Comment{add this thread to waitQueue}
+  \State this.waitingOn $\leftarrow$ waitQueue  \Comment{update waitingOn queue}
+  \State this.EP $\leftarrow$ calculateEffectivePriority()  \Comment{update EP}
+\Return
 \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}[htbp]
   \caption{\texttt{ThreadState.acquire(PriorityQueue waitQueue)}}
 \begin{algorithmic}[1]
-  \STATE waitQueue.owner $\leftarrow$ this
-  \STATE this.waitingBy.insert(waitQueue)
-  \STATE this.EP $\leftarrow$ calculateEffectivePriority()  \COMMENT{update EP}
-\RETURN
+  \State waitQueue.owner $\leftarrow$ this
+  \State this.waitingBy.insert(waitQueue)
+  \State this.EP $\leftarrow$ calculateEffectivePriority()  \Comment{update EP}
+\Return
 \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}[htbp]
   \caption{\texttt{nextThread}}
 \begin{algorithmic}[1]
-  \STATE Initialize chosenThread as null
-  \STATE chosenThread $\leftarrow$ pickNextThread()
-  \IF {chosenThread != null}
-    \STATE remove this queue from current owner's waitingBy list
-    \STATE chosenThread.waitingOn $\leftarrow$ null
-    \STATE insert this queue into chosenThread's waitingBy list
-  \ENDIF
-  \STATE this.owner $\leftarrow$ chosenThread
-\RETURN chosenThread
+  \State Initialize chosenThread as null
+  \State chosenThread $\leftarrow$ pickNextThread()
+  \If {chosenThread != null}
+    \State remove this queue from current owner's waitingBy list
+    \State chosenThread.waitingOn $\leftarrow$ null
+    \State insert this queue into chosenThread's waitingBy list
+  \EndIf
+  \State this.owner $\leftarrow$ chosenThread
+\Return chosenThread
 \end{algorithmic}
 \end{algorithm}
 
@@ -658,36 +727,36 @@ We need to test the following things. The test is done in \texttt{selfTest()}
 \begin{algorithm}[htbp]
   \caption{\texttt{selfTest}}
 \begin{algorithmic}[1]
-  \STATE Initialize a PriorityScheduler \texttt{s}
-  \STATE Create 5 threads
-  \STATE disable interrupt
-  \STATE
-  \STATE Thread 1 acquires resource 1
-  \STATE Thread 2 waits for resource 1
-  \STATE Thread 5 waits for resource 1
-  \STATE Thread 1 acquires resource 2
-  \STATE Thread 4 waits for resource 2
-  \STATE Thread 5 acquires resource 3
-  \STATE Thread 3 waits for resource 3
-  \STATE print all the information of the threads
-  \STATE
-  \STATE Thread 2 set priority to 4
-  \STATE print all the information of the threads
-  \STATE
-  \STATE Thread 4 waits for resource 2
-  \STATE Thread 3 set priority to 5
-  \STATE print all the information of the threads
-  \STATE
-  \STATE Thread 3 set priority to 3
-  \STATE print all the information of the threads
-  \STATE
-  \STATE Thread 1 release resource 1
-  \STATE print all the information of the threads
-  \STATE
-  \STATE Thread 4 set priority to 2
-  \STATE print all the information of the threads
-  \STATE
-  \STATE restore interrupt
+  \State Initialize a PriorityScheduler \texttt{s}
+  \State Create 5 threads
+  \State disable interrupt
+  \State
+  \State Thread 1 acquires resource 1
+  \State Thread 2 waits for resource 1
+  \State Thread 5 waits for resource 1
+  \State Thread 1 acquires resource 2
+  \State Thread 4 waits for resource 2
+  \State Thread 5 acquires resource 3
+  \State Thread 3 waits for resource 3
+  \State print all the information of the threads
+  \State
+  \State Thread 2 set priority to 4
+  \State print all the information of the threads
+  \State
+  \State Thread 4 waits for resource 2
+  \State Thread 3 set priority to 5
+  \State print all the information of the threads
+  \State
+  \State Thread 3 set priority to 3
+  \State print all the information of the threads
+  \State
+  \State Thread 1 release resource 1
+  \State print all the information of the threads
+  \State
+  \State Thread 4 set priority to 2
+  \State print all the information of the threads
+  \State
+  \State restore interrupt
 \end{algorithmic}
 \end{algorithm}
 
