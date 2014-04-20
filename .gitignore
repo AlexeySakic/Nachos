@@ -20,3 +20,7 @@ doc
 doc/*
 ref/*
 nachos/bin/*
+.metadata
+nachos/.classpath
+nachos/.project
+nachos/.settings
