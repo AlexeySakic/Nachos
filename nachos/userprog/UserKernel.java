@@ -2,6 +2,9 @@
 //PART OF THE NACHOS. DON'T CHANGE CODE OF THIS LINE
 package nachos.userprog;
 
+import java.util.LinkedList;
+import java.util.Queue;
+
 import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
@@ -25,7 +28,17 @@ public class UserKernel extends ThreadedKernel {
 	super.initialize(args);
 
 	console = new SynchConsole(Machine.console());
+	
+	//------------------------------------------------------------------------------------------------
 
+	ppnListSemaphore = new Semaphore(1);
+	ppnListSemaphore.P();
+	freePPNList.clear();
+	int ppn = Machine.processor().getNumPhysPages();
+	for(int i=0; i < ppn; i++)
+		Lib.assertTrue(freePPNList.offer(i), "Error: happen in freePPNList " + i +"-th items offer.");
+	ppnListSemaphore.V();
+	//------------------------------------------------------------------------------------------------
 	Machine.processor().setExceptionHandler(new Runnable() {
 		public void run() { exceptionHandler(); }
 	    });
@@ -112,6 +125,10 @@ public class UserKernel extends ThreadedKernel {
     /** Globally accessible reference to the synchronized console. */
     public static SynchConsole console;
 
+	//------------------------------------------------------------------------------------------------
+    public static Queue<Integer> freePPNList = new LinkedList<Integer>();
+    public static Semaphore ppnListSemaphore;
+	//------------------------------------------------------------------------------------------------
     // dummy variables to make javac smarter
     private static Coff dummy1 = null;
 }
