@@ -24,3 +24,4 @@ nachos/bin/*
 nachos/.classpath
 nachos/.project
 nachos/.settings
+mips/
