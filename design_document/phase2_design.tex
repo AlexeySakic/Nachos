@@ -10,14 +10,18 @@
 \usepackage{soul,color}
 \usepackage{graphicx,float,wrapfig}
 \usepackage{mathrsfs}
-\usepackage{algorithm}
-\usepackage{algorithmic}
+\usepackage[T1]{fontenc} % to be able to use < and > directly
+% \usepackage{algorithm}
+% \usepackage{algorithmic}
+% \usepackage{algpseudocode}
+\usepackage[ruled, vlined, lined, boxed, commentsnumbered,linesnumbered]{algorithm2e}
 \usepackage[pdfauthor={XeLaTeX},%
 pdftitle={Design Document}]{hyperref}
 
 % \usepackage{tikz}
 % \usepackage{pgffor}
-\newcommand{\eq}{$\leftarrow$}
+\renewcommand{\gets}{%
+  \ensuremath{\leftarrow}}
 % In case you need to adjust margins:
 \topmargin=-0.45in      %
 \evensidemargin=0in     %
@@ -79,24 +83,24 @@ pdftitle={Design Document}]{hyperref}
 
 \section{Task 1}
 \subsection{Overview}
-Task 1 asks us to implement file system calls  in Nachos by adding code to the \texttt{UserProcess} class. Here we are not asked to implement a file system from scratch, but to give user processes the ability to access a file system that have been implemented.
+Task 1 asks us to implement file system calls  in Nachos by adding code to the \textsf{UserProcess} class. Here we are not asked to implement a file system from scratch, but to give user processes the ability to access a file system that have been implemented.
 
 The main requirements of the task can be divided into two categories: those to implement functionality, and those to ensure security.
 
-To implement functionality, we need to add additional attributes (file descriptors, file states, etc.) and additional system call handler methods. As system calls are already declared in the header \texttt{text/syscall.h}, we don't need to consider how to design the interface and we can just focus on the internal implementation inside the class \texttt{UserProcess}. Also, an example method \texttt{UserProcess.halt} has been implemented, which gives us yet more hints.
+To implement functionality, we need to add additional attributes (file descriptors, file states, etc.) and additional system call handler methods. As system calls are already declared in the header \textsf{text/syscall.h}, we don't need to consider how to design the interface and we can just focus on the internal implementation inside the class \textsf{UserProcess}. Also, an example method \textsf{UserProcess.halt} has been implemented, which gives us yet more hints.
 
-For security constraints, we need to bullet-proof the Nachos kernel from user processes. We need to ensure that exceptions occurred inside the user process will not crash the system, and we also need to ensure that \texttt{halt()} can terminate the system only if it is called by the root process. Therefore we need some more attributes (e.g. pids) to distinguish process from process.
+For security constraints, we need to bullet-proof the Nachos kernel from user processes. We need to ensure that exceptions occurred inside the user process will not crash the system, and we also need to ensure that \textsf{halt()} can terminate the system only if it is called by the root process. Therefore we need some more attributes (e.g. pids) to distinguish process from process.
 
-According to \texttt{syscall.h}, when \texttt{unlink}() is called,  if no processes have the file open, the file is deleted immediately and the space it was using is made available for reuse. But if any processes still have the file open, the file will remain in existence until the last file descriptor referring to it it closed. However, \texttt{create}() and \texttt{open}() will not be able to return new file descriptors for the file until it is deleted.
+According to \textsf{syscall.h}, when \textsf{unlink}() is called,  if no processes have the file open, the file is deleted immediately and the space it was using is made available for reuse. But if any processes still have the file open, the file will remain in existence until the last file descriptor referring to it it closed. However, \textsf{create}() and \textsf{open}() will not be able to return new file descriptors for the file until it is deleted.
 
-To implement this mechanism, a new member class \texttt{FileManager} is defined within \texttt{UserKernel} class to keep track of files opened by each process. So that if unlink on a file is called, it can wait until all processes have closed the file before actually deleted it. A single instance of FileManager is instantiated and kept as a public instance member of \texttt{UserKernel}. This instance is used by function \texttt{close}, \texttt{open}, \texttt{create} and \texttt{unlink}.
+To implement this mechanism, a new member class \textsf{FileManager} is defined within \textsf{UserKernel} class to keep track of files opened by each process. So that if unlink on a file is called, it can wait until all processes have closed the file before actually deleted it. A single instance of FileManager is instantiated and kept as a public instance member of \textsf{UserKernel}. This instance is used by function \textsf{close}, \textsf{open}, \textsf{create} and \textsf{unlink}.
 
 
 
 \subsection{Correctness Constraints}
 
 \begin{asparaitem}
-\item Implement the system calls: \texttt{create}, \texttt{open}, \texttt{read}, \texttt{write}, \texttt{close} and \texttt{unlink}
+\item Implement the system calls: \textsf{create}, \textsf{open}, \textsf{read}, \textsf{write}, \textsf{close} and \textsf{unlink}
 \item Bullet-proof the Nachos Kernel from user program errors: validating input and ensuring that errors are handled gracefully
 \item Error condition of a system call should be indicated by a return value of -1 instead of throw an exception within the kernel
 \item Ensure that halt can only be called from the root process (the first process in the system)
@@ -107,163 +111,154 @@ To implement this mechanism, a new member class \texttt{FileManager} is defined 
 
 \subsection{Declarations}
 
- \texttt{OpenFile[] fileDesriptorTable} to store the 16 files opened by this process.
- \texttt{FileManager fileManager} to implement \texttt{unlink} mechanism
+ \textsf{OpenFile[] fileDesriptorTable} to store the 16 files opened by this process.
+ \textsf{FileManager fileManager} to implement \textsf{unlink} mechanism
 
 \subsection{Descriptions}
 
 The following algorithms \ref{alg:handleHalt} and \ref{alg:handleCreate} describes the implementation in high level.
 
-Note we also need to handle all the exceptions from \texttt{Machine.Process}. We just add to the switch inside \texttt{handleException}, and call \texttt{handleExit} if necessary.
+Note we also need to handle all the exceptions from \textsf{Machine.Process}. We just add to the switch inside \textsf{handleException}, and call \textsf{handleExit} if necessary.
 \begin{enumerate}[$\bullet$]
-\item \texttt{exceptionSyscall}
-\item \texttt{exceptionPageFault}
-\item \texttt{exceptionTLBMiss}
-\item \texttt{exceptionReadOnly}
-\item \texttt{exceptionBusError}
-\item \texttt{exceptionAddressError}
-\item \texttt{exceptionOverflow}
-\item \texttt{exceptionIllegalInstruction}
+\item \textsf{exceptionSyscall}
+\item \textsf{exceptionPageFault}
+\item \textsf{exceptionTLBMiss}
+\item \textsf{exceptionReadOnly}
+\item \textsf{exceptionBusError}
+\item \textsf{exceptionAddressError}
+\item \textsf{exceptionOverflow}
+\item \textsf{exceptionIllegalInstruction}
 \end{enumerate}
 
-\begin{algorithm}[htbp]
+\begin{algorithm}
+\Begin{
   \label{alg:handleHalt}
-  \caption{int \texttt{handleHalt}()}
-\begin{algorithmic}[1]
-  \IF { processID != 0}
-    \RETURN 0
-  \ENDIF
-  \STATE \texttt{Machine.halt()}
-  \RETURN 0
-\end{algorithmic}
+  \caption{int \textsf{handleHalt}()}
+  \If { processID != 0}{
+    \Return 0
+  }
+  \textsf{Machine.halt()}
+  \Return 0
+}
 \end{algorithm}
 
-\begin{algorithm}[htbp]
+\begin{algorithm}[H]
   \label{alg:handleCreate}
-  \caption{int \texttt{handleCreate}(int vaddr)}
-\begin{algorithmic}[1]
- \IF { vaddr is invalid}
-    \RETURN -1
-  \ENDIF
-  \STATE filename $\leftarrow$ \texttt{readVirtualMemoryString}(vaddr, 256)
-  \IF { fileManager.isUnlinked(filename)}
-    \RETURN -1
-  \ENDIF
-  \IF {$\exists$ free file descriptor $x$}
-    \STATE fileManager.openFile(filename)
-    \STATE file $\leftarrow$ \texttt{ThreadedKernel.fileSystem.open}(filename, false)
-    \STATE fileDescriptorTable[x] $\leftarrow$ file
-    \RETURN $x$
-  \ELSE
-    \RETURN -1
-  \ENDIF
-\end{algorithmic}
+  \caption{int \textsf{handleCreate}(int vaddr)}
+  \If { vaddr is invalid} {
+    \Return -1\;
+  }
+   filename \gets \textsf{readVirtualMemoryString}(vaddr, 256)\;
+  \If { fileManager.isUnlinked(filename)} {
+    \Return -1\;
+  }
+  \eIf {$\exists$ free file descriptor $x$} {
+     fileManager.openFile(filename)\;
+     file \gets \textsf{ThreadedKernel.fileSystem.open}(filename, false)\;
+     fileDescriptorTable[x] \gets file\;
+     \Return $x$
+   }{
+    \Return -1\;
+  }
 \end{algorithm}
 
-To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{handleCreate} to following algorithm \ref{alg:handleOpen}:
-\begin{algorithm}[htbp]
+To implemente \textsf{handleOpen}, we only need to change line 9 of \textsf{handleCreate} to following algorithm \ref{alg:handleOpen}:
+\begin{algorithm}[H]
   \label{alg:handleOpen}
-  \caption{int \texttt{handleOpen}(int vaddr)}
-\begin{algorithmic}[1]
- \IF { vaddr is invalid}
-    \RETURN -1
-  \ENDIF
-  \STATE filename $\leftarrow$ \texttt{readVirtualMemoryString}(vaddr, 256)
-  \IF { fileManager.isUnlinked(filename)}
-    \RETURN -1
-  \ENDIF
-  \IF {$\exists$ free file descriptor $x$}
-    \STATE fileManager.openFile(filename)
-    \STATE \colorbox{myyellow}{file $\leftarrow$ \texttt{ThreadedKernel.fileSystem.open}(filename, true)}
-    \STATE fileDescriptorTable[x] $\leftarrow$ file
-    \RETURN $x$
-  \ELSE
-    \RETURN -1
-  \ENDIF
-\end{algorithmic}
+  \caption{int \textsf{handleOpen}(int vaddr)}
+ \If { vaddr is invalid} {
+    \Return -1\;
+  }
+   filename \gets \textsf{readVirtualMemoryString}(vaddr, 256)\;
+  \If { fileManager.isUnlinked(filename)} {
+    \Return -1\;
+  }
+  \eIf {$\exists$ free file descriptor $x$} {
+     fileManager.openFile(filename)\;
+     \colorbox{myyellow}{file \gets \textsf{ThreadedKernel.fileSystem.open}(filename, true)}\;
+     fileDescriptorTable[x] \gets file\;
+    \Return $x$\;
+  }{
+    \Return -1\;
+  }
 \end{algorithm}
 
-\begin{algorithm}[htbp]
-  \caption{int \texttt{handleRead}(int fileDescriptor, int bufferAddr, int count)}
-\begin{algorithmic}[1]
- \IF { fileDescriptor is invalid}
-    \RETURN -1
-  \ENDIF
-  \STATE file $\leftarrow$ \texttt{fileDescriptorTable}[fileDesriptor]
-  \IF { file is invalid $||$ count $<$ 0}
-    \RETURN -1
-  \ENDIF
-  \STATE Initialize buffer to read from file
-  \STATE bytesRead $\leftarrow$ file.\texttt{read}(buffer, 0, count)
-  \IF {bytesRead $==$ -1}
-    \RETURN -1
-  \ELSE
-    \STATE bytesReturn $\leftarrow$ \texttt{writeVirtualMemory(bufferAddr, buffer, 0, bytesRead)}
-    \RETURN bytesReturn
-  \ENDIF
-\end{algorithmic}
+\begin{algorithm}
+  \caption{int \textsf{handleRead}(int fileDescriptor, int bufferAddr, int count)}
+
+ \If { fileDescriptor is invalid} {
+    \Return -1\;
+  }
+   file \gets \textsf{fileDescriptorTable}[fileDesriptor]\;
+  \If { file is invalid $||$ count $<$ 0} {
+    \Return -1\;
+  }
+   Initialize buffer to read from file\;
+   bytesRead \gets file.\textsf{read}(buffer, 0, count)\;
+  \eIf {bytesRead $==$ -1} {
+    \Return -1\;
+  }{
+     bytesReturn \gets \textsf{writeVirtualMemory(bufferAddr, buffer, 0, bytesRead)}\;
+    \Return bytesReturn\;
+  }
+
 \end{algorithm}
 
-\texttt{handWrite} is quite similar to \texttt{handleRead}:
+\textsf{handWrite} is quite similar to \textsf{handleRead}:
 
-\begin{algorithm}[htbp]
-  \caption{int \texttt{handleWrite}(int fileDescriptor, int bufferAddr, int count)}
-\begin{algorithmic}[1]
- \IF { fileDescriptor is invalid}
-    \RETURN -1
-  \ENDIF
-  \STATE file $\leftarrow$ \texttt{fileDescriptorTable}[fileDesriptor]
-  \IF { file is invalid $||$ count $<$ 0}
-    \RETURN -1
-  \ENDIF
-  \STATE Initialize buffer to read from virtual memory
-  \STATE bytesWritten $\leftarrow$ \texttt{readVirtualMemory}(bufferAddr, buffer, 0, count)
-  \IF {bytesWritten != count}
-    \RETURN -1
-  \ENDIF
-  \STATE bytesReturn $\leftarrow$ file.\texttt{write}(buffer, 0, bytesWritten)
-  \IF {bytesReturn != count}
-    \RETURN -1
-  \ENDIF
-  \RETURN bytesReturn
-\end{algorithmic}
+\begin{algorithm}
+  \caption{int \textsf{handleWrite}(int fileDescriptor, int bufferAddr, int count)}
+
+ \If { fileDescriptor is invalid} {
+    \Return -1\;
+  }
+   file \gets \textsf{fileDescriptorTable}[fileDesriptor]\;
+  \If { file is invalid $||$ count $<$ 0} {
+    \Return -1\;
+  }
+   Initialize buffer to read from virtual memory\;
+   bytesWritten \gets \textsf{readVirtualMemory}(bufferAddr, buffer, 0, count)\;
+  \If {bytesWritten != count} {
+    \Return -1\;
+  }
+   bytesReturn \gets file.\textsf{write}(buffer, 0, bytesWritten)\;
+  \If {bytesReturn != count} {
+    \Return -1\;
+  }
+  \Return bytesReturn\;
+
 \end{algorithm}
 
-\begin{algorithm}[htbp]
-  \caption{int \texttt{handleClose}(int fileDescriptor)}
-\begin{algorithmic}[1]
- \IF { fileDescriptor is invalid}
-    \RETURN -1
-  \ENDIF
-  \STATE fileManager.decrementCount(fileDescriptorTable[fileDescriptor].name)
-  \STATE fileDescriptorTable[fileDesriptor].close()
-  \STATE fileDescriptorTable[fileDesriptor] $\leftarrow$ null
-  \RETURN 0
-\end{algorithmic}
+\begin{algorithm}
+  \caption{int \textsf{handleClose}(int fileDescriptor)}
+
+ \If { fileDescriptor is invalid} {
+    \Return -1\;
+  }
+   fileManager.decrementCount(fileDescriptorTable[fileDescriptor].name)\;
+   fileDescriptorTable[fileDesriptor].close()\;
+   fileDescriptorTable[fileDesriptor] \gets null\;
+  \Return 0\;
 \end{algorithm}
 
-\begin{algorithm}[htbp]
-  \caption{int \texttt{handleUnlink}(string name)}
-\begin{algorithmic}[1]
- \IF { ! fileManager.unlinkFile(name) }
-    \RETURN -1
-  \ENDIF
-  \RETURN 0
-\end{algorithmic}
+\begin{algorithm}
+  \caption{int \textsf{handleUnlink}(string name)}
+ \If { ! fileManager.unlinkFile(name) } {
+    \Return -1\;
+  }
+  \Return 0\;
 \end{algorithm}
-
-
 
 \subsection{Testing Plan}
 \begin{enumerate}
-\item call \texttt{halt} from non-root process
+\item call \textsf{halt} from non-root process
 \item reading from a non-existence file
 \item read from file without reading permission
 \item write to existing file
 \item write to file without writing permission
 \item creating an existing file
 \item passing invalid file descriptor to read/write
-\item passing \texttt{count=0} to read/write
+\item passing \textsf{count=0} to read/write
 \item double closing some file
 \item write to closed file
 \end{enumerate}
@@ -280,102 +275,109 @@ To implemente \texttt{handleOpen}, we only need to change line 9 of \texttt{hand
 \end{enumerate}
 
 \subsection{Declarations}
-We use a public static \texttt{Queue} to maintain the free physical pages and a public
-static \texttt{Semaphore} to make the access sychronous. Once we allocate a
+We use a public static \textsf{Queue} to maintain the free physical pages and a public
+static \textsf{Semaphore} to make the access sychronous. Once we allocate a
 page, we delete it from the queue; and once we free a page, we add it
 into the queue. We use a 
-\texttt{TranslationEntry} array to construct the pageTable. In the 
-\texttt{UserProcess.loadSections()} we build the pageTable to associate vpn and ppn.
-We implement \texttt{UserProcess.unloadSection} to release the physical pages
-allocated by $\texttt{loadSections()}$.
-Then we modify \texttt{UserProcess.readVirtualMemory} and 
-\texttt{UserProcess.writeVirtualMemory} to use pageTable to access physical
+\textsf{TranslationEntry} array to construct the pageTable. In the 
+\textsf{UserProcess.loadSections()} we build the pageTable to associate vpn and ppn.
+We implement \textsf{UserProcess.unloadSection} to release the physical pages
+allocated by $\textsf{loadSections()}$.
+Then we modify \textsf{UserProcess.readVirtualMemory} and 
+\textsf{UserProcess.writeVirtualMemory} to use pageTable to access physical
 memory through virtual memory. Here, we transfer the data in a unit of one page.
-\begin{enumerate}
-  \item[$\bullet$] \textit{data structure}: \texttt{Queue}, \texttt{Semaphore},
-    \texttt{TranslationEntry}.
-  \item[$\bullet$] \textit{member variable}:
+\begin{enumerate}[$\bullet$]
+  \item \textit{data structure}: \textsf{Queue}, \textsf{Semaphore},
+    \textsf{TranslationEntry}.
+  \item \textit{member variable}:
     \begin{enumerate}
-      \item \texttt{public static Queue<Integer> UserKernel::freePPNList};
-      \item \texttt{public static Semaphore UserKernel::ppnListSemaphore}, initially 1;
-      \item \texttt{protected TranslationEntry[] UserProcess::pageTable};
+      \item \textsf{public static Queue<Integer> UserKernel::freePPNList};
+      \item \textsf{public static Semaphore UserKernel::ppnListSemaphore}, initially 1;
+      \item \textsf{protected TranslationEntry[] UserProcess::pageTable};
       \end{enumerate}
 \end{enumerate}
 
 \subsection{Description}
-\begin{algorithm}[htbp]
-  \caption{\texttt{UserKernel::initialize()}}
-  \begin{algorithmic}[1]
-    \STATE $\dots$ \textit{given code} $\dots$
-    \STATE \texttt{ppnListSemaphore.P()};
-    \FOR{all ppn $i$}
-    \STATE \texttt{freePPNList.enqueue(i)};
-    \ENDFOR
-    \STATE \texttt{ppnListSemaphore.V()};
-  \end{algorithmic}
+\begin{algorithm}
+  \caption{\textsf{UserKernel::initialize()}}
+  $\dots$ \textit{given code} $\dots$\;
+  \textsf{ppnListSemaphore.P()}\;
+  \For{all ppn $i$}{
+    \textsf{freePPNList.enqueue(i)}\;
+  }
+  \textsf{ppnListSemaphore.V()}\;
 \end{algorithm}
 
-\begin{algorithm}[htbp]
-  \caption{\texttt{UserProcess::loadSections()}}
-  \begin{algorithmic}[1]
-    \STATE \texttt{ppnListSemaphore.P()};
-    \IF{\texttt{numPages $>$ freePPNList.size()}}
-    \RETURN \textbf{false};
-    \ENDIF
-    \STATE \texttt{pageTable.size $\gets$ numPages};
-    \FOR{all section $s$ and all virtual pages $vpn$}
-    \STATE \texttt{ppn $\gets$ freePPNList.dequeue()};
-    \STATE \texttt{pageTable[vpn] $\gets$ (vpn,ppn,true,s.isReadOnly(),false,false)};
-    \STATE Load the $i$ page's content into the physical memory page $ppn$;
-    \ENDFOR
-    \FOR{all stack pages $vpn$}
-    \STATE \texttt{ppn $\gets$ freePPNList.dequeue()};
-    \STATE \texttt{pageTable[vpn] $\gets$ (vpn,ppn,true, false,false,false)};
-    \ENDFOR
-    \STATE \texttt{ppnListSemaphore.V()};
-    \RETURN \textbf{true};
-  \end{algorithmic}
+\begin{algorithm}
+  \caption{\textsf{UserProcess::loadSections()}}
+  \If {\textsf{numPages $>$ freePPNList.size()} }{
+    \Return \textbf{false}\;
+  }
+  \textsf{ppnListSemaphore.P()}\;
+  \textsf{pageTable.size $\gets$ numPages}\;
+  \For{all section \textsf{s} and all virtual pages \textsf{vpn} in \textsf{s}}{
+    \textsf{ppn $\gets$ freePPNList.dequeue()}\;
+    \textsf{pageTable[vpn] $\gets$ (vpn,ppn,true,s.isReadOnly(),false,false)}\;
+    Load the $\textsf{vpn}$ page's content into the physical memory page $\textsf{ppn}$\;
+  }
+  \For{all stack pages $\textsf{vpn}$}{
+    \textsf{ppn $\gets$ freePPNList.dequeue()}\;
+    \textsf{pageTable[vpn] $\gets$ (vpn,ppn,true,false,false,false)}\;
+  }
+  \textsf{ppnListSemaphore.V()}\;
+  \Return \textbf{true}\;
 \end{algorithm}
 
-\begin{algorithm}[htbp]
-  \caption{\texttt{UserProcess::readVirtualMemory(vaddr, data, offset, length)}}
-  \begin{algorithmic}[1]
-    \IF{\texttt{vaddr < 0}}
-    \RETURN 0;
-    \ENDIF
-    \STATE \texttt{start $\gets$  vpn(vaddr)};
-    \STATE \texttt{end $\gets$  vpn(vaddr+length)};
-    \STATE \texttt{e $\gets \min$\{end, pageTable.size()\}};
-    \STATE \texttt{amount $\gets$  0};
-    \FOR{\texttt{$i=$start} \textbf{to} \texttt{e}}
-    \IF{\texttt{pageTable[$i$].valid = \textbf{false}}}
-    \RETURN{\texttt{amount}};
-    \ENDIF
-    \STATE \texttt{$s \gets 0, e \gets$ pageSize};
-    \IF{\texttt{$i=$start}}
-    \STATE \texttt{$s \gets$  offset(vaddr)};
-    \ENDIF
-    \IF{\texttt{$i=$end}}
-    \STATE \texttt{$e \gets$  offset(vaddr+length)};
-    \ENDIF
-    \STATE \texttt{paddr = ppn*pageSize + s};
-    \STATE \texttt{System.arraycopy(memory, paddr, data, offset, e-s)};
-    \STATE \texttt{pageTable[i].used $\gets$  \textbf{true}};
-    \STATE \texttt{amount  $\gets$  amount + e - s};
-    \STATE \texttt{offset  $\gets$  offset + e - s};
-    \ENDFOR
-    \RETURN{\texttt{amount}};
-  \end{algorithmic}
+\begin{algorithm}[H]
+  \caption{\textsf{UserProcess::unloadSections()}}
+  \textsf{ppnListSemaphore.P()}\;
+  \For{all entry \textsf{i} of \textsf{pageTable}}{
+    \textsf{freePPNList.enqueue(pageTable[i].ppn)}\;
+  }
+  \textsf{ppnListSemaphore.V()}\;
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{\textsf{UserProcess::readVirtualMemory(vaddr, data, offset, length)}}
+  $\dots$ some constrains of the parameters in the given code $\dots$ \;
+  \If {\textsf{vaddr < 0}} {
+    \Return 0\;
+  }
+  \textsf{start $\gets$  vpn(vaddr)}\;
+  \textsf{end $\gets$  vpn(vaddr+length)};\;
+  \textsf{en $\gets \min$\{end, pageTable.size()\}};\;
+  \textsf{amount $\gets$  0};
+  \For{\textsf{$\textsf{i}=$start} \textbf{to} \textsf{en}}{
+    \If{\textsf{pageTable[$\textsf{i}$].valid = \textbf{false}}}{
+      \Return{\textsf{amount}}\;
+    }
+    \textsf{s $\gets$ 0, e $\gets$ pageSize}\;
+    \If{\textsf{i$=$start}}{
+     \textsf{s $\gets$  offset(vaddr)}\;
+    }
+    \If{\textsf{i$=$end}}{
+      \textsf{e $\gets$  offset(vaddr+length)}\;
+    }
+    \textsf{paddr = ppn*pageSize + s}\;
+    \textsf{System.arraycopy(memory, paddr, data, offset, e-s)}\;
+    \textsf{pageTable[i].used $\gets$}  \textbf{true}\;
+    \textsf{amount  $\gets$  amount + e - s}\;
+    \textsf{offset  $\gets$  offset + e - s}\;
+  }
+  \Return{\textsf{amount}}\;
 \end{algorithm} 
-The algorithm of \texttt{writeVirtualMemory} is almost the same as 
-\texttt{readVirtualMemory}.
-We only need to change line 9 into: \\
+The algorithm of \textsf{writeVirtualMemory} is almost the same as 
+\textsf{readVirtualMemory}.
+We only need to change line 10 into: \\
 \begin{center}
-  \textbf{if} \texttt{pageTable[i].valid = \textbf{false} || pageTable[i].readOnly = 
+  \textbf{if} \textsf{pageTable[i].valid = \textbf{false} || pageTable[i].readOnly = 
   \textbf{true}} \textbf{then}
 \end{center}
 and add a line between line 21 and line 22 as: 
-\[ \texttt{pageTable[i].dirty}  \gets  \textbf{true}; \]
+\[ \textsf{pageTable[i].dirty}  \gets  \textbf{true}; \]
+and change line 21 into: \\
+\[ \textsf{System.arraycopy(data, offset, memory, paddr, e-s)}; \]
+
 
 \subsection{Testing Plan}
 \begin{enumerate}[$\bullet$]
@@ -383,9 +385,9 @@ and add a line between line 21 and line 22 as:
     their ppn.
   \item Only run one process $p_1$, then check the ppn of $p_1$
     and the free ppn, then finish $p_1$ and check free ppn.
-  \item At a same vpn, we first do \texttt{writeVirtualMemory},
-    and do \texttt{readVirtualMemory} and then do \texttt{writeVirtualMemory},
-    and do \texttt{readVirtualMemory}.
+  \item At a same vpn, we first do \textsf{writeVirtualMemory},
+    and do \textsf{readVirtualMemory} and then do \textsf{writeVirtualMemory},
+    and do \textsf{readVirtualMemory}.
   \item Try to write in the readonly section.
   \item Try to read the memory that not in the sections.
 \end{enumerate}
@@ -394,165 +396,153 @@ and add a line between line 21 and line 22 as:
 
 \section{Task 3}
 \subsection{Overview}
-In Task 3, we need to implement three system calls (\texttt{exec, join} and \texttt{exit}) as documented in \texttt{syscall.h}. All of them require us to add codes for \texttt{handleSyscall} in class \texttt{UserProcess}.
+In Task 3, we need to implement three system calls (\textsf{exec, join} and \textsf{exit}) as documented in \textsf{syscall.h}. All of them require us to add codes for \textsf{handleSyscall} in class \textsf{UserProcess}.
 
-For \texttt{exec}, we need to create a subprocess and run its \texttt{execute()} function and create standard input output file descriptors.
+For \textsf{exec}, we need to create a subprocess and run its \textsf{execute()} function and create standard input output file descriptors.
 
-As \texttt{join} deals with subprocesses and can only be used between parents and children, we need to use references to record a process's parent process and a list for its children. And when the function is called, we need to check it by using \texttt{UserKernel.currentProcess()} in case of illegal joins.
+As \textsf{join} deals with subprocesses and can only be used between parents and children, we need to use references to record a process's parent process and a list for its children. And when the function is called, we need to check it by using \textsf{UserKernel.currentProcess()} in case of illegal joins.
 
-And when \texttt{exit} is called, we also need to free up memory, close open files and also inform the parent process of the information so that \texttt{join} can no longer be called. We also have to notify its subprocesses the termination. Besides, since the last process calling \texttt{exit} should invoke \texttt{Kernel.kernel.terminate()}, we should keep a global list making sure that we know which one to do the closing.
+And when \textsf{exit} is called, we also need to free up memory, close open files and also inform the parent process of the information so that \textsf{join} can no longer be called. We also have to notify its subprocesses the termination. Besides, since the last process calling \textsf{exit} should invoke \textsf{Kernel.kernel.terminate()}, we should keep a global list making sure that we know which one to do the closing.
 
-Notice that we do not have to modify \texttt{Uthread.finish()} to do the same closing, since as is suggested in file \texttt{start.s}, a normal return from \texttt{main()} would call \texttt{exit} at last. Thus, we only need to care unhandled exceptions and \texttt{exit}. And the process ID is distributed at the construction function of the process.
+Notice that we do not have to modify \textsf{Uthread.finish()} to do the same closing, since as is suggested in file \textsf{start.s}, a normal return from \textsf{main()} would call \textsf{exit} at last. Thus, we only need to care unhandled exceptions and \textsf{exit}. And the process ID is distributed at the construction function of the process.
 \subsection{Correctness Constraints}
 \begin{asparaitem}
-  \item \texttt{exec} and \texttt{join} will first check the validity of its input, and \texttt{join} would make sure of the legitimacy of the caller and the callee.
-  \item References of parents and children are kept in case of \texttt{join}.
-  \item A global list is kept to record which process is the last to call \texttt{exit}.
-  \item Cleanups are done both in \texttt{exit} and unhandled exceptions.
+  \item \textsf{exec} and \textsf{join} will first check the validity of its input, and \textsf{join} would make sure of the legitimacy of the caller and the callee.
+  \item References of parents and children are kept in case of \textsf{join}.
+  \item A global list is kept to record which process is the last to call \textsf{exit}.
+  \item Cleanups are done both in \textsf{exit} and unhandled exceptions.
 \end{asparaitem}
 \subsection{Declarations}
-\texttt{private boolean normalExit} for whether the program exits normally
+\textsf{private boolean normalExit} for whether the program exits normally
 
-\texttt{private int exitStatus} for the simplicity of transferring the status to its joining parent
+\textsf{private int exitStatus} for the simplicity of transferring the status to its joining parent
 
-\texttt{private UserProcess parentProcess} is the reference to its parent (\texttt{null} as default)
+\textsf{private UserProcess parentProcess} is the reference to its parent (\textsf{null} as default)
 
-\texttt{private static int nextProcessID} denotes the next process ID to assign
+\textsf{private static int nextProcessID} denotes the next process ID to assign
 
-\texttt{private int processID} denotes the ID assigned to ``this'' process
+\textsf{private int processID} denotes the ID assigned to ``this'' process
 
-\texttt{private static HashMap<Integer, UserProcess> userProcessList} denotes the list containing all main processes (without fathers)
+\textsf{private static HashMap<Integer, UserProcess> userProcessList} denotes the list containing all main processes (without fathers)
 
-\texttt{private LinkedList<UserProcess> childProcessList} denotes the list containing all child processes of ``this'' process
+\textsf{private LinkedList<UserProcess> childProcessList} denotes the list containing all child processes of ``this'' process
 
-\texttt{private Semaphore joinSemaphore} denotes the semaphore used in function \texttt{join}
+\textsf{private Semaphore joinSemaphore} denotes the semaphore used in function \textsf{join}
 
-\texttt{private Semaphore idMutex} denotes the semaphore used in the protection of changing \texttt{processID}
+\textsf{private Semaphore idMutex} denotes the semaphore used in the protection of changing \textsf{processID}
 
-\texttt{private Semaphore tableMutex} denotes the semaphore used in the protection of changing \linebreak \texttt{userProcessTable}
+\textsf{private Semaphore tableMutex} denotes the semaphore used in the protection of changing \textsf{userProcessTable}
 \subsection{Descriptions}
-Below are pseudocode for \texttt{UserProcess} \ref{alg:UserProcess}, \texttt{handleExec} \ref{alg:handleExec}, \texttt{join} \ref{alg:join}, \texttt{handleJoin} \ref{alg:handleJoin}, \texttt{cleanUp} \ref{alg:cleanUp} and \texttt{handleExit} \ref{alg:handleExit}.
-\begin{algorithm}[htbp]
+Below are pseudocode for \textsf{UserProcess} \ref{alg:UserProcess}, \textsf{handleExec} \ref{alg:handleExec}, \textsf{join} \ref{alg:join}, \textsf{handleJoin} \ref{alg:handleJoin}, \textsf{cleanUp} \ref{alg:cleanUp} and \textsf{handleExit} \ref{alg:handleExit}.
+
+\begin{algorithm}
   \label{alg:UserProcess}
-\caption{\texttt{UserProcess}()}
-  \begin{algorithmic}[1]
-    \STATE {fileDescriptorTable = new OpenFile[16]}
-    \STATE fileDescriptorTable[0] = UserKernel.console.openForReading()
-    \STATE fileDescriptorTable[1] = UserKernel.console.openForWriting()
-    \STATE \colorbox{myyellow}{idMutex.P()}
-	\STATE processID = nextProcessID
-	\STATE nextProcessID++
-	\STATE \colorbox{myyellow}{idMutex.V()}
-  \end{algorithmic}
+  \caption{\textsf{UserProcess}()}
+  fileDescriptorTable = new OpenFile[16]\;
+  fileDescriptorTable[0] = UserKernel.console.openForReading()\;
+  fileDescriptorTable[1] = UserKernel.console.openForWriting()\;
+  \colorbox{myyellow}{idMutex.P()}\;
+  processID = nextProcessID\;
+  nextProcessID++\;
+  \colorbox{myyellow}{idMutex.V()}\;
 \end{algorithm}
 
-\begin{algorithm}[htbp]
-\label{alg:handleExec}
-\caption{int \texttt{handleExec}(int file, int argc, int argv)}
-  \begin{algorithmic}[1]
-    \STATE fileName\eq\texttt{readVirtualMemoryString}(file,256)
-    \IF {(fileName is invalid) or (argc $<$ 0)}
-      \RETURN -1
-    \ENDIF
-    \IF {fileName does not end with \texttt{.coff}}
-      \RETURN -1
-    \ENDIF
-      \STATE byte[] pointer = new byte[4]
-      \STATE String[] args = new String[argc]
-      \FOR {i = 0; i $<$ argc; i++}
-        \STATE \texttt{readVirtualMemory}(pointer, argv)
-        \STATE int pos = Lib.bytesToInt(pointer, 0)
-        \STATE args[i] = \texttt{readVirtualMemoryString}(pos, args[i])
-        \STATE \colorbox{myyellow}{// in a 4-byte alignment situation}
-        \STATE argv += 4
-        \ENDFOR
-    \STATE UserProcess childProcess = new UserProcess()
-    \IF {childProcess is not valid}
-      \RETURN -1
-    \ENDIF
-    \STATE childProcess.setParent(this)
-    %%??
-    \STATE childProcessList.add(childProcess);
-    \STATE \colorbox{myyellow}{tableMutex.P()}
-    \STATE userProcessTable.put(childProcess.getID(), childProcess)
-    \STATE \colorbox{myyellow}{tableMutex.V()}
-    \IF {not childProcess.\texttt{execute}(fileName, args)}
-      \RETURN -1
-    \ENDIF
-    \RETURN childProcess.getID()
-  \end{algorithmic}
+\begin{algorithm}
+  \label{alg:handleExec}
+  \caption{int \textsf{handleExec}(int file, int argc, int argv)}
+  fileName\gets\textsf{readVirtualMemoryString}(file,256)\;
+  \If {(fileName is invalid) or (argc $<$ 0)} {
+    \Return -1\;
+  }
+  \If {fileName does not end with \textsf{.coff}}{
+    \Return -1\;
+  }
+  byte[] pointer = new byte[4]\;
+  String[] args = new String[argc]\;
+  \For {i = 0; i $<$ argc; i++}{
+    \textsf{readVirtualMemory}(pointer, argv)\;
+    int pos = Lib.bytesToInt(pointer, 0)\;
+    args[i] = \textsf{readVirtualMemoryString}(pos, args[i])\;
+    \colorbox{myyellow}{// in a 4-byte alignment situation}\;
+    argv += 4
+  }
+  UserProcess childProcess = new UserProcess()\;
+  \If {childProcess is not valid} {
+    \Return -1\;
+  }
+  childProcess.setParent(this)\;
+  childProcessList.add(childProcess)\;
+  \colorbox{myyellow}{tableMutex.P()}\;
+  userProcessTable.put(childProcess.getID(), childProcess)\;
+  \colorbox{myyellow}{tableMutex.V()}\;
+  \If {not childProcess.\textsf{execute}(fileName, args)}{
+    \Return -1\;
+  }
+  \Return childProcess.getID()\;
 \end{algorithm}
 
-\begin{algorithm}[htbp]
-\label{alg:join}
-\caption{boolean \texttt{join}(int status)}
-  \begin{algorithmic}
-    \STATE {\color{blue}//note that we have to keep both exitStatus and normalExit since the exit status is not required to be consistent with a normal exit}
-    \STATE joinSemaphore.P()
-    \STATE {\color{blue} //assume an integer is of 4 bytes and the processor is little endian}
-    \STATE byte[] data = Lib.bytesFromInt(exitStatus)
-    \STATE writeVirtualMemory(status, data)
-    \STATE joinSemaphore.V()
-    \RETURN normalExit
-  \end{algorithmic}
+\begin{algorithm}
+  \label{alg:join}
+  \caption{boolean \textsf{join}(int status)}
+  \tcc{note that we have to keep both exitStatus and normalExit since the exit status is not required to be consistent with a normal exit}
+  joinSemaphore.P()\;
+  \tcc{assume an integer is of 4 bytes and the processor is little endian}
+  byte[] data = Lib.bytesFromInt(exitStatus)\;
+  writeVirtualMemory(status, data)\;
+  joinSemaphore.V()\;
+  \Return normalExit\;
 \end{algorithm}
 
-\begin{algorithm}[htbp]
-\label{alg:handleJoin}
-\caption{int \texttt{handleJoin}(int processID, int status)}
-  \begin{algorithmic}
-    \STATE {\color{blue}//check validity}
-    \STATE \colorbox{myyellow}{tableMutex.P()}
-    \STATE UserProcess joinProcess = userProcessTable.get(processID)
-    \STATE \colorbox{myyellow}{tableMutex.V()}
-    \IF {not (joinProcess.parentProcess.getID() == UserThread.currentProcess().getID())}
-      \RETURN -1
-    \ENDIF
-    \STATE int retVal = joinProcess.join(status) ? 1 : 0
-    \STATE {\color{blue} //only need to remove the child in join since only join accesses children}
-    \STATE childProcessList.remove(joinProcess)
-    \RETURN retVal
-  \end{algorithmic}
+\begin{algorithm}
+  \label{alg:handleJoin}
+  \caption{int \textsf{handleJoin}(int processID, int status)}
+  \tcc{check validity}
+  \colorbox{myyellow}{tableMutex.P()}\;
+  UserProcess joinProcess = userProcessTable.get(processID)\;
+  \colorbox{myyellow}{tableMutex.V()}\;
+  \If {not (joinProcess.parentProcess.getID() == UserThread.currentProcess().getID())} {
+    \Return -1\;
+  }
+  int retVal = joinProcess.join(status) ? 1 : 0\;
+  \tcc{only need to remove the child in join since only join accesses children}
+  childProcessList.remove(joinProcess)\;
+  \Return retVal\;
 \end{algorithm}
 
-\begin{algorithm}[htbp]
+\begin{algorithm}
 \label{alg:cleanUp}
-\caption{void \texttt{cleanUp}()}
-  \begin{algorithmic}
-    \FOR {file in fileDesriptorTable}
-    \IF {file != null}
-      \STATE {file.close()}
-    \ENDIF
-    \ENDFOR
-    \STATE \colorbox{myyellow}{//need free up memory!}
-    \STATE unloadSections()
-    \FOR {child in childProcessList}
-    \IF {child != null}
-      \STATE child.setParent(null)
-    \ENDIF
-    \ENDFOR
-    \STATE \colorbox{myyellow}{tableMutex.P()}
-    \STATE userProcessTable.remove(UserKernel.getCurrentProcess().getID())
-    \STATE \colorbox{myyellow}{tableMutex.V()}
-    \STATE childProcessList.clear()
-  \end{algorithmic}
+\caption{void \textsf{cleanUp}()}
+    \For {file in fileDesriptorTable}{
+      \If {file != null} {
+        file.close()\;
+      }
+    }
+    \colorbox{myyellow}{//need free up memory!}\;
+    unloadSections()\;
+    \For {child in childProcessList}{
+      \If {child != null} {
+        child.setParent(null)\;
+      }
+    }
+    \colorbox{myyellow}{tableMutex.P()}\;
+    userProcessTable.remove(UserKernel.getCurrentProcess().getID())\;
+    \colorbox{myyellow}{tableMutex.V()}\;
+    childProcessList.clear()\;
 \end{algorithm}
 
-\begin{algorithm}[htbp]
-\label{alg:handleExit}
-\caption{int \texttt{handleExit}(int status, boolean normalExit)}
-  \begin{algorithmic}
-    \STATE {\color{blue}// we also use this function to handle unhandled exceptions except that we manually set status}
-    \STATE \texttt{cleanUp}()
-    \IF {userProcessTable.isEmpty()}
-      \STATE Kernel.kernel.terminate()
-    \ENDIF
-    \STATE exitStatus = status
-    \STATE this.normalExit = normalExit
-    \STATE joinSemaphore.V()
-    \STATE \colorbox{myyellow}{KThread.finish()}
-    \RETURN status
-  \end{algorithmic}
+\begin{algorithm}
+  \label{alg:handleExit}
+  \caption{int \textsf{handleExit}(int status, boolean normalExit)}
+  \tcc{we also use this function to handle unhandled exceptions except that we manually set status}
+  \textsf{cleanUp}()\;
+  \If {userProcessTable.isEmpty()} {
+    Kernel.kernel.terminate()\;
+  }
+  exitStatus = status\;
+  this.normalExit = normalExit\;
+  joinSemaphore.V()\;
+  \colorbox{myyellow}{KThread.finish()}\;
+  \Return status\;
 \end{algorithm}
 
 \subsection{Testing Plan}
@@ -570,87 +560,80 @@ The following cases should be tested:
 \section{Task 4}
 
 \subsection{Overview}
-In task 4, we need to implement a lottery scheduler which extends \texttt{PriorityScheduler}. In lottery scheduling, tickets are used to represent the share of a resource that a process(or thread) should receive. So instead of donating priority, waiting threads transfer tickets to threads they wait for. The major difference is that a waiting thread always adds its ticket count to the ticket count of the current queue owner; that is, the owner's ticket count is the sum of its own tickets and the tickets of all its waiters, not the max.
+In task 4, we need to implement a lottery scheduler which extends \textsf{PriorityScheduler}. In lottery scheduling, tickets are used to represent the share of a resource that a process(or thread) should receive. So instead of donating priority, waiting threads transfer tickets to threads they wait for. The major difference is that a waiting thread always adds its ticket count to the ticket count of the current queue owner; that is, the owner's ticket count is the sum of its own tickets and the tickets of all its waiters, not the max.
 
-To implements this feature, we have to override \texttt{nextThread} method of class \texttt{PriorityThreadedQueue} and \texttt{updateEffectivePriority} method of class \texttt{ThreadState} and add some short helper methods. We override \texttt{nextThread} method in order to hold a lottery when \texttt{PriorityThreadedQueue} is going to pick a thread from its \texttt{PriorityQueue}. We override \texttt{updateEffectivePriority} to calculate the EP by taking sum instead of taking max.
+To implements this feature, we have to override \textsf{nextThread} method of class \textsf{PriorityThreadedQueue} and \textsf{updateEffectivePriority} method of class \textsf{ThreadState} and add some short helper methods. We override \textsf{nextThread} method in order to hold a lottery when \textsf{PriorityThreadedQueue} is going to pick a thread from its \textsf{PriorityQueue}. We override \textsf{updateEffectivePriority} to calculate the EP by taking sum instead of taking max.
 
 \subsection{Correctness Constraints}
 
 \begin{asparaitem}
 \item Ensure that the owner's ticket count is the sum of its own tickets and the tickets of all waiters
 \item Implementation should work even if there are billions of tickets in the system.
-\item The number of tickets held by a process should be incremented by 1 when\linebreak \texttt{LotteryScheduler.increasePriority()} is called.
-\item The total number of tickets in the system is guaranteed not to exceed \texttt{Integer.MAX}\_\texttt{VALUE}.
+\item The number of tickets held by a process should be incremented by 1 when \textsf{LotteryScheduler.increasePriority()} is called.
+\item The total number of tickets in the system is guaranteed not to exceed \textsf{Integer.MAX}\_\textsf{VALUE}.
 \end{asparaitem}
 
 \subsection{Declaration}
 
-\texttt{protected PriorityQueue<ThreadState> priorityQueue} to store all threads waiting in a \texttt{PriorityThreadedQueue}.
+\textsf{protected PriorityQueue<ThreadState> priorityQueue} to store all threads waiting in a \textsf{PriorityThreadedQueue}.
 
-\texttt{LinkedList<ThreadState> threads} to temporarily store \texttt{priorityQueue} in another order
+\textsf{LinkedList<ThreadState> threads} to temporarily store \textsf{priorityQueue} in another order
 
-\texttt{LinkedList<Integer> tickets} to store corresponding tickets in the same order of \texttt{threads}
+\textsf{LinkedList<Integer> tickets} to store corresponding tickets in the same order of \textsf{threads}
 
 \subsection{Description}
 
-\begin{algorithm}[htbp]
-  \caption{KThread \texttt{nextThread}()}
-\begin{algorithmic}[1]
-  \STATE totalTickets $\gets$ 0
-  \FORALL { \texttt{ThreadState} ts in \texttt{priorityQueue}}
-    \STATE effectiveTickets $\gets$ ts.\texttt{updateEffectivePriority()}
-    \STATE totalTickets $\gets$ totalTickets + effectiveTickets
-    \STATE threads.\texttt{add}(ts)
-    \STATE tickets.\texttt{add}(effectiveTickets)
-  \ENDFOR
-  \STATE Initialize pickedThread $\leftarrow$ null, notFound $\leftarrow$ true, ticketsSoFar $\leftarrow$ 0, counter $\leftarrow$ 0
-  \STATE winTicket $\leftarrow$ \texttt{random}(totalTickets)
-  \WHILE { notFound $\&\&$ counter $<$ threads.\texttt{size()}}
-    \STATE ticketsSoFar $\leftarrow$ ticketsSoFar + tickets.\texttt{get}(counter)
-    \IF {winTicket $<=$ ticketsSoFar}
-      \STATE pickedThread $\leftarrow$ threads.\texttt{get}(counter)
-      \STATE notFound $\leftarrow$ false
-    \ENDIF
-    \STATE counter $\leftarrow$ counter + 1
-  \ENDWHILE
-  \STATE \texttt{dequeuedThread}.\texttt{removeQueue}(this)
-  \STATE pickedThread.waiting $\leftarrow$ null
-  \STATE pickedThread.\texttt{addQueue}(this)
-  \STATE \texttt{dequeuedThread} $\leftarrow$ pickedThread
-  \STATE \texttt{priorityQueue}.\texttt{remove}(\texttt{dequeuedThread})
-  \STATE \texttt{dequeuedThread}.\texttt{updateEffectivePriority}()
-  \RETURN \texttt{dequeuedThread}.thread
-\end{algorithmic}
+\begin{algorithm}[H]
+  \caption{KThread \textsf{nextThread}()}
+  totalTickets $\gets$ 0\;
+  \ForAll { \textsf{ThreadState} ts in \textsf{priorityQueue}}{
+     effectiveTickets $\gets$ ts.\textsf{updateEffectivePriority()}\;
+     totalTickets $\gets$ totalTickets + effectiveTickets\;
+     threads.\textsf{add}(ts)\;
+     tickets.\textsf{add}(effectiveTickets)\;
+  }
+  Initialize pickedThread \gets null, notFound \gets true, ticketsSoFar \gets 0, counter \gets 0\;
+  winTicket \gets \textsf{random}(totalTickets)\;
+  \While { notFound $\&\&$ counter $<$ threads.\textsf{size()}}{
+    ticketsSoFar \gets ticketsSoFar + tickets.\textsf{get}(counter)\;
+    \If {winTicket $<=$ ticketsSoFar} {
+       pickedThread \gets threads.\textsf{get}(counter)\;
+       notFound \gets false\;
+    }
+    counter \gets counter + 1
+  }
+  \textsf{dequeuedThread}.\textsf{removeQueue}(this)\;
+  pickedThread.waiting \gets null\;
+  pickedThread.\textsf{addQueue}(this)\;
+  \textsf{dequeuedThread} \gets pickedThread\;
+  \textsf{priorityQueue}.\textsf{remove}(\textsf{dequeuedThread})\;
+  \textsf{dequeuedThread}.\textsf{updateEffectivePriority}()\;
+  \Return \textsf{dequeuedThread}.thread\;
 \end{algorithm}
 
-\begin{algorithm}[htbp]
-  \caption{void \texttt{updateEffectivePriority}()}
-\begin{algorithmic}[1]
-  \STATE Initialize initialEP $\leftarrow$ \texttt{getEffectivePriority}(), initialP $\leftarrow$ \texttt{getPriority}(), transferedEP $\leftarrow$ 0
-  \FORALL { \texttt{PriorityThreadedQueue} ptq in \texttt{waitedBy}}
-    \FORALL {\texttt{ThreadState} ts in ptq}
-      \STATE transferedEP $\leftarrow$ transferedEP + ts.\texttt{updateEffectivePriority}()
-    \ENDFOR
-  \ENDFOR
-  \STATE finalEP $\leftarrow$ initialP + transferedEP
-  \STATE \texttt{waiting}.dequeuedThread.\texttt{addEP}(finalEP-initialEP)
-\end{algorithmic}
+\begin{algorithm}
+  \caption{void \textsf{updateEffectivePriority}()}
+   Initialize initialEP \gets \textsf{getEffectivePriority}(), initialP \gets \textsf{getPriority}(), transferedEP \gets 0\;
+  \ForAll { \textsf{PriorityThreadedQueue ptq} in \textsf{waitedBy}}{
+    \ForAll {\textsf{ThreadState ts} in \textsf{ptq}}{
+       transferedEP \gets transferedEP + \textsf{ts.updateEffectivePriority}()\;
+    }
+  }
+  finalEP \gets initialP + transferedEP\;
+  \textsf{waiting}.dequeuedThread.\textsf{addEP}(finalEP-initialEP)
 \end{algorithm}
 
-\begin{algorithm}[htbp]
-  \caption{void \texttt{addEP}(int amount)}
-\begin{algorithmic}[1]
-  \STATE  \texttt{effectivePriority} $\leftarrow$ \texttt{effectivePriorirty} + amount
-  \STATE \texttt{waiting}.dequeuedThread.\texttt{addEP}(amount)
-\end{algorithmic}
+\begin{algorithm}
+  \caption{void \textsf{addEP}(int amount)}
+  \textsf{effectivePriority \gets effectivePriority + amount}\;
+  \textsf{waiting.dequeuedThread.addEP(amount)}\;
 \end{algorithm}
-
 
 \subsection{Testing Plan}
 \begin{enumerate}
-\item All the tests in \texttt{PriorityScheduler}
-\item Call \texttt{increasePriority}
-\item Call \texttt{setPriority}
+\item All the tests in \textsf{PriorityScheduler}
+\item Call \textsf{increasePriority}
+\item Call \textsf{setPriority}
 \item set priority to millions or more
 \item pressure test, adding thousands or more threads to run
 \end{enumerate}
