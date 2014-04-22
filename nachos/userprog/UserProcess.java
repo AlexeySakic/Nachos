@@ -447,7 +447,12 @@ public class UserProcess {
     		}	
     	}
 		UserKernel.ppnListSemaphore.V();
-
+		for (int i=0; i<16; i++){
+			if (fileDescriptorTable[i] != null){
+				fileDescriptorTable[i].close();
+			}
+		}	
+		coff.close();
 		//-----------------------------------------------
 	}
 
@@ -691,12 +696,12 @@ public class UserProcess {
 	private int handleExit(int status, boolean normalExit) {
 		cleanUp();
 //		if (userProcessTable.isEmpty() || this.processID == 0)
-		if (this.processID == 0)
-			//threadedkernel??
-			Kernel.kernel.terminate();
 		exitStatus = status;
 		this.normalExit = normalExit;
 		joinSemaphore.V();
+		if (this.processID == 0)
+			//threadedkernel??
+			Kernel.kernel.terminate();
 		KThread.finish();
 		return status;
 	}
