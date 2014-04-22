@@ -532,8 +532,6 @@ public class UserProcess {
 	 */
 	private int handleOpen(String filename, boolean whetherCreate){
 		//if unlink has been called on that file, we return -1 immediately
-		UserKernel mykernel = UserKernel.getKernel();
-		mykernel.fileManager.openFile(filename);
 		if (UserKernel.getKernel().fileManager.isUnlinked(filename))
 			return -1;
 		OpenFile file = UserKernel.fileSystem.open(filename, whetherCreate);
@@ -598,12 +596,12 @@ public class UserProcess {
 		if (invalidDescriptor(fd))
 			return -1;
 		if (fileDescriptorTable[fd] == null)
-			return -2;
+			return -1;
 		fileDescriptorTable[fd].close();
 		fileDescriptorTable[fd] = null;
 		if (openFileNames[fd] != null){
 			if (UserKernel.getKernel().fileManager.deCount(openFileNames[fd]) == false)
-				return -3;
+				return -1;
 			openFileNames[fd] = null;
 		}
 		return 0;
