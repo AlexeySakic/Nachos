@@ -15,17 +15,17 @@ int main(){
   testprint("close unopened fd, should fail", state == -1);
 
   fd = creat("testfile");
-  printf("file descriptor for testfile: %d\n", fd);
+  printf("file descriptor: %d\n", fd);
   testprint( "creat file `testfile`", fd > -1 );
 
   state = close( fd );
-  printf("state after close:%d\n", state);
   testprint( "close file `testfile`", state == 0 );
 
   state = unlink( "testfile" );
   testprint( "unlink file `testfile`", state == 0 );
 
   fd = creat( "writefile" );
+  printf("file descriptor: %d\n", fd);
   testprint( "creat file `writefile`", fd > -1 );
 
   state = write( fd, "foo", 3 );
@@ -35,9 +35,11 @@ int main(){
   testprint( "close file `writefile`", state == 0 );
 
   fd = open( "writefile" );
+  printf("file descriptor: %d\n", fd);
   testprint( "open file `writefile`", fd > -1 );
 
   state = read( fd, buf, 16 );
+  printf("read content: %c%c%c\n", buf[0], buf[1], buf[2]);
   testprint( "read from file `writefile`", state > 0 );
 
   state = close( fd );
