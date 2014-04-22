@@ -412,6 +412,8 @@ public class LotteryScheduler extends PriorityScheduler {
 			}
 			int totEP = initialPriority + outsideEP;
 			effectivePriority = totEP;
+			Lib.assertTrue( effectivePriority > 0,
+					"new effectivePriority should be positive");
 			//now that my own effectivePriority Changes I have to recalculate the threads which i am waiting on
 			if (waitingOn != null && waitingOn.dequeuedThread != null){
 				//System.out.println(totEP - initialEffective);
@@ -432,6 +434,8 @@ public class LotteryScheduler extends PriorityScheduler {
 		}
 
 		public void addToAllEffective(int diff){
+			Lib.assertTrue(effectivePriority + diff > 0,
+					"new effectivePriority should be positive");
 			effectivePriority += diff;
 			if (waitingOn != null && waitingOn.dequeuedThread != null){
 				((ThreadState) waitingOn.dequeuedThread).addToAllEffective(diff);
