@@ -34,9 +34,11 @@ public class UserProcess {
 //			pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
 		
 		//assign appropriate fileDescrptors
-		fileDescriptorTable = new OpenFile[16];
+		fileDescriptorTable = new OpenFile[maxOpen];
 		fileDescriptorTable[0] = UserKernel.console.openForReading();
 		fileDescriptorTable[1] = UserKernel.console.openForWriting();
+		openFileNames = new String[maxOpen];
+		
 		//assign a legal process ID
 		idMutex.P();
 		processID = nextProcessID;
@@ -511,14 +513,112 @@ public class UserProcess {
 	}
 	
 	/**
-	 * Handle the halt() system call.
+	 * Handle the halt() system call. nextProcessID initialized as 0
 	 */
 	private int handleHalt() {
-
-		Machine.halt();
+		if (processID == 0){
+			Machine.halt();
+		}
+		else{
+			return -1;
+		}
 
 		Lib.assertNotReached("Machine.halt() did not halt machine!");
 		return 0;
+	}
+	
+	/**
+	 * the create and open systems calls were both implemented by the handleOpen method
+	 */
+	private int handleOpen(String filename, boolean whetherCreate){
+		//if unlink has been called on that file, we return -1 immediately
+		if (UserKernel.getKernel().fileManager.isUnlinked(filename))
+			return -1;
+		OpenFile file = UserKernel.fileSystem.open(filename, whetherCreate);
+		UserKernel.getKernel().fileManager.openFile(filename);
+		if (file == null)
+			return -1;
+		int fd = getFreeDescriptor();
+		if (fd == -1){
+			file.close();
+			return -1;
+		}
+		fileDescriptorTable[fd] = file;
+		openFileNames[fd] = filename;
+		return fd;
+	}
+	
+	private boolean invalidDescriptor(int fd){
+		if (fd < 0 || fd >= maxOpen)
+			return true;
+		else{
+			return false;
+		}
+	}
+	
+	/**
+	 *  Handle the read(int fd, void *buffer, int count) system call
+	 */
+	private int handleRead(int fd, int addr, int count){
+		if (invalidDescriptor(fd) || count < 0)
+			return -1;
+		if (fileDescriptorTable[fd] == null)
+			return -1;
+		if (fd == 0 && openFileNames[fd] == null)
+			return -1;
+		byte[] buffer = new byte[count];
+		if (readVirtualMemory(addr, buffer) < count)
+			return -1;
+		return fileDescriptorTable[fd].write(buffer, 0, count);
+	}
+	
+	/**
+	 *  Handle the write(int fd, void* buffer, int count) system call
+	 */
+	private int handleWrite(int fd, int addr, int count){
+		if (invalidDescriptor(fd) || count < 0)
+			return -1;
+		if (fileDescriptorTable[fd] == null)
+			return -1;
+		if (fd == 0 && openFileNames[fd] == null)
+			return -1;
+		byte[] buffer = new byte[count];
+		if (readVirtualMemory(addr, buffer) < count) 
+			return -1;
+		return fileDescriptorTable[fd].write(buffer, 0, count);
+	}
+	
+	
+	/**
+	 *  Handle the close(int fileDescriptor) system call
+	 */
+	private int handleClose(int fd){
+		if (invalidDescriptor(fd))
+			return -1;
+		if (fileDescriptorTable[fd] == null)
+			return -1;
+		fileDescriptorTable[fd].close();
+		fileDescriptorTable[fd] = null;
+		if (openFileNames[fd] != null){
+			if (UserKernel.getKernel().fileManager.deCount(openFileNames[fd]) == false)
+				return -1;
+			openFileNames[fd] = null;
+		}
+		return 0;
+	}
+	
+	private int handleUnlink(String filename){
+		if (UserKernel.getKernel().fileManager.unlinkFile(filename) == false)
+			return -1;
+		return 0;
+	}
+	
+	private int getFreeDescriptor(){
+		for (int i = 0; i < maxOpen; i++){
+			if (fileDescriptorTable[i] == null)
+				return i;
+		}
+		return -1;
 	}
 	
 	/**
@@ -571,7 +671,7 @@ public class UserProcess {
 	 */
 	private int handleExit(int status, boolean normalExit) {
 		cleanUp();
-		if (userProcessTable.isEmpty())
+		if (processID == 0)
 			//threadedkernel??
 			Kernel.kernel.terminate();
 		exitStatus = status;
@@ -631,6 +731,18 @@ public class UserProcess {
 			return handleJoin(a0, a1);
 		case syscallExec:
 			return handleExec(a0, a1, a2);
+		case syscallCreate:
+			return handleOpen(readVirtualMemoryString(a0, 256), true);
+		case syscallOpen:
+			return handleOpen(readVirtualMemoryString(a0, 256), false);
+		case syscallRead:
+			return handleRead(a0, a1, a2);
+		case syscallWrite:
+			return handleWrite(a0, a1, a2);
+		case syscallClose:
+			return handleClose(a0);
+		case syscallUnlink:
+			return handleUnlink(readVirtualMemoryString(a0, 256));
 
 		default:
 			Lib.debug(dbgProcess, "Unknown syscall " + syscall);
@@ -688,10 +800,13 @@ public class UserProcess {
 	private static final int pageSize = Processor.pageSize;
 	private static final char dbgProcess = 'a';
 	//implement by us
+	/** Userd by phase 2 task 1 (yhz) **/
+	private String[] openFileNames;
 	private OpenFile[] fileDescriptorTable;
+	private final int maxOpen = 16;
+	
 	private int exitStatus;
 	private boolean normalExit;
-	private OpenFile[] file;
 	private UserProcess parentProcess = null;
 	private LinkedList<UserProcess> childProcessList
 	= new LinkedList<UserProcess>();
