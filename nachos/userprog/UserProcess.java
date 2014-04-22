@@ -593,10 +593,10 @@ public class UserProcess {
 			if (bytesRead < 0)
 				return -1;
 			int bytesWrite = writeVirtualMemory(addr, buffer, 0, bytesRead);
-			if (bytesWrite != bytesRead)
+			if (bytesWrite < bytesRead)
 				return -1;
-			bytesWriteSum += bytesWrite;
-			addr += bytesWrite;
+			bytesWriteSum += bytesRead;
+			addr += bytesRead;
 			if (bytesRead < buffer.length)
 				break;
 		}
@@ -626,11 +626,13 @@ public class UserProcess {
 			byte[] buffer = new byte[Math.min(count, maxBufferSize)];
 			count -= buffer.length;
 			int bytesRead = readVirtualMemory(addr, buffer);
-			if (bytesRead != buffer.length)
+			if (bytesRead < buffer.length)
 				return -1;
-			consoleLock.acquire();
+			consoleMutex.P();
+			System.out.println("ID: "+processID+" begins");
 			int bytesWrite = fileDescriptorTable[fd].write(buffer, 0, buffer.length);
-			consoleLock.release();
+			System.out.println("ID: "+processID+" finishes");
+			consoleMutex.V();
 			bytesWriteSum += bytesRead;
 			addr += bytesRead;
 			if (bytesWrite < bytesRead)
@@ -659,7 +661,12 @@ public class UserProcess {
 		return 0;
 	}
 
-	private int handleUnlink(String filename){
+	private int handleUnlink(int addr){
+		if (addr < 0)
+			return -1;
+		String filename = readVirtualMemoryString(addr, 256);
+		if (filename == null)
+			return -1;
 		if (UserKernel.getKernel().fileManager.unlinkFile(filename) == false)
 			return -1;
 		return 0;
@@ -793,7 +800,7 @@ public class UserProcess {
 		case syscallClose:
 			return handleClose(a0);
 		case syscallUnlink:
-			return handleUnlink(readVirtualMemoryString(a0, 256));
+			return handleUnlink(a0);
 
 		default:
 			Lib.debug(dbgProcess, "Unknown syscall " + syscall);
@@ -856,7 +863,7 @@ public class UserProcess {
 	private OpenFile[] fileDescriptorTable;
 	private final int maxOpen = 16;
 	private final int maxBufferSize = 1 << 20;
-	private Lock consoleLock = new Lock();
+	private static Semaphore consoleMutex = new Semaphore(1);
 
 	private int exitStatus;
 	private boolean normalExit;
