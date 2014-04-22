@@ -1,0 +1,194 @@
+\documentclass{article}
+\usepackage{amsmath,amsfonts,amsthm,amssymb}
+\usepackage{listings}
+\usepackage{setspace}
+\usepackage{paralist}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{extramarks}
+\usepackage{chngpage}
+\usepackage{indentfirst}
+\usepackage{soul,color}
+\usepackage{graphicx,float,wrapfig}
+\usepackage{mathrsfs}
+\usepackage[T1]{fontenc} % to be able to use < and > directly
+\definecolor{pblue}{rgb}{0.13,0.13,1}
+\definecolor{pgreen}{rgb}{0,0.5,0}
+\definecolor{pred}{rgb}{0.9,0,0}
+\definecolor{pgrey}{rgb}{0.46,0.45,0.48}
+\lstset{
+  showspaces=false,
+  showtabs=false,
+  breaklines=true,
+  showstringspaces=false,
+  breakatwhitespace=false,
+  commentstyle=\color{pgreen},
+  keywordstyle=\color{pblue},
+  stringstyle=\color{pred},
+  basicstyle=\ttfamily,
+  moredelim=[il][\textcolor{pgrey}]{$$},
+  moredelim=[is][\textcolor{pgrey}]{\%\%}{\%\%}
+}
+% \usepackage{algorithm}
+% \usepackage{algorithmic}
+% \usepackage{algpseudocode}
+\usepackage[ruled, vlined, lined, boxed, commentsnumbered,linesnumbered]{algorithm2e}
+\usepackage[pdfauthor={XeLaTeX},%
+pdftitle={Final Report}]{hyperref}
+
+% \usepackage{tikz}
+% \usepackage{pgffor}
+\renewcommand{\gets}{%
+  \ensuremath{\leftarrow}}
+% In case you need to adjust margins:
+\topmargin=-0.45in      %
+\evensidemargin=0in     %
+\oddsidemargin=0in      %
+\textwidth=6.5in        %
+\textheight=9.0in       %
+\headsep=0.25in         %
+
+% Setup the header and footer
+\pagestyle{fancy}                                                       %
+% \lhead{\StudentName}                                                 %
+\chead{\Title}  %
+%\rhead{\firstxmark}                                                     %
+\lfoot{\lastxmark}                                                      %
+\cfoot{}                                                                %
+\rfoot{Page\ \thepage\ of\ \protect\pageref{LastPage}}                          %
+\renewcommand\headrulewidth{0.4pt}                                      %
+\renewcommand\footrulewidth{0.4pt}                                      %
+
+\newcommand{\Proof}{\ \\\textbf{Proof:} }
+\newcommand{\Answer}{\ \\\textbf{Answer:} }
+\newcommand{\Acknowledgement}[1]{\ \\{\bf Acknowledgement:} #1}
+
+\makeatletter
+\newcommand{\rmnum}[1]{\romannumeral #1}
+\newcommand{\Rmnum}[1]{\expandafter\@slowromancap\romannumeral #1@}
+\makeatother
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Make title
+\newcommand{\Class}{Operating System}
+\newcommand{\ClassInstructor}{Xu Wei}
+
+% Homework Specific Information. Change it to your own
+\newcommand{\Title}{Nachos Phase 2 Final Report}
+\newcommand{\DueDate}{April 22, 2014}
+\title{\textmd{\bf \Class: \Title}\\{\large Instructed by \textit{\ClassInstructor}}\\\normalsize\vspace{0.1in}\small{Due\ on\ \DueDate}}
+\date{}
+
+\author{%
+  Huang JiaChen 2011012358 \and
+  Wu YueXin 2011012061 \and
+  Yang Sheng 2011012359 \and
+  Yin HeZheng 2011012343 \and
+  Zhou XuRen 2011012353}
+\newcommand{\StudentClass}{Yao Class}
+
+\definecolor{myyellow}{RGB}{255, 255, 60}
+
+% \author{\textbf{\StudentName}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  \begin{document}
+  \begin{spacing}{1.1}
+    \maketitle \thispagestyle{empty}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Begin edit from here
+
+
+\section{Task 3}
+\subsection{Tests Taken}
+\subsubsection{\textsf{exec} with zero argument}
+This test program calls \textsf{exec} without passing any argument, i.e. \textsf{argc}=0 and \textsf{argv}=0. This program should not call \textsf{exec} successfully.
+\begin{lstlisting}[language=C]
+// This is a test of exec call with zero argc.
+#include "syscall.h"
+
+int main()
+{
+    char* proc = "halt.coff";
+    int argc = 0;
+    char** argv = 0;
+    int pid = exec(proc, argc, argv);
+    if(pid == -1)
+    {
+        printf("zeroargc test failed: exec executed normally without argc\n");
+    }
+    else
+    {
+        printf("zeroargc test passed\n");
+    }
+}
+\end{lstlisting}
+This test is passed correctly.
+\subsubsection{testing \textsf{join}}
+This test is to test whether multiple child processes can be joined by their parent successfully. Correct run of the processes outputs nothing and exits with \textsf{exitStatus}=0.
+\begin{lstlisting}[language=C]
+// joinDetect.c
+#include "stdio.h"
+#define MAXBUF 256
+int main(int argc, char** argv)
+{
+    int exitStatus = 0, childCount = 1, i;
+    char* proc = "exit";
+    char agv[2][MAXBUF];
+    strcpy(agv[0], proc);
+    strcat(proc, ".coff");
+    strcpy(agv[1], argv[1]);
+    int exitStatNormal = atoi(argv[1]);
+    if(argc > 2) childCount = atoi(argv[2]);
+    for(i = 0; i < childCount; i ++)
+    {
+        int pid = exec(proc, 2, agv);
+        int exitStat;
+        join(pid, &exitStat);
+        if(exitStatNormal != exitStat)
+        {
+            printf("%d\n", exitStat);
+            exitStatus = -1;
+        }
+    }
+    exit(exitStatus);
+}
+
+//exit.c
+#include "stdio.h"
+int main(int argc, char** argv)
+{
+    if(argc == 1) exit(0);
+    else exit(atoi(argv[1]));
+}
+\end{lstlisting}
+
+\subsubsection{parent halts when child sleeps}
+This is a test where the child process keeps running and the parent halts right after forking the child. It should run and exit normally.
+\begin{lstlisting}[language=C]
+// sleepingParent.c
+#include "stdio.h"
+int main()
+{
+    char* proc = "sleepingChild";
+    char* argv[1];
+    strcpy(argv[0], proc);
+    strcat(proc,".coff");
+    exec(proc, 1, argv);
+    exit(0);
+}
+
+// sleepingChild.c
+// The busy cycles are used to simulate sleeping condition; note that we have not implemented scheduling constraints yet
+#define CYCLES 3000000
+int main()
+{
+    int i = 0;
+    while(i < CYCLES) i ++;
+    exit(0);
+}
+\end{lstlisting}
+
+
+\end{spacing}
+\end{document}

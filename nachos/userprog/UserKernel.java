@@ -29,6 +29,7 @@ public class UserKernel extends ThreadedKernel {
 		super.initialize(args);
 
 		console = new SynchConsole(Machine.console());
+		fileManager = new FileManager();
 
 		//------------------------------------------------------------------------------------------------
 
@@ -190,9 +191,7 @@ public class UserKernel extends ThreadedKernel {
 	}
 	
 	public static UserKernel getKernel(){
-		if (kernel instanceof UserKernel)
-			return (UserKernel)kernel;
-		return null;
+		return (UserKernel)kernel;
 	}
 
 	/** Globally accessible reference to the synchronized console. */

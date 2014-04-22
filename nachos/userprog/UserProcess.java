@@ -439,12 +439,13 @@ public class UserProcess {
 		//-----------------------------------------------
 		int tableNum = pageTable.length;
 		UserKernel.ppnListSemaphore.P();
-		for(int i=0; i < tableNum; i++) {
-			if(pageTable[i] != null && pageTable[i].valid == true) {
-				UserKernel.freePPNList.offer(pageTable[i].ppn);
-				pageTable[i] = null; // delete entry
-			}	
-		}
+    	for(int i=0; i < tableNum; i++) {
+    		if(pageTable[i] != null && pageTable[i].valid == true) {
+    			UserKernel.freePPNList.offer(pageTable[i].ppn);
+    			pageTable[i].valid = false;
+    	//		pageTable[i] = null; // delete entry
+    		}	
+    	}
 		UserKernel.ppnListSemaphore.V();
 
 		//-----------------------------------------------

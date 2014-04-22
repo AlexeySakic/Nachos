@@ -174,11 +174,11 @@ class BaseThreadState implements Comparable<BaseThreadState>, Constants {
 	}
 	public void removeQueue(BasePriorityThreadQueue queue){
 		waitedBy.remove(queue);
-		updateEffectivePriority();
+		this.updateEffectivePriority();
 	}
 	public void addQueue(BasePriorityThreadQueue queue){
 		waitedBy.add(queue);
-		updateEffectivePriority();
+		this.updateEffectivePriority();
 	}
 	public String toString() {
 		return "ThreadState thread=" + thread + ", priority=" + getPriority() + ", effective priority=" + getEffectivePriority();

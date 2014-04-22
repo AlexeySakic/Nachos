@@ -54,6 +54,9 @@ public abstract class Scheduler {
      */
     public abstract ThreadQueue newThreadQueue(boolean transferPriority);
 
+    public ThreadQueue newThreadQueue(boolean transferPriority, KThread thread){
+    	return newThreadQueue(transferPriority);
+    }
     /**
      * Get the priority of the specified thread. Must be called with
      * interrupts disabled.

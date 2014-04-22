@@ -55,6 +55,12 @@ public class PriorityScheduler extends Scheduler implements Constants{
 		return new PriorityThreadQueue(transferPriority);
 	}
 
+    public ThreadQueue newThreadQueue(boolean transferPriority, KThread thread){
+    	ThreadQueue q =  new PriorityThreadQueue(transferPriority);
+    	((BasePriorityThreadQueue)q).dequeuedThread = getThreadState(thread);
+    	return q;
+    }
+
 	public int getPriority(KThread thread) {
 		Lib.assertTrue(Machine.interrupt().disabled());
 
@@ -363,10 +369,6 @@ public class PriorityScheduler extends Scheduler implements Constants{
 			return (BaseThreadState) this.priorityQueue.peek();
 		}
 
-		public void print() {
-			Lib.assertTrue(Machine.interrupt().disabled());
-			// implement me (if you want)
-		}
 
 	}
 }
