@@ -163,7 +163,7 @@ public class UserProcess {
 		//
 		// return amount;
 		//----------------------------------------------------------------------
-		if(vaddr < 0)
+		if(vaddr < 0 || (vaddr/pageSize) >= pageTable.length)
 			return 0;
 
 		int tableNum = pageTable.length;
@@ -242,7 +242,7 @@ public class UserProcess {
 		//
 		// return amount;
 		//----------------------------------------------------------------------
-		if(vaddr < 0)
+		if(vaddr < 0 || (vaddr/pageSize) >= pageTable.length)
 			return 0;
 
 		int tableNum = pageTable.length;
@@ -426,7 +426,8 @@ public class UserProcess {
 
 		// build stack and arg PageTable
 		for(int i=0; i < stackPages + 1; i++) {
-			int vpn = (numPages - 1) - i;
+		//	int vpn = (numPages - 1 - stackPages) + i;
+			int vpn = numPages - 1 - i;
 			int ppn = UserKernel.freePPNList.poll();
 			pageTable[vpn] = new TranslationEntry(vpn, ppn, true, false, false, false);
 		}
@@ -832,6 +833,158 @@ public class UserProcess {
 		}
 	}
 
+	public static void selfTest() {
+    	UserProcess p1 = new UserProcess();
+    	UserProcess p2 = new UserProcess();
+    	System.out.println("the number of free pages is " + UserKernel.freePPNList.size());
+
+    	/*
+    	 * bullet 1
+    	 */
+    	
+    	// load
+    	p1.load("halt.coff", new String[]{});
+    	System.out.println("the number of pages in p1 is " + p1.numPages);
+    	for(int i=0; i < p1.numPages; i++)
+    		System.out.println("vpn: "+ p1.pageTable[i].vpn + "\t ppn: " + p1.pageTable[i].ppn + "\t "
+    				+ "ReadOnly: " + p1.pageTable[i].readOnly);
+    	System.out.println("the number of free pages is " + UserKernel.freePPNList.size());
+    	
+    	// change p1 to p2
+    	p2.load("halt.coff", new String[]{});
+    	System.out.println("the number of pages in p2 is " + p2.numPages);
+    	for(int i=0; i < p2.numPages; i++)
+    		System.out.println("vpn: "+ p2.pageTable[i].vpn + "\t ppn: " + p2.pageTable[i].ppn + "\t "
+    				+ "ReadOnly: " + p2.pageTable[i].readOnly);
+    	System.out.println("the number of free pages is " + UserKernel.freePPNList.size());
+    	
+    	// unload
+    	p1.unloadSections();
+    	System.out.println("the number of free pages is " + UserKernel.freePPNList.size());
+    	
+    	// change p1 to p2
+    	p2.unloadSections();
+    	System.out.println("the number of free pages is " + UserKernel.freePPNList.size());
+    	
+    	/*
+    	 * bullet 2
+    	 */
+    	// read/write
+    	p1.load("halt.coff", new String[]{});
+    	System.out.println("the number of pages in p1 is " + p1.numPages);
+    	for(int i=0; i < p1.numPages; i++)
+    		System.out.println("vpn: "+ p1.pageTable[i].vpn + "\t\t"
+    			+ "ppn: " + p1.pageTable[i].ppn + "\t\t"
+    			+ "ReadOnly: " + p1.pageTable[i].readOnly + "\t\t"
+    			+ "valid: " + p1.pageTable[i].valid + "\t\t"
+    			+ "used: " + p1.pageTable[i].used + "\t\t"
+    			+ "dirty: "+ p1.pageTable[i].dirty);
+    	
+    	byte[] writer = new byte[pageSize*4];
+    	byte[] reader = new byte[pageSize*4];
+    	for(int i=0; i < writer.length; i++)
+    		writer[i] = 1;
+    	for(int i=0; i < reader.length; i++)
+    		reader[i] = 0;
+    	int size = 1*pageSize+1234;
+    	
+    	int wn = p1.writeVirtualMemory(1*pageSize+1, writer, 0, size);
+    	if(wn != size)
+    		System.out.println("Maybe the return value of write is wrong");
+    	else
+    		System.out.println("wn = size");
+    	int rn = p1.readVirtualMemory(1*pageSize+1, reader, 0, size);
+    	if(rn != size)
+    		System.out.println("Maybe the return value of read is wrong");
+    	else
+    		System.out.println("rn = size");
+    	
+    	boolean error = false;
+    	for(int i=0; i < size; i++)
+    		if(reader[i] != writer[i]) {
+    			System.out.println("Error: read/write error at position " + i);
+    			error = true;
+    			break;
+    		}
+    	
+    	if(!error)
+    		System.out.println("read/write successful");
+    	
+    	// change writer and write/read again
+    	for(int i=0; i < writer.length; i++)
+    		writer[i] = 2;
+    	
+    	wn = p1.writeVirtualMemory(1*pageSize+1, writer, 0, size);
+    	if(wn != size)
+    		System.out.println("Maybe the return value of write is wrong");
+    	else
+    		System.out.println("wn = size");
+    	rn = p1.readVirtualMemory(1*pageSize+1, reader, 0, size);
+    	if(rn != size)
+    		System.out.println("Maybe the return value of read is wrong");
+    	else
+    		System.out.println("rn = size");
+    	
+    	error = false;
+    	for(int i=0; i < size; i++)
+    		if(reader[i] != writer[i]) {
+    			System.out.println("Error: read/write error at position " + i);
+    			error = true;
+    			break;
+    		}
+    	    	
+    	if(!error)
+    		System.out.println("read/write successful");
+    	
+    	System.out.println("the number of pages in p1 is " + p1.numPages);
+    	for(int i=0; i < p1.numPages; i++)
+    		System.out.println("vpn: "+ p1.pageTable[i].vpn + "\t\t"
+    			+ "ppn: " + p1.pageTable[i].ppn + "\t\t"
+    			+ "ReadOnly: " + p1.pageTable[i].readOnly + "\t\t"
+    			+ "valid: " + p1.pageTable[i].valid + "\t\t"
+    			+ "used: " + p1.pageTable[i].used + "\t\t"
+    			+ "dirty: "+ p1.pageTable[i].dirty);
+    	
+    	/*
+    	 * bullet 3
+    	 */
+    	p1.readVirtualMemory(0, reader, 0, pageSize);
+    	wn = p1.writeVirtualMemory(0, writer, 0, pageSize);
+    	p1.readVirtualMemory(0, reader, pageSize, pageSize);
+    	
+    	error = false;
+    	if(wn != 0) {
+    		error = true;
+    		System.out.println("the return value of writing in readOnly section is not 0");
+    	}
+    	
+    	for(int i=0; i < pageSize; i++)
+    		if(reader[i] != reader[i+pageSize]) {
+    			error = true;
+    			System.out.println("the readOnly section is modified");
+    		}
+    	
+    	if(!error)
+    		System.out.println("pass the bullet 3");
+    	
+    	/*
+    	 * bullet 4
+    	 */
+    	
+    	rn = p1.readVirtualMemory(p1.numPages*pageSize + 1, reader, 0, pageSize);
+    	if(rn != 0)
+    		System.out.println("read the data that doesn't belong to p1");
+    	else
+    		System.out.println("cannot read the untouchable data");
+    	
+    	// do the same for write
+    	wn = p1.writeVirtualMemory(p1.numPages*pageSize + 1, writer, 0, pageSize);
+    	if(wn != 0)
+    		System.out.println("write the data that doesn't belong to p1");
+    	else
+    		System.out.println("cannot write the untouchable data");
+    	
+    }
 	/** The program being run by this process. */
 	protected Coff coff;
 

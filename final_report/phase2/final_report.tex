@@ -100,6 +100,253 @@ pdftitle={Final Report}]{hyperref}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Begin edit from here
 
+    
+\section{Task 2}
+
+\subsection{Correctness Constraints}
+\begin{enumerate}
+  \item[$\bullet$] Different processes do not overlap in their physical memory usage.
+  \item[$\bullet$] Make use of ``gaps'' in the free memory pool.
+  \item[$\bullet$] Only valid virtual memory can be read; only valid and writable
+    memory can be written.
+  \item[$\bullet$] All of a process's memory is freed on exit.
+\end{enumerate}
+
+\subsection{Declarations}
+We use a public static \textsf{Queue} to maintain the free physical pages and a public
+static \textsf{Semaphore} to make the access sychronous. Once we allocate a
+page, we delete it from the queue; and once we free a page, we add it
+into the queue. We use a 
+\textsf{TranslationEntry} array to construct the pageTable. In the 
+\textsf{UserProcess.loadSections()} we build the pageTable to associate vpn and ppn.
+We implement \textsf{UserProcess.unloadSection} to release the physical pages
+allocated by $\textsf{loadSections()}$.
+Then we modify \textsf{UserProcess.readVirtualMemory} and 
+\textsf{UserProcess.writeVirtualMemory} to use pageTable to access physical
+memory through virtual memory. Here, we transfer the data in a unit of one page.
+\begin{enumerate}[$\bullet$]
+  \item \textit{data structure}: \textsf{Queue}, \textsf{Semaphore},
+    \textsf{TranslationEntry}.
+  \item \textit{member variable}:
+    \begin{enumerate}
+      \item \textsf{public static Queue<Integer> UserKernel::freePPNList};
+      \item \textsf{public static Semaphore UserKernel::ppnListSemaphore}, initially 1;
+      \item \textsf{protected TranslationEntry[] UserProcess::pageTable};
+      \end{enumerate}
+\end{enumerate}
+
+\subsection{Description}
+\begin{algorithm}
+  \caption{\textsf{UserKernel::initialize()}}
+  $\dots$ \textit{given code} $\dots$\;
+  \textsf{ppnListSemaphore.P()}\;
+  \For{all ppn $i$}{
+    \textsf{freePPNList.enqueue(i)}\;
+  }
+  \textsf{ppnListSemaphore.V()}\;
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{\textsf{UserProcess::loadSections()}}
+  \If {\textsf{numPages $>$ freePPNList.size()} }{
+    \Return \textbf{false}\;
+  }
+  \textsf{ppnListSemaphore.P()}\;
+  \textsf{pageTable.size $\gets$ numPages}\;
+  \For{all section \textsf{s} and all virtual pages \textsf{vpn} in \textsf{s}}{
+    \textsf{ppn $\gets$ freePPNList.dequeue()}\;
+    \textsf{pageTable[vpn] $\gets$ (vpn,ppn,true,s.isReadOnly(),false,false)}\;
+    Load the $\textsf{vpn}$ page's content into the physical memory page $\textsf{ppn}$\;
+  }
+  \For{all stack pages $\textsf{vpn}$}{
+    \textsf{ppn $\gets$ freePPNList.dequeue()}\;
+    \textsf{pageTable[vpn] $\gets$ (vpn,ppn,true,false,false,false)}\;
+  }
+  {\color{red}\textsf{vpn $\leftarrow$ vpn(argmentPage)}\;}
+  {\color{red}\textsf{pageTable[vpn] $\gets$ (vpn,ppn,true,false,false,false)}\;}
+  \textsf{ppnListSemaphore.V()}\;
+  \Return \textbf{true}\;
+\end{algorithm}
+
+\begin{algorithm}[H]
+  \caption{\textsf{UserProcess::unloadSections()}}
+  \textsf{ppnListSemaphore.P()}\;
+  \For{all entry \textsf{i} of \textsf{pageTable}}{
+    \textsf{freePPNList.enqueue(pageTable[i].ppn)}\;
+  }
+  \textsf{ppnListSemaphore.V()}\;
+  {\color{red}\textsf{coff.close()}\;}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{\textsf{UserProcess::readVirtualMemory(vaddr, data, offset, length)}}
+  $\dots$ some constrains of the parameters in the given code $\dots$ \;
+  \If {\textsf{vaddr < 0 {\color{red}|| vpn(vaddr) $\ge$ pageTable.size()}}} {
+    \Return 0\;
+  }
+  \textsf{start $\gets$  vpn(vaddr)}\;
+  \textsf{end $\gets$  vpn(vaddr+length)}\;
+  \textsf{en $\gets \min$\{end, pageTable.size()\}}\;
+  \textsf{amount $\gets$  0};
+  \For{\textsf{$\textsf{i}=$start} \textbf{to} \textsf{en}}{
+    \If{\textsf{pageTable[$\textsf{i}$].valid = \textbf{false}}}{
+      \Return{\textsf{amount}}\;
+    }
+    \textsf{s $\gets$ 0, e $\gets$ pageSize}\;
+    \If{\textsf{i$=$start}}{
+     \textsf{s $\gets$  offset(vaddr)}\;
+    }
+    \If{\textsf{i$=$end}}{
+      \textsf{e $\gets$  offset(vaddr+length)}\;
+    }
+    \textsf{paddr = ppn*pageSize + s}\;
+    \textsf{System.arraycopy(memory, paddr, data, offset, e-s)}\;
+    \textsf{pageTable[i].used $\gets$}  \textbf{true}\;
+    \textsf{amount  $\gets$  amount + e - s}\;
+    \textsf{offset  $\gets$  offset + e - s}\;
+  }
+  \Return{\textsf{amount}}\;
+\end{algorithm} 
+The algorithm of \textsf{writeVirtualMemory} is almost the same as 
+\textsf{readVirtualMemory}.
+We only need to change line 10 into: \\
+\begin{center}
+  \textbf{if} \textsf{pageTable[i].valid = \textbf{false} || pageTable[i].readOnly = 
+  \textbf{true}} \textbf{then}
+\end{center}
+and add a line between line 21 and line 22 as: 
+\[ \textsf{pageTable[i].dirty}  \gets  \textbf{true}; \]
+and change line 21 into: \\
+\[ \textsf{System.arraycopy(data, offset, memory, paddr, e-s)}; \]
+
+
+\subsection{Testing Plan}
+\begin{enumerate}[$\bullet$]
+  \item Let two process $p_1$ and $p_2$ run at the same time and see
+    their ppn, then finish $p_1,p_2$ and check free ppn.
+  \item At a same vpn, we first do \textsf{writeVirtualMemory},
+    and do \textsf{readVirtualMemory} and then do \textsf{writeVirtualMemory},
+    and do \textsf{readVirtualMemory}.
+  \item Try to write in the readonly section.
+  \item Try to read the memory that not in the sections.
+\end{enumerate}
+
+\begin{lstlisting}[language=Java]
+public static void selfTest() {
+    	UserProcess p1 = new UserProcess();
+    	UserProcess p2 = new UserProcess();
+    	System.out.println("the number of free pages is " + UserKernel.freePPNList.size());
+
+    	/*
+    	 * bullet 1
+    	 */
+    	
+    	// load
+    	p1.load("halt.coff", new String[]{});
+    	System.out.println("the number of pages in p1 is " + p1.numPages);
+    	for(int i=0; i < p1.numPages; i++)
+    		System.out.println("vpn: "+ p1.pageTable[i].vpn + "\t ppn: " + p1.pageTable[i].ppn + "\t "
+    				+ "ReadOnly: " + p1.pageTable[i].readOnly);
+    	System.out.println("the number of free pages is " + UserKernel.freePPNList.size());
+    	
+    	// change p1 to p2
+    	...
+
+    	// unload
+    	p1.unloadSections();
+    	System.out.println("the number of free pages is " + UserKernel.freePPNList.size());
+    	
+    	// change p1 to p2
+    	...
+
+    	/*
+    	 * bullet 2
+    	 */
+    	// read/write
+    	p1.load("halt.coff", new String[]{});
+    	System.out.println("the number of pages in p1 is " + p1.numPages);
+    	for(int i=0; i < p1.numPages; i++)
+    		System.out.println("vpn: "+ p1.pageTable[i].vpn + "\t\t"
+    			+ "ppn: " + p1.pageTable[i].ppn + "\t\t"
+    			+ "ReadOnly: " + p1.pageTable[i].readOnly + "\t\t"
+    			+ "valid: " + p1.pageTable[i].valid + "\t\t"
+    			+ "used: " + p1.pageTable[i].used + "\t\t"
+    			+ "dirty: "+ p1.pageTable[i].dirty);
+    	
+    	byte[] writer = new byte[pageSize*4];
+    	byte[] reader = new byte[pageSize*4];
+    	for(int i=0; i < writer.length; i++)
+    		writer[i] = 1;
+    	for(int i=0; i < reader.length; i++)
+    		reader[i] = 0;
+    	int size = 1*pageSize+1234;
+    	
+    	int wn = p1.writeVirtualMemory(1*pageSize+1, writer, 0, size);
+    	if(wn != size)
+    		System.out.println("Maybe the return value of write is wrong");
+    	else
+    		System.out.println("wn = size");
+    	int rn = p1.readVirtualMemory(1*pageSize+1, reader, 0, size);
+    	if(rn != size)
+    		System.out.println("Maybe the return value of read is wrong");
+    	else
+    		System.out.println("rn = size");
+    	
+    	boolean error = false;
+    	for(int i=0; i < size; i++)
+    		if(reader[i] != writer[i]) {
+    			System.out.println("Error: read/write error at position " + i);
+    			error = true;
+    			break;
+    		}
+    	
+    	if(!error)
+    		System.out.println("read/write successful");
+    	
+    	// change writer and write/read again
+    	...
+
+    	/*
+    	 * bullet 3
+    	 */
+    	p1.readVirtualMemory(0, reader, 0, pageSize);
+    	wn = p1.writeVirtualMemory(0, writer, 0, pageSize);
+    	p1.readVirtualMemory(0, reader, pageSize, pageSize);
+    	
+    	error = false;
+    	if(wn != 0) {
+    		error = true;
+    		System.out.println("the return value of writing in readOnly section is not 0");
+    	}
+    	
+    	for(int i=0; i < pageSize; i++)
+    		if(reader[i] != reader[i+pageSize]) {
+    			error = true;
+    			System.out.println("the readOnly section is modified");
+    		}
+    	
+    	if(!error)
+    		System.out.println("pass the bullet 3");
+    	
+    	/*
+    	 * bullet 4
+    	 */
+    	
+    	rn = p1.readVirtualMemory(p1.numPages*pageSize + 1, reader, 0, pageSize);
+    	if(rn != 0)
+    		System.out.println("read the data that doesn't belong to p1");
+    	else
+    		System.out.println("cannot read the untouchable data");
+    	
+    	// do the same for write
+    	...
+
+    }
+
+\end{lstlisting}
+
+My test code is in the \textsf{UserProcess.selfTest}. You can check the part that I ignore.
+
 
 \section{Task 3}
 \subsection{Implementation}
