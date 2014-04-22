@@ -5,6 +5,8 @@
 \usepackage{paralist}
 \usepackage{fancyhdr}
 \usepackage{lastpage}
+\usepackage{soul,color}
+\usepackage{ulem}
 \usepackage{extramarks}
 \usepackage{chngpage}
 \usepackage{indentfirst}
@@ -98,8 +100,401 @@ pdftitle={Final Report}]{hyperref}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Begin edit from here
 
+    
+\section{Task 2}
+
+\subsection{Correctness Constraints}
+\begin{enumerate}
+  \item[$\bullet$] Different processes do not overlap in their physical memory usage.
+  \item[$\bullet$] Make use of ``gaps'' in the free memory pool.
+  \item[$\bullet$] Only valid virtual memory can be read; only valid and writable
+    memory can be written.
+  \item[$\bullet$] All of a process's memory is freed on exit.
+\end{enumerate}
+
+\subsection{Declarations}
+We use a public static \textsf{Queue} to maintain the free physical pages and a public
+static \textsf{Semaphore} to make the access sychronous. Once we allocate a
+page, we delete it from the queue; and once we free a page, we add it
+into the queue. We use a 
+\textsf{TranslationEntry} array to construct the pageTable. In the 
+\textsf{UserProcess.loadSections()} we build the pageTable to associate vpn and ppn.
+We implement \textsf{UserProcess.unloadSection} to release the physical pages
+allocated by $\textsf{loadSections()}$.
+Then we modify \textsf{UserProcess.readVirtualMemory} and 
+\textsf{UserProcess.writeVirtualMemory} to use pageTable to access physical
+memory through virtual memory. Here, we transfer the data in a unit of one page.
+\begin{enumerate}[$\bullet$]
+  \item \textit{data structure}: \textsf{Queue}, \textsf{Semaphore},
+    \textsf{TranslationEntry}.
+  \item \textit{member variable}:
+    \begin{enumerate}
+      \item \textsf{public static Queue<Integer> UserKernel::freePPNList};
+      \item \textsf{public static Semaphore UserKernel::ppnListSemaphore}, initially 1;
+      \item \textsf{protected TranslationEntry[] UserProcess::pageTable};
+      \end{enumerate}
+\end{enumerate}
+
+\subsection{Description}
+\begin{algorithm}
+  \caption{\textsf{UserKernel::initialize()}}
+  $\dots$ \textit{given code} $\dots$\;
+  \textsf{ppnListSemaphore.P()}\;
+  \For{all ppn $i$}{
+    \textsf{freePPNList.enqueue(i)}\;
+  }
+  \textsf{ppnListSemaphore.V()}\;
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{\textsf{UserProcess::loadSections()}}
+  \If {\textsf{numPages $>$ freePPNList.size()} }{
+    \Return \textbf{false}\;
+  }
+  \textsf{ppnListSemaphore.P()}\;
+  \textsf{pageTable.size $\gets$ numPages}\;
+  \For{all section \textsf{s} and all virtual pages \textsf{vpn} in \textsf{s}}{
+    \textsf{ppn $\gets$ freePPNList.dequeue()}\;
+    \textsf{pageTable[vpn] $\gets$ (vpn,ppn,true,s.isReadOnly(),false,false)}\;
+    Load the $\textsf{vpn}$ page's content into the physical memory page $\textsf{ppn}$\;
+  }
+  \For{all stack pages $\textsf{vpn}$}{
+    \textsf{ppn $\gets$ freePPNList.dequeue()}\;
+    \textsf{pageTable[vpn] $\gets$ (vpn,ppn,true,false,false,false)}\;
+  }
+  {\color{red}\textsf{vpn $\leftarrow$ vpn(argmentPage)}\;}
+  {\color{red}\textsf{pageTable[vpn] $\gets$ (vpn,ppn,true,false,false,false)}\;}
+  \textsf{ppnListSemaphore.V()}\;
+  \Return \textbf{true}\;
+\end{algorithm}
+
+\begin{algorithm}[H]
+  \caption{\textsf{UserProcess::unloadSections()}}
+  \textsf{ppnListSemaphore.P()}\;
+  \For{all entry \textsf{i} of \textsf{pageTable}}{
+    \textsf{freePPNList.enqueue(pageTable[i].ppn)}\;
+  }
+  \textsf{ppnListSemaphore.V()}\;
+  {\color{red}\textsf{coff.close()}\;}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{\textsf{UserProcess::readVirtualMemory(vaddr, data, offset, length)}}
+  $\dots$ some constrains of the parameters in the given code $\dots$ \;
+  \If {\textsf{vaddr < 0 {\color{red}|| vpn(vaddr) $\ge$ pageTable.size()}}} {
+    \Return 0\;
+  }
+  \textsf{start $\gets$  vpn(vaddr)}\;
+  \textsf{end $\gets$  vpn(vaddr+length)}\;
+  \textsf{en $\gets \min$\{end, pageTable.size()\}}\;
+  \textsf{amount $\gets$  0};
+  \For{\textsf{$\textsf{i}=$start} \textbf{to} \textsf{en}}{
+    \If{\textsf{pageTable[$\textsf{i}$].valid = \textbf{false}}}{
+      \Return{\textsf{amount}}\;
+    }
+    \textsf{s $\gets$ 0, e $\gets$ pageSize}\;
+    \If{\textsf{i$=$start}}{
+     \textsf{s $\gets$  offset(vaddr)}\;
+    }
+    \If{\textsf{i$=$end}}{
+      \textsf{e $\gets$  offset(vaddr+length)}\;
+    }
+    \textsf{paddr = ppn*pageSize + s}\;
+    \textsf{System.arraycopy(memory, paddr, data, offset, e-s)}\;
+    \textsf{pageTable[i].used $\gets$}  \textbf{true}\;
+    \textsf{amount  $\gets$  amount + e - s}\;
+    \textsf{offset  $\gets$  offset + e - s}\;
+  }
+  \Return{\textsf{amount}}\;
+\end{algorithm} 
+The algorithm of \textsf{writeVirtualMemory} is almost the same as 
+\textsf{readVirtualMemory}.
+We only need to change line 10 into: \\
+\begin{center}
+  \textbf{if} \textsf{pageTable[i].valid = \textbf{false} || pageTable[i].readOnly = 
+  \textbf{true}} \textbf{then}
+\end{center}
+and add a line between line 21 and line 22 as: 
+\[ \textsf{pageTable[i].dirty}  \gets  \textbf{true}; \]
+and change line 21 into: \\
+\[ \textsf{System.arraycopy(data, offset, memory, paddr, e-s)}; \]
+
+
+\subsection{Testing Plan}
+\begin{enumerate}[$\bullet$]
+  \item Let two process $p_1$ and $p_2$ run at the same time and see
+    their ppn, then finish $p_1,p_2$ and check free ppn.
+  \item At a same vpn, we first do \textsf{writeVirtualMemory},
+    and do \textsf{readVirtualMemory} and then do \textsf{writeVirtualMemory},
+    and do \textsf{readVirtualMemory}.
+  \item Try to write in the readonly section.
+  \item Try to read the memory that not in the sections.
+\end{enumerate}
+
+\begin{lstlisting}[language=Java]
+public static void selfTest() {
+    	UserProcess p1 = new UserProcess();
+    	UserProcess p2 = new UserProcess();
+    	System.out.println("the number of free pages is " + UserKernel.freePPNList.size());
+
+    	/*
+    	 * bullet 1
+    	 */
+    	
+    	// load
+    	p1.load("halt.coff", new String[]{});
+    	System.out.println("the number of pages in p1 is " + p1.numPages);
+    	for(int i=0; i < p1.numPages; i++)
+    		System.out.println("vpn: "+ p1.pageTable[i].vpn + "\t ppn: " + p1.pageTable[i].ppn + "\t "
+    				+ "ReadOnly: " + p1.pageTable[i].readOnly);
+    	System.out.println("the number of free pages is " + UserKernel.freePPNList.size());
+    	
+    	// change p1 to p2
+    	...
+
+    	// unload
+    	p1.unloadSections();
+    	System.out.println("the number of free pages is " + UserKernel.freePPNList.size());
+    	
+    	// change p1 to p2
+    	...
+
+    	/*
+    	 * bullet 2
+    	 */
+    	// read/write
+    	p1.load("halt.coff", new String[]{});
+    	System.out.println("the number of pages in p1 is " + p1.numPages);
+    	for(int i=0; i < p1.numPages; i++)
+    		System.out.println("vpn: "+ p1.pageTable[i].vpn + "\t\t"
+    			+ "ppn: " + p1.pageTable[i].ppn + "\t\t"
+    			+ "ReadOnly: " + p1.pageTable[i].readOnly + "\t\t"
+    			+ "valid: " + p1.pageTable[i].valid + "\t\t"
+    			+ "used: " + p1.pageTable[i].used + "\t\t"
+    			+ "dirty: "+ p1.pageTable[i].dirty);
+    	
+    	byte[] writer = new byte[pageSize*4];
+    	byte[] reader = new byte[pageSize*4];
+    	for(int i=0; i < writer.length; i++)
+    		writer[i] = 1;
+    	for(int i=0; i < reader.length; i++)
+    		reader[i] = 0;
+    	int size = 1*pageSize+1234;
+    	
+    	int wn = p1.writeVirtualMemory(1*pageSize+1, writer, 0, size);
+    	if(wn != size)
+    		System.out.println("Maybe the return value of write is wrong");
+    	else
+    		System.out.println("wn = size");
+    	int rn = p1.readVirtualMemory(1*pageSize+1, reader, 0, size);
+    	if(rn != size)
+    		System.out.println("Maybe the return value of read is wrong");
+    	else
+    		System.out.println("rn = size");
+    	
+    	boolean error = false;
+    	for(int i=0; i < size; i++)
+    		if(reader[i] != writer[i]) {
+    			System.out.println("Error: read/write error at position " + i);
+    			error = true;
+    			break;
+    		}
+    	
+    	if(!error)
+    		System.out.println("read/write successful");
+    	
+    	// change writer and write/read again
+    	...
+
+    	/*
+    	 * bullet 3
+    	 */
+    	p1.readVirtualMemory(0, reader, 0, pageSize);
+    	wn = p1.writeVirtualMemory(0, writer, 0, pageSize);
+    	p1.readVirtualMemory(0, reader, pageSize, pageSize);
+    	
+    	error = false;
+    	if(wn != 0) {
+    		error = true;
+    		System.out.println("the return value of writing in readOnly section is not 0");
+    	}
+    	
+    	for(int i=0; i < pageSize; i++)
+    		if(reader[i] != reader[i+pageSize]) {
+    			error = true;
+    			System.out.println("the readOnly section is modified");
+    		}
+    	
+    	if(!error)
+    		System.out.println("pass the bullet 3");
+    	
+    	/*
+    	 * bullet 4
+    	 */
+    	
+    	rn = p1.readVirtualMemory(p1.numPages*pageSize + 1, reader, 0, pageSize);
+    	if(rn != 0)
+    		System.out.println("read the data that doesn't belong to p1");
+    	else
+    		System.out.println("cannot read the untouchable data");
+    	
+    	// do the same for write
+    	...
+
+    }
+
+\end{lstlisting}
+
+My test code is in the \textsf{UserProcess.selfTest}. You can check the part that I ignore.
+
 
 \section{Task 3}
+\subsection{Implementation}
+For \textsf{exec}, we need to create a subprocess and run its \textsf{execute()} function and create standard input output file descriptors.
+
+As \textsf{join} deals with subprocesses and can only be used between parents and children, we need to use references to record a process's parent process and a list for its children. And when the function is called, we need to check it by using \textsf{UserKernel.currentProcess()} in case of illegal joins.
+
+And when \textsf{exit} is called, we also need to free up memory, close open files and also inform the parent process of the information so that \textsf{join} can no longer be called. We also have to notify its subprocesses the termination. Besides, since the last process calling \textsf{exit} should invoke \textsf{Kernel.kernel.terminate()}, we should keep a global list making sure that we know which one to do the closing.
+
+Notice that we do not have to modify \textsf{Uthread.finish()} to do the same closing, since as is suggested in file \textsf{start.s}, a normal return from \textsf{main()} would call \textsf{exit} at last. Thus, we only need to care unhandled exceptions and \textsf{exit}. And the process ID is distributed at the construction function of the process.
+\subsection{Pseudocodes}
+Below are pseudocode for \textsf{UserProcess} \ref{alg:UserProcess}, \textsf{handleExec} \ref{alg:handleExec}, \textsf{join} \ref{alg:join}, \textsf{handleJoin} \ref{alg:handleJoin}, \textsf{cleanUp} \ref{alg:cleanUp} and \textsf{handleExit} \ref{alg:handleExit}.
+
+And an inner class (structure) \textsf{JoinRetVal} is defined for storing the returning value (exitStatus and whether it is an normal exit).
+\begin{algorithm}
+  \label{alg:UserProcess}
+  \caption{\textsf{UserProcess}()}
+  fileDescriptorTable = new OpenFile[16]\;
+  fileDescriptorTable[0] = UserKernel.console.openForReading()\;
+  fileDescriptorTable[1] = UserKernel.console.openForWriting()\;
+  \colorbox{myyellow}{idMutex.P()}\;
+  processID = nextProcessID\;
+  nextProcessID++\;
+  \colorbox{myyellow}{idMutex.V()}\;
+\end{algorithm}
+
+\begin{algorithm}[H]
+  \label{alg:handleExec}
+  \caption{int \textsf{handleExec}(int file, int argc, int argv)}
+  fileName\gets\textsf{readVirtualMemoryString}(file,256)\;
+  \If {(fileName is invalid) or (argc $<$ 0)} {
+    \Return -1\;
+  }
+  \If {fileName does not end with \textsf{.coff}}{
+    \Return -1\;
+  }
+  byte[] pointer = new byte[4]\;
+  String[] args = new String[argc]\;
+  \For {i = 0; i $<$ argc; i++}{
+  numRet = \textsf{readVirtualMemory}(argv, pointer)\;
+  {\color{red}\tcc{check whether args whose argv.length < args}
+  \If {numRet < 4 || pointer == null} {
+	\Return -1\;
+  }}
+    int pos = Lib.bytesToInt(pointer, 0)\;
+    args[i] = \textsf{readVirtualMemoryString}(pos, args[i])\;
+    \colorbox{myyellow}{// in a 4-byte alignment situation}\;
+    argv += 4
+  }
+  UserProcess childProcess = new UserProcess()\;
+  \If {childProcess is not valid} {
+    \Return -1\;
+  }
+  childProcess.setParent(this)\;
+  childProcessList.add(childProcess)\;
+  \colorbox{myyellow}{tableMutex.P()}\;
+  userProcessTable.put(childProcess.getID(), childProcess)\;
+  \colorbox{myyellow}{tableMutex.V()}\;
+  \If {not childProcess.\textsf{execute}(fileName, args)}{
+    \Return -1\;
+  }
+  \Return childProcess.getID()\;
+\end{algorithm}
+
+\begin{algorithm}
+  \label{alg:join}
+  \caption{JoinRetVal \textsf{join}()}
+  \tcc{note that we have to keep both exitStatus and normalExit since the exit status is not required to be consistent with a normal exit}
+  joinSemaphore.P()\;
+  \tcc{assume an integer is of 4 bytes and the processor is little endian}
+  {\color{red}\sout{byte[] data = Lib.bytesFromInt(exitStatus)}\;
+  \sout{writeVirtualMemory(status, data)}\;}
+  joinSemaphore.V()\;
+  {\color{red}\Return new JoinRetVal(normalExit,exitStatus)\;}
+\end{algorithm}
+
+\begin{algorithm}[H]
+  \label{alg:handleJoin}
+  \caption{int \textsf{handleJoin}(int processID, int status)}
+  \tcc{check validity}
+  \colorbox{myyellow}{tableMutex.P()}\;
+  UserProcess joinProcess = userProcessTable.get(processID)\;
+  \colorbox{myyellow}{tableMutex.V()}\;
+  {\color{red}
+  \tcc{parentProcess does not exist or not equal}
+  \If {joinProcess == null || joinProcess.parentProcess == null} {
+  \Return -1\;
+  \ElseIf {joinProcess.parentProcess.getID() != UserKernel.currentProcess().getID()} {
+  \Return -1\;
+  }
+  }
+  JoinRetValue joinVal = joinProcess.join()\;
+  int retVal = joinVal.normalExit ? 1 : 0\;
+  byte[] data = Lib.bytesFromInt(joinVal.exitStatus)\;
+  \tcc{write memory in parent thread}
+  writeVirtualMemory(status, data)\; }
+  \tcc{only need to remove the child in join since only join accesses children}
+  childProcessList.remove(joinProcess)\;
+  \Return retVal\;
+\end{algorithm}
+
+\begin{algorithm}
+\label{alg:cleanUp}
+\caption{void \textsf{cleanUp}()}
+    \For {file in fileDesriptorTable}{
+      \If {file != null} {
+        file.close()\;
+      }
+    }
+    \colorbox{myyellow}{//need free up memory!}\;
+    unloadSections()\;
+    \For {child in childProcessList}{
+      \If {child != null} {
+        child.setParent(null)\;
+      }
+    }
+    \colorbox{myyellow}{tableMutex.P()}\;
+    userProcessTable.remove(UserKernel.getCurrentProcess().getID())\;
+    \colorbox{myyellow}{tableMutex.V()}\;
+    childProcessList.clear()\;
+\end{algorithm}
+
+\begin{algorithm}
+  \label{alg:handleExit}[H]
+  \caption{int \textsf{handleExit}(int status, boolean normalExit)}
+  \tcc{we also use this function to handle unhandled exceptions except that we manually set status}
+  \textsf{cleanUp}()\;
+  {\color{red}\sout{If userProcessTable.isEmpty()} \;}
+  \If {processID == 0} {
+    Kernel.kernel.terminate()\;
+  }
+  exitStatus = status\;
+  this.normalExit = normalExit\;
+  joinSemaphore.V()\;
+  \colorbox{myyellow}{KThread.finish()}\;
+  \Return status\;
+\end{algorithm}
+\subsection{Testing}
+\begin{asparaitem}
+  \item {\color{red}\sout{A program with $argc=0$.}}
+  \item {\color{red}\sout{Processes killed midway to test whether the parent can receive the correct information and make sure that the cleanups are correctly done.}} This is because it is hard to interrupt threads in the middle of      executing in our model and \textsf{selfTest}().
+  \item {\color{red} \sout{Console for inputs and outputs can not established.}} This is not the case we need to consider since the robustness of the console is guaranteed by the project itself.
+
+  \item {\color{red}\sout{Interrupt at userProcessTable putting in new pairs}}
+%  \item That whether use equals of java object
+  \item Joining on a finished process
+\end{asparaitem}
+
 \subsection{Tests Taken}
 \subsubsection{\textsf{exec} with zero argument}
 This test program calls \textsf{exec} without passing any argument, i.e. \textsf{argc}=0 and \textsf{argv}=0. This program should not call \textsf{exec} successfully.
