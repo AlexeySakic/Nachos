@@ -160,6 +160,14 @@ public class KThread {
     private void runThread() {
 	begin();
 	target.run();
+	//Task 1.1 & 1.5
+	boolean intStatus = Machine.interrupt().disable();
+
+	while (currentThread.joinQueue.nextThread() != null) {
+	}
+	finishSemaphore.V();
+
+	Machine.interrupt().restore(intStatus);		
 	finish();
     }
 
@@ -280,10 +288,16 @@ public class KThread {
 	Lib.debug(dbgThread, "Joining to thread: " + toString());
 
 	Lib.assertTrue(this != currentThread);
-	
-	finishSemaphore.P();
-	finishSemaphore.V();
+	// TASK 1.1
+	boolean intStatus = Machine.interrupt().disable();
 
+	if (status != statusFinished) {
+		joinQueue.waitForAccess(currentThread);
+		finishSemaphore.P();
+		finishSemaphore.V();
+	}
+
+	Machine.interrupt().restore(intStatus);		
     }
 
     /**
@@ -558,7 +572,9 @@ public class KThread {
     private String name = "(unnamed thread)";
     private Runnable target;
     private TCB tcb;
+    // added for Task 1.1 & 1.5
     private Semaphore finishSemaphore = new Semaphore(0);
+ 	ThreadQueue joinQueue = ThreadedKernel.scheduler.newThreadQueue(true, this);
 
     /**
      * Unique identifer for this thread. Used to deterministically compare

@@ -2,6 +2,9 @@ package nachos.threads;
 
 import java.util.PriorityQueue;
 
+import nachos.machine.Lib;
+import nachos.machine.Machine;
+
 abstract public class BasePriorityThreadQueue extends ThreadQueue{
 	BasePriorityThreadQueue(boolean transferPriority) {
 		this.transferPriority = transferPriority;
@@ -23,8 +26,22 @@ abstract public class BasePriorityThreadQueue extends ThreadQueue{
 	 */
 	abstract protected BaseThreadState pickNextThread();
 
-	abstract public void print();
-
+	public void print() {
+		Lib.assertTrue(Machine.interrupt().disabled());
+		// implement me (if you want)
+		if (dequeuedThread == null)
+			System.out.print("null->");
+		else
+			System.out.print(dequeuedThread.thread.getName() + "->");
+		
+		PriorityQueue<BaseThreadState> pp = new PriorityQueue<BaseThreadState>(priorityQueue);
+		System.out.print("(");
+		while(!pp.isEmpty()){
+			System.out.print(pp.poll().thread.getName() + ", ");
+		}
+		System.out.println(")");
+	}
+	
 	/**
 	 * The base priority queue object.
 	 */
