@@ -64,7 +64,15 @@ public class LotteryScheduler extends PriorityScheduler {
 		return (ThreadState) thread.schedulingState;
 	}
 	
+	// @Override
 	public void setPriority(KThread thread, int priority){
+		/*
+		Lib.assertTrue(Machine.interrupt().disabled());
+		priority = priority >= priorityMinimum ?
+				(priority <= priorityMaximum ? priority : priorityMaximum)
+				: priorityMinimum; 
+				*/
+
 		this.getThreadState(thread).setPriority(priority);
 	}
 
@@ -385,14 +393,6 @@ public class LotteryScheduler extends PriorityScheduler {
 			super(thread);
 		}
 
-		/**
-		 * Return the priority of the associated thread.
-		 *
-		 * @return the priority of the associated thread.
-		 */
-		public int getPriority() {
-			return priority;
-		}
 		/**
 		 * Calculate the Effective Priority of a thread and the thread that currently holds the resource
 		 * it is waiting on.
