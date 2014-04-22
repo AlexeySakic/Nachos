@@ -69,7 +69,13 @@ public class UserProcess {
 		if (!load(name, args))
 			return false;
 
-		new UThread(this).setName(name).fork();
+		//put the process in the userProcessTable here
+		tableMutex.P();
+		userProcessTable.put(processID, this);
+		tableMutex.V();
+		
+		this.thread = new UThread(this);
+		thread.setName(name).fork();
 
 		return true;
 	}
@@ -448,11 +454,13 @@ public class UserProcess {
     		}	
     	}
 		UserKernel.ppnListSemaphore.V();
-		for (int i=0; i<16; i++){
-			if (fileDescriptorTable[i] != null){
-				fileDescriptorTable[i].close();
-			}
-		}	
+
+//		for (int i=0; i<16; i++){
+//			if (fileDescriptorTable[i] != null){
+//				fileDescriptorTable[i].close();
+//			}
+//		}	
+
 		coff.close();
 		//-----------------------------------------------
 	}
@@ -498,8 +506,13 @@ public class UserProcess {
 	/**
 	 * the create and open systems calls were both implemented by the handleOpen method
 	 */
-	private int handleOpen(String filename, boolean whetherCreate){
+	private int handleOpen(int addr, boolean whetherCreate){
+		if (addr < 0)
+			return -1;
+		String filename = readVirtualMemoryString(addr, 256);
 		//if unlink has been called on that file, we return -1 immediately
+		if (filename == null)
+			return -1;
 		if (UserKernel.getKernel().fileManager.isUnlinked(filename))
 			return -1;
 		OpenFile file = UserKernel.fileSystem.open(filename, whetherCreate);
@@ -525,23 +538,44 @@ public class UserProcess {
 	}
 
 	/**
-	 * Handle the read(int fd, void *buffer, int count) system call
+	 *  Handle the read(int fd, void *buffer, int count) system call
 	 */
 	private int handleRead(int fd, int addr, int count){
 		if (invalidDescriptor(fd) || count < 0)
 			return -1;
 		if (fileDescriptorTable[fd] == null)
 			return -1;
-		if (fd == 0 && openFileNames[fd] == null)
+		if (fd == 1 && openFileNames[fd] == null)
 			return -1;
-		byte[] buffer = new byte[count];
-		if (readVirtualMemory(addr, buffer) < count)
-			return -1;
-		return fileDescriptorTable[fd].write(buffer, 0, count);
+		//byte[] buffer = new byte[count];
+		//int size = fileDescriptorTable[fd].read(buffer, 0, count);
+		//if (size < 0)
+		//	return -1;
+		//upgraded version-----------------------------------------------------
+		int bytesWriteSum = 0;
+
+		while (count > 0){
+			byte[] buffer = new byte[Math.min(count, maxBufferSize)];
+			count -= buffer.length;
+			int bytesRead = fileDescriptorTable[fd].read(buffer, 0, buffer.length);
+			if (bytesRead < 0)
+				return -1;
+			int bytesWrite = writeVirtualMemory(addr, buffer, 0, bytesRead);
+			if (bytesWrite < bytesRead)
+				return -1;
+			bytesWriteSum += bytesRead;
+			addr += bytesRead;
+			if (bytesRead < buffer.length)
+				break;
+		}
+
+		return bytesWriteSum;
+		//---------------------------------------------------------------------
+		//return writeVirtualMemory(addr, buffer, 0, size);
 	}
 
 	/**
-	 * Handle the write(int fd, void* buffer, int count) system call
+	 *  Handle the write(int fd, void* buffer, int count) system call
 	 */
 	private int handleWrite(int fd, int addr, int count){
 		if (invalidDescriptor(fd) || count < 0)
@@ -550,15 +584,35 @@ public class UserProcess {
 			return -1;
 		if (fd == 0 && openFileNames[fd] == null)
 			return -1;
-		byte[] buffer = new byte[count];
-		if (readVirtualMemory(addr, buffer) < count)
-			return -1;
-		return fileDescriptorTable[fd].write(buffer, 0, count);
+		//		byte[] buffer = new byte[count];
+		//		if (readVirtualMemory(addr, buffer) < count) 
+		//			return -1;
+		//		return fileDescriptorTable[fd].write(buffer, 0, count);
+		int bytesWriteSum = 0;
+
+		while(count > 0){
+			byte[] buffer = new byte[Math.min(count, maxBufferSize)];
+			count -= buffer.length;
+			int bytesRead = readVirtualMemory(addr, buffer);
+			if (bytesRead < buffer.length)
+				return -1;
+			consoleMutex.P();
+			//System.out.println("ID: "+processID+" begins");
+			int bytesWrite = fileDescriptorTable[fd].write(buffer, 0, buffer.length);
+			//System.out.println("ID: "+processID+" finishes");
+			consoleMutex.V();
+			bytesWriteSum += bytesRead;
+			addr += bytesRead;
+			if (bytesWrite < bytesRead)
+				break;
+		}
+
+		return bytesWriteSum;
 	}
 
 
 	/**
-	 * Handle the close(int fileDescriptor) system call
+	 *  Handle the close(int fileDescriptor) system call
 	 */
 	private int handleClose(int fd){
 		if (invalidDescriptor(fd))
@@ -575,7 +629,12 @@ public class UserProcess {
 		return 0;
 	}
 
-	private int handleUnlink(String filename){
+	private int handleUnlink(int addr){
+		if (addr < 0)
+			return -1;
+		String filename = readVirtualMemoryString(addr, 256);
+		if (filename == null)
+			return -1;
 		if (UserKernel.getKernel().fileManager.unlinkFile(filename) == false)
 			return -1;
 		return 0;
@@ -588,7 +647,6 @@ public class UserProcess {
 		}
 		return -1;
 	}
-
 	
 	/**
 	 * Set the parent process.
@@ -606,11 +664,12 @@ public class UserProcess {
 	/**
 	 * real join() method.
 	 */
-	// change return value to int
+	// change return value to JoinRetValue 
 	// since status must be in the space of the parent process
 	private JoinRetValue join() {
-		joinSemaphore.P();
-		joinSemaphore.V();
+		thread.join();;
+//		joinSemaphore.P();
+//		joinSemaphore.V();
 
 		return new JoinRetValue(normalExit, exitStatus);
 	}
@@ -626,7 +685,8 @@ public class UserProcess {
 			if (child != null)
 				child.setParent(null);
 		tableMutex.P();
-		userProcessTable.remove(UserKernel.currentProcess().getID());
+//		userProcessTable.remove(UserKernel.currentProcess().getID());
+		userProcessTable.remove(this.processID);
 		tableMutex.V();
 		childProcessList.clear();
 	}
@@ -656,13 +716,14 @@ public class UserProcess {
 		UserProcess childProcess = new UserProcess();
 		if (childProcess == null)
 			return -1;
-		childProcess.setParent(this);
-		childProcessList.add(childProcess);
-		tableMutex.P();
-		userProcessTable.put(childProcess.getID(), childProcess);
-		tableMutex.V();
+		// the userProcessTable is modified in execute
 		if (!childProcess.execute(fileName, args))
 			return -1;
+		// the process should be added to the list only if the processID
+		// is correctly returned
+		childProcess.setParent(this);
+		childProcessList.add(childProcess);
+
 		return childProcess.getID();
 	}
 	
@@ -676,11 +737,25 @@ public class UserProcess {
 
 		//if parentProcess does not exist or not equal
 
-		if (joinProcess == null || joinProcess.parentProcess == null)
+//		if (joinProcess == null || joinProcess.parentProcess == null)
+//			return -1;
+//		else if (joinProcess.parentProcess.getID() != 
+//				UserKernel.currentProcess().getID())
+//			return -1;
+			
+		if (joinProcess == null)
 			return -1;
-		else if (joinProcess.parentProcess.getID() != 
-				UserKernel.currentProcess().getID())
-			return -1;
+		else {
+			boolean flag = false;
+			for (UserProcess usr : childProcessList)
+				if (usr.getID() == processID) {
+					flag = true;
+					break;
+				}
+			if (!flag)
+				return -1;
+		}
+				
 		JoinRetValue joinVal = joinProcess.join();
 		int retVal = joinVal.normalExit ? 1 : 0;
 		byte[] data = Lib.bytesFromInt(joinVal.exitStatus);
@@ -688,6 +763,7 @@ public class UserProcess {
 		//write memory in parent thread
 		writeVirtualMemory(status, data);
 		childProcessList.remove(joinProcess);
+		joinProcess.setParent(null);
 		return retVal;
 	}
 	
@@ -696,11 +772,11 @@ public class UserProcess {
 	 */
 	private int handleExit(int status, boolean normalExit) {
 		cleanUp();
-//		if (userProcessTable.isEmpty() || this.processID == 0)
 		exitStatus = status;
 		this.normalExit = normalExit;
 		joinSemaphore.V();
-		if (this.processID == 0)
+		if (userProcessTable.isEmpty())
+//		if (this.processID == 0)
 			//threadedkernel??
 			Kernel.kernel.terminate();
 		KThread.finish();
@@ -758,18 +834,18 @@ public class UserProcess {
 				return handleJoin(a0, a1);
 			case syscallExec:
 				return handleExec(a0, a1, a2);
-			case syscallCreate:
-				return handleOpen(readVirtualMemoryString(a0, 256), true);
-			case syscallOpen:
-				return handleOpen(readVirtualMemoryString(a0, 256), false);
-			case syscallRead:
-				return handleRead(a0, a1, a2);
-			case syscallWrite:
-				return handleWrite(a0, a1, a2);
-			case syscallClose:
-				return handleClose(a0);
-			case syscallUnlink:
-				return handleUnlink(readVirtualMemoryString(a0, 256));
+		case syscallCreate:
+			return handleOpen(a0, true);
+		case syscallOpen:
+			return handleOpen(a0, false);
+		case syscallRead:
+			return handleRead(a0, a1, a2);
+		case syscallWrite:
+			return handleWrite(a0, a1, a2);
+		case syscallClose:
+			return handleClose(a0);
+		case syscallUnlink:
+			return handleUnlink(a0);
 
 			default:
 				Lib.debug(dbgProcess, "Unknown syscall " + syscall);
@@ -984,6 +1060,8 @@ public class UserProcess {
 	private String[] openFileNames;
 	private OpenFile[] fileDescriptorTable;
 	private final int maxOpen = 16;
+	private final int maxBufferSize = 1 << 20;
+	private static Semaphore consoleMutex = new Semaphore(1);
 
 	private int exitStatus;
 	private boolean normalExit;
@@ -997,7 +1075,9 @@ public class UserProcess {
 	private static Semaphore joinSemaphore = new Semaphore(0);
 	private static Semaphore idMutex = new Semaphore(1);
 	private static Semaphore tableMutex = new Semaphore(1);
-	
+
+	private UThread thread;
+
 	class JoinRetValue {
 
 		public boolean normalExit;
