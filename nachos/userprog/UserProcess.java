@@ -574,14 +574,10 @@ public class UserProcess {
 			return -1;
 		if (fd == 1 && openFileNames[fd] == null)
 			return -1;
-		
-		//naive version----------------------------------------------------
 		//byte[] buffer = new byte[count];
 		//int size = fileDescriptorTable[fd].read(buffer, 0, count);
 		//if (size < 0)
 		//	return -1;
-		//return writeVirtualMemory(addr, buffer, 0, size);
-		
 		//upgraded version-----------------------------------------------------
 		int bytesWriteSum = 0;
 		
@@ -602,6 +598,7 @@ public class UserProcess {
 		
 		return bytesWriteSum;
 		//---------------------------------------------------------------------
+		//return writeVirtualMemory(addr, buffer, 0, size);
 	}
 	
 	/**
@@ -614,15 +611,12 @@ public class UserProcess {
 			return -1;
 		if (fd == 0 && openFileNames[fd] == null)
 			return -1;
-		
-		//naive version-------------------------------------------
 //		byte[] buffer = new byte[count];
 //		if (readVirtualMemory(addr, buffer) < count) 
 //			return -1;
 //		return fileDescriptorTable[fd].write(buffer, 0, count);
 		int bytesWriteSum = 0;
 		
-		//upgraded version------------------------------------------
 		while(count > 0){
 			byte[] buffer = new byte[Math.min(count, maxBufferSize)];
 			count -= buffer.length;

@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.PriorityQueue;
 import java.util.Random;
+import java.util.Set;
 
 
 /**
@@ -51,6 +52,12 @@ public class LotteryScheduler extends PriorityScheduler {
 		return new LotteryThreadQueue(transferPriority);
 	}	
 
+    public ThreadQueue newThreadQueue(boolean transferPriority, KThread thread){
+    	ThreadQueue q =  new LotteryThreadQueue(transferPriority);
+    	((BasePriorityThreadQueue)q).dequeuedThread = getThreadState(thread);
+    	return q;
+    }
+
 	/**
 	 * Return the scheduling state of the specified thread.
 	 *
@@ -82,86 +89,494 @@ public class LotteryScheduler extends PriorityScheduler {
 	 */
 	public static final int priorityMaximum = Integer.MAX_VALUE;
 
+	protected static void printInfo(PriorityScheduler s,
+			KThread [] threads, ThreadQueue [] queues){
+		for(int i = 0; i < threadsNum; i++)
+			printThreadInfo(s, threads[i]);
+		for(int i = 0; i < queueNum; i++)
+			queues[i].print();
+	}
+
+	static int queueNum = 10;
+	static int threadsNum = 12;
+	// static int PRINTING = 0;
+	
+	public static void selfTestRun(KThread t1, int p1, KThread t2, int p2, KThread t3, int p3) {
+		boolean int_state = Machine.interrupt().disable();
+		ThreadedKernel.scheduler.setPriority(t1, p1);
+		ThreadedKernel.scheduler.setPriority(t2, p2);
+		ThreadedKernel.scheduler.setPriority(t3, p3);
+		Machine.interrupt().restore(int_state);
+		t1.setName("Thread 1").fork();		
+		t2.setName("Thread 2").fork();		
+		t3.setName("Thread 3").fork();
+		t1.join();
+		t2.join();
+		t3.join();
+	}
+	
+//	@Override
+	public static void selfTestRun(KThread t1, int p1, KThread t2, int p2, KThread t3, int p3, KThread t4, int p4) {
+
+		boolean int_state = Machine.interrupt().disable();
+		ThreadedKernel.scheduler.setPriority(t1, p1);
+		ThreadedKernel.scheduler.setPriority(t2, p2);
+		ThreadedKernel.scheduler.setPriority(t3, p3);
+		ThreadedKernel.scheduler.setPriority(t4, p4);
+		Machine.interrupt().restore(int_state);
+		t1.setName("Thread 1").fork();		
+		t2.setName("Thread 2").fork();		
+		t3.setName("Thread 3").fork();
+		t4.setName("Thread 4").fork();
+		t1.join();
+		t2.join();
+		t3.join();
+		t4.join();
+	}	
+	
+	public static void selfTest__() {
+
+		KThread t1, t2, t3;
+		final Lock lock;
+		final Condition condition;
+		final LotteryScheduler l = new LotteryScheduler();
+		
+		
+		/*
+		 * Test 0: without donation and priority change
+		 *
+		 */
+
+		System.out.println("Test 0");
+
+		t1 = new KThread(new Runnable() {
+			public void run() {
+				System.out.println(KThread.currentThread().getName());
+				for(int i = 0; i < 10; ++i) {
+					System.out.println(KThread.currentThread().getName() + " working " + i);	
+					KThread.yield();
+				}
+				System.out.println(KThread.currentThread().getName());
+			}
+		});
+		
+		t2 = new KThread(new Runnable() {
+			public void run() {
+				System.out.println(KThread.currentThread().getName());
+				for(int i = 0; i < 10; ++i) {
+					System.out.println(KThread.currentThread().getName() + " working " + i);	
+					KThread.yield();
+				}
+				System.out.println(KThread.currentThread().getName());
+			}
+		});
+		
+		t3 = new KThread(new Runnable() {
+			public void run() {
+				System.out.println(KThread.currentThread().getName());
+				for(int i = 0; i < 10; ++i) {
+					System.out.println(KThread.currentThread().getName() + " working " + i);	
+					KThread.yield();
+				}
+				System.out.println(KThread.currentThread().getName());
+			}
+		});
+	
+		selfTestRun(t1, 60000, t2, 500, t3, 4);
+
+		/*
+		 * Test 1: without donation and priority change
+		 *
+		 */
+
+		System.out.println("Test 1");
+
+		t1 = new KThread(new Runnable() {
+				public void run() {
+					System.out.println(KThread.currentThread().getName());
+					for(int i = 0; i < 10; ++i) {
+						System.out.println(KThread.currentThread().getName() + " working " + i);	
+						KThread.yield();
+					}
+					System.out.println(KThread.currentThread().getName());
+				}
+			});
+		
+		t2 = new KThread(new Runnable() {
+			public void run() {
+				System.out.println(KThread.currentThread().getName());
+				for(int i = 0; i < 10; ++i) {
+					System.out.println(KThread.currentThread().getName() + " working " + i);	
+					KThread.yield();
+				}
+				System.out.println(KThread.currentThread().getName());
+			}
+		});
+		
+		t3 = new KThread(new Runnable() {
+			public void run() {
+				System.out.println(KThread.currentThread().getName());
+				for(int i = 0; i < 10; ++i) {
+					System.out.println(KThread.currentThread().getName() + " working " + i);	
+					KThread.yield();
+				}
+				System.out.println(KThread.currentThread().getName());
+			}
+		});
+
+		selfTestRun(t1, 6, t2, 5, t3, 4);
+
+		/*
+		 * Test 2: without donation but with priority change
+		 *
+		 */
+		
+		
+		System.out.println("Test 2");
+
+		t1 = new KThread(new Runnable() {
+			public void run() {
+				System.out.println(KThread.currentThread().getName());
+				for(int i = 0; i < 10; ++i) {
+					System.out.println(KThread.currentThread().getName() + " working " + i);
+					if (i == 2) {
+						System.out.println(KThread.currentThread().getName() + " changes priority from 6 to 1");
+						boolean int_state = Machine.interrupt().disable();
+						ThreadedKernel.scheduler.setPriority(1);
+						KThread a = KThread.currentThread();
+						System.out.println(l.getEffectivePriority(a));
+						Machine.interrupt().restore(int_state);
+					}
+					KThread.yield();
+				}
+				System.out.println(KThread.currentThread().getName());
+			}
+		});
+	
+		t2 = new KThread(new Runnable() {
+			public void run() {
+				System.out.println(KThread.currentThread().getName());
+				for(int i = 0; i < 10; ++i) {
+					System.out.println(KThread.currentThread().getName() + " working " + i);	
+					if (i == 5) {
+						System.out.println(KThread.currentThread().getName() + " changes priority from 5 to 7");
+						boolean int_state = Machine.interrupt().disable();
+						ThreadedKernel.scheduler.setPriority(7000000);
+						KThread a = KThread.currentThread();
+						System.out.println(l.getEffectivePriority(a));
+						Machine.interrupt().restore(int_state);
+					}
+					KThread.yield();
+				}
+				System.out.println(KThread.currentThread().getName());
+			}
+		});
+	
+		t3 = new KThread(new Runnable() {
+			public void run() {
+				System.out.println(KThread.currentThread().getName());
+				for(int i = 0; i < 10; ++i) {
+					System.out.println(KThread.currentThread().getName() + " working " + i);
+					KThread.yield();
+				}
+				System.out.println(KThread.currentThread().getName());
+			}
+		});
+
+		selfTestRun(t1, 60000, t2, 500, t3, 4);
+
+		/*
+		 * Test 3: with donation and priority change
+		 *
+		 */
+		
+		System.out.println("Test 3");
+
+		lock = new Lock();
+	//	final Lock lock2 = new Lock();
+		condition = new Condition( lock );
+	//	final Condition condition2 = new Condition(lock2);
+
+		final KThread t01 = new KThread(new Runnable() {
+			public void run() {
+		//		lock2.acquire();
+	//			KThread.yield();
+		//		KThread.yield();
+				System.out.println(KThread.currentThread().getName());
+				boolean int_state = Machine.interrupt().disable();
+				ThreadedKernel.scheduler.setPriority(1);
+				KThread a = KThread.currentThread();
+				System.out.println(l.getEffectivePriority(a));
+				Machine.interrupt().restore(int_state);
+				System.out.println(KThread.currentThread().getName());
+				KThread.yield();
+				int_state = Machine.interrupt().disable();
+				a = KThread.currentThread();
+				System.out.println(l.getEffectivePriority(a));
+				Machine.interrupt().restore(int_state);
+				System.out.println(KThread.currentThread().getName());
+				KThread.yield();
+				System.out.println(KThread.currentThread().getName());
+		//		lock2.release();
+			}
+		});
+
+		final KThread t02 = new KThread(new Runnable() {
+			public void run() {
+//				KThread.yield();
+//				KThread.yield();
+				System.out.println(KThread.currentThread().getName());
+				lock.acquire();
+				boolean int_state = Machine.interrupt().disable();
+				ThreadedKernel.scheduler.setPriority(2);
+				KThread a = KThread.currentThread();
+				System.out.println(l.getEffectivePriority(a));
+				Machine.interrupt().restore(int_state);
+				System.out.println(KThread.currentThread().getName()+"yield");
+				KThread.yield();
+			//	lock2.acquire();
+				System.out.println("t01 join t01");
+				t01.join();
+				System.out.println(KThread.currentThread().getName());
+				lock.release();
+			//	lock2.release();
+				System.out.println(KThread.currentThread().getName());
+			}
+		});
+
+		final KThread t03 = new KThread(new Runnable() {
+			public void run() {
+	//			KThread.yield();
+	//			KThread.yield();
+				System.out.println(KThread.currentThread().getName());
+				lock.acquire();
+				System.out.println(KThread.currentThread().getName());
+			}
+		});
+		
+		final KThread t04 = new KThread(new Runnable() {
+			public void run() {
+	//			KThread.yield();
+	//			KThread.yield();
+				System.out.println(KThread.currentThread().getName());
+				System.out.println("t01:" + l.getThreadState(t01).effectivePriority);
+				System.out.println("t02:" + l.getThreadState(t02).effectivePriority);
+				System.out.println("t03:" + l.getThreadState(t03).effectivePriority);
+				System.out.println("t04:" + l.getThreadState(KThread.currentThread()).effectivePriority);
+				for( int i = 0; i < 2; ++i ) {
+					System.out.println( KThread.currentThread().getName() + " working " + i );	
+					KThread.yield();
+				}
+				System.out.println(KThread.currentThread().getName());
+			}
+		});
+
+		selfTestRun(t01, 1000000, t02, 10000, t03, 5, t04, 4);
+	}
+	
 	public static void selfTest() {
 		System.out.println("---------LotteryScheduler test---------------------");
 		LotteryScheduler s = new LotteryScheduler();
-		ThreadQueue queue1 = s.newThreadQueue(true);
-		ThreadQueue queue2 = s.newThreadQueue(true);
-		ThreadQueue queue3 = s.newThreadQueue(true);
+		
+		ThreadQueue [] queues = new ThreadQueue[queueNum];
+		for(int i = 0; i < queueNum; i++){
+			queues[i] = s.newThreadQueue(true);
+		}
 
-		KThread thread1 = new KThread();
-		KThread thread2 = new KThread();
-		KThread thread3 = new KThread();
-		KThread thread4 = new KThread();
-		KThread thread5 = new KThread();
-		thread1.setName("thread1");
-		thread2.setName("thread2");
-		thread3.setName("thread3");
-		thread4.setName("thread4");
-		thread5.setName("thread5");
+		KThread [] threads = new KThread[threadsNum];
+		for(int i = 0; i < threadsNum; i++){
+			threads[i] = new KThread();
+			threads[i].setName("thread" + i);
+		}
 
+		KThread thread_temp;
 
 		boolean intStatus = Machine.interrupt().disable();
+		// PRINTING = 1;
+		/**
+		 * Test for case 1
+		 */
+		System.out.println("\nCase 1:");
+		queues[0].acquire(threads[0]);
+		System.out.println("Thread 0 acquires resource 0");
+		queues[0].waitForAccess(threads[6]);
+		System.out.println("Thread 6 waits for resource 0");
+		queues[0].waitForAccess(threads[7]);
+		System.out.println("Thread 7 waits for resource 0");
 
+		queues[4].acquire(threads[6]);
+		System.out.println("Thread 6 acquires resource 4");
+		queues[4].waitForAccess(threads[8]);
+		System.out.println("Thread 8 waits for resource 4");
+		queues[4].waitForAccess(threads[9]);
+		System.out.println("Thread 9 waits for resource 4");
+
+		queues[5].acquire(threads[7]);
+		System.out.println("Thread 7 acquires resource 5");
+		queues[5].waitForAccess(threads[10]);
+		System.out.println("Thread 10 waits for resource 5");
+		queues[5].waitForAccess(threads[11]);
+		System.out.println("Thread 11 waits for resource 5");
+
+		queues[1].acquire(threads[1]);
+		System.out.println("Thread 1 acquires resource 1");
+		queues[1].waitForAccess(threads[2]);
+		System.out.println("Thread 2 waits for resource 1");
+		queues[1].waitForAccess(threads[5]);
+		System.out.println("Thread 5 waits for resource 1");
+		queues[2].acquire(threads[1]);
+		System.out.println("Thread 1 acquires resource 2");
+		s.getThreadState(threads[4]).setPriority(4);
+		System.out.println("Thread 4 set priority to 4");
+
+		queues[1].waitForAccess(threads[0]);
+		System.out.println("Thread 0 waits for resource 1");
+
+		/*
+		queue2.waitForAccess(thread4);
+		System.out.println("Thread 4 waits for resource 2");
+		*/
+		queues[3].acquire(threads[5]);
+		System.out.println("Thread 5 acquires resource 3");
+		queues[3].waitForAccess(threads[3]);
+		System.out.println("Thread 3 waits for resource 3");
+
+		queues[6].acquire(threads[8]);
+		System.out.println("Thread 8 acquires resource 6");
+		queues[6].waitForAccess(threads[9]);
+		System.out.println("Thread 9 waits for resource 6");
+		printInfo(s, threads, queues);
+		// PRINTING = 0;
+		/*
+		System.out.println("[r0](t0)<-(t6,t7)");
+		System.out.println("[r4](t6)<-(t8,t9)");
+		System.out.println("[r5](t7)<-(t10,t11)");
+		System.out.println("[r1](t1)<-(t2,t5,t0)");
+		System.out.println("[r2](t1)");
+		System.out.println("[r3](t5)<-(t3)");
+		*/
+
+		/**
+		 * Test for case 2
+		 */
+		System.out.println("\nCase 2:");
+		s.getThreadState(threads[2]).setPriority(5);
+		System.out.println("Thread 2 set priority to 5");
+		s.setPriority(threads[6], 5);
+		System.out.println("Thread 6 set priority to 5");
+		printInfo(s, threads, queues);
+		/*
+		System.out.println("[r0](t0)<-(t6,t7)");
+		System.out.println("[r4](t6)<-(t8,t9)");
+		System.out.println("[r5](t7)<-(t10,t11)");
+		System.out.println("[r1](t1)<-(t2,t5)");
+		System.out.println("[r2](t1)");
+		System.out.println("[r3](t5)<-(t3)");
+		*/
+
+		/**
+		 * Test for case 3
+		 */
+		System.out.println("\nCase 3:");
+		queues[2].waitForAccess(threads[4]);
+		System.out.println("Thread 4 waits for resource 2");
+		s.getThreadState(threads[3]).setPriority(6);
+		System.out.println("Thread 3 set priority to 6");
+
+		printInfo(s, threads, queues);
+		/*
+		System.out.println("[r0](t0)<-(t6,t7)");
+		System.out.println("[r4](t6)<-(t8,t9)");
+		System.out.println("[r5](t7)<-(t10,t11)");
+		System.out.println("[r1](t1)<-(t2,t5)");
+		System.out.println("[r2](t1)<-(t4)");
+		System.out.println("[r3](t5)<-(t3)");
+		*/
+
+		/**
+		 * Test for case 4
+		 */
+		/*
+		System.out.println("\nCase 4:");
+		s.getThreadState(thread3).setPriority(5);
+		System.out.println("Thread 3 set priority to 3");
+
+		printInfo(s, threads);
+		System.out.println("[r1](t1)<-(t2,t5)");
+		System.out.println("[r2](t1)<-(t4)");
+		System.out.println("[r3](t5)<-(t3)");
+		*/
+
+		/**
+		 * Test for case 5
+		 */
+		System.out.println("\nCase 5:");
+		thread_temp = queues[1].nextThread();
+		System.out.println("Thread 1 release resource 1");
+		printThreadInfo(s, thread_temp);
+		System.out.println("-------------");
+
+		printInfo(s, threads, queues);
+		/*
+		System.out.println("[r0](t0)<-(t6,t7)");
+		System.out.println("[r4](t6)<-(t8,t9)");
+		System.out.println("[r5](t7)<-(t10,t11)");
+		System.out.println("[r1]()<-(t2,t5)");
+		System.out.println("[r2](t1)<-(t4)");
+		System.out.println("[r3](t5)<-(t3)");
+		*/
+
+		/**
+		 * Test for case 6
+		 */
+		System.out.println("\nCase 6:");
+		s.getThreadState(threads[4]).setPriority(2);
+		System.out.println("Thread 4 set priority to 2");
+
+		printInfo(s, threads, queues);
+		/*
+		System.out.println("[r1]()<-(t2,t5)");
+		System.out.println("[r2](t1)<-(t4)");
+		System.out.println("[r3](t5)<-(t3)");
+		*/
+
+		/*
 		queue1.acquire(thread1);
 		System.out.println("Thread 1 acquires resource 1");
 		queue1.waitForAccess(thread2);
 		System.out.println("Thread 2 waits for resource 1");
 		queue1.waitForAccess(thread3);
 		System.out.println("Thread 3 waits for resource 1");
-		printThreadInfo(s, thread1);
-		printThreadInfo(s, thread2);
-		printThreadInfo(s, thread3);
-		printThreadInfo(s, thread4);
-		printThreadInfo(s, thread5);
+		printInfo(s, threads);
 
 		System.out.println("~~~~~~~~Thread4 aquires queue2 thread1 waits~~~~~~~~~`");
 		queue2.acquire(thread4);
 		System.out.println("Thread 4 acquires resource 2");
 		queue2.waitForAccess(thread1);
 		System.out.println("Thread 1 waits for resource 2");
-		printThreadInfo(s, thread1);
-		printThreadInfo(s, thread2);
-		printThreadInfo(s, thread3);
-		printThreadInfo(s, thread4);
-		printThreadInfo(s, thread5);
+		printInfo(s, threads);
 
 		System.out.println("~~~~~~~~thread2 priority changed to 2~~~~~~~~~`");
 		s.setPriority(thread2, 2);
 		System.out.println("Thread 2 set priority to 2");
-		printThreadInfo(s, thread1);
-		printThreadInfo(s, thread2);
-		printThreadInfo(s, thread3);
-		printThreadInfo(s, thread4);
-		printThreadInfo(s, thread5);
+		printInfo(s, threads);
 
 		System.out.println("~~~~~~~~thread2 priority changed to 1~~~~~~~~~`");
 		s.setPriority(thread2, 1);
 		System.out.println("Thread 2 set priority to 1");
-		printThreadInfo(s, thread1);
-		printThreadInfo(s, thread2);
-		printThreadInfo(s, thread3);
-		printThreadInfo(s, thread4);
-		printThreadInfo(s, thread5);
+		printInfo(s, threads);
 
 		System.out.println("~~~~~~~~Thread5 waits on queue1~~~~~~~~~`");
 		queue1.waitForAccess(thread5);
 		System.out.println("Thread 5 waits for resource 1");
 
-		printThreadInfo(s, thread1);
-		printThreadInfo(s, thread2);
-		printThreadInfo(s, thread3);
-		printThreadInfo(s, thread4);
-		printThreadInfo(s, thread5);
+		printInfo(s, threads);
 
 		System.out.println("~~~~~~~~thread2 priority changed to 8~~~~~~~~~`");
 		s.setPriority(thread2, 8);
 		System.out.println("Thread 2 set priority to 8");
-		printThreadInfo(s, thread1);
-		printThreadInfo(s, thread2);
-		printThreadInfo(s, thread3);
-		printThreadInfo(s, thread4);
-		printThreadInfo(s, thread5);
+		printInfo(s, threads);
+		*/
 		ThreadQueue newQueue;
 
 		KThread thread00, thread10, thread20;
@@ -269,6 +684,8 @@ public class LotteryScheduler extends PriorityScheduler {
 		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
 		System.out.println("thread5 EP="+s.getThreadState(thread5).getEffectivePriority());
 		 */
+		Machine.interrupt().restore(intStatus);
+		System.out.println("");
 	}
 
 	protected class LotteryThreadQueue extends BasePriorityThreadQueue{
@@ -293,6 +710,41 @@ public class LotteryScheduler extends PriorityScheduler {
 		 * @return HighestPriority KThread
 		 */
 		public KThread nextThread(){
+			Lib.assertTrue(Machine.interrupt().disabled());
+
+			BaseThreadState pickedThread = pickNextThread();
+			if (transferPriority && pickedThread != null) {
+				if (this.dequeuedThread != null) {
+					this.dequeuedThread.removeQueue(this);
+				}
+				pickedThread.waitingOn = null;
+				pickedThread.addQueue(this);
+			}
+			this.dequeuedThread = pickedThread;
+			if (this.dequeuedThread != null){
+				this.priorityQueue.remove(dequeuedThread);
+				this.dequeuedThread.updateEffectivePriority();
+				return this.dequeuedThread.thread;
+			}
+			else
+				return null;
+		}
+
+		/**
+		 * Return the next thread that <tt>nextThread()</tt> would return,
+		 * without modifying the state of this queue.
+		 *
+		 * @return the next thread that <tt>nextThread()</tt> would
+		 * return.
+		 */
+		protected BaseThreadState pickNextThread() {
+			boolean intStatus = Machine.interrupt().disable();
+
+			//ensure priorityQueue is properly ordered
+			//does this take the old priorityQueue and reorder it? YES!!!
+			//this.priorityQueue = new PriorityQueue<ThreadState>(priorityQueue);
+
+			Machine.interrupt().restore(intStatus);
 			//Create a counter for total number of tickets
 			int totTickets = 0;
 			//create a LinkedList of threads and another of the tickets associated with that thread
@@ -326,43 +778,7 @@ public class LotteryScheduler extends PriorityScheduler {
 					}
 				}
 			}
-			if (transferPriority && pickedThread != null) {
-				if (this.dequeuedThread != null) {
-					this.dequeuedThread.removeQueue(this);
-				}
-				pickedThread.waitingOn = null;
-				pickedThread.addQueue(this);
-			}
-			this.dequeuedThread = pickedThread;
-			if (this.dequeuedThread != null){
-				this.priorityQueue.remove(dequeuedThread);
-				this.dequeuedThread.updateEffectivePriority();
-				return this.dequeuedThread.thread;
-			}
-			else
-				return null;
-		}
-
-		/**
-		 * Return the next thread that <tt>nextThread()</tt> would return,
-		 * without modifying the state of this queue.
-		 *
-		 * @return the next thread that <tt>nextThread()</tt> would
-		 * return.
-		 */
-		protected BaseThreadState pickNextThread() {
-			boolean intStatus = Machine.interrupt().disable();
-
-			//ensure priorityQueue is properly ordered
-			//does this take the old priorityQueue and reorder it? YES!!!
-			//this.priorityQueue = new PriorityQueue<ThreadState>(priorityQueue);
-
-			Machine.interrupt().restore(intStatus);
-			return this.priorityQueue.peek();
-		}
-		public void print() {
-			Lib.assertTrue(Machine.interrupt().disabled());
-			// implement me (if you want)
+			return pickedThread;
 		}
 
 		/**
@@ -405,6 +821,7 @@ public class LotteryScheduler extends PriorityScheduler {
 		 */
 		public ThreadState(KThread thread) {
 			super(thread);
+			waitedBySet.clear();
 		}
 
 		/**
@@ -413,25 +830,51 @@ public class LotteryScheduler extends PriorityScheduler {
 		 */
 		@Override
 		public void updateEffectivePriority() {
-			int initialEffective = this.getEffectivePriority();
-			int initialPriority = this.getPriority();
-			int outsideEP = 0;
+			int totEP = 0;
+			waitedBySet.clear();
+			waitedBySet.add(this);
 			for(int i = 0; i < waitedBy.size(); i++){
 				LotteryThreadQueue current = (LotteryThreadQueue) waitedBy.get(i);
+				if (!current.transferPriority)
+					continue;
 				Iterator<BaseThreadState> threadIT = current.priorityQueue.iterator();
 				while(threadIT.hasNext()){
-					BaseThreadState currentThread = threadIT.next();
-					outsideEP += currentThread.getEffectivePriority();
+					ThreadState currentThread = (ThreadState) threadIT.next();
+					waitedBySet.add(currentThread);
+					waitedBySet.addAll(currentThread.waitedBySet);
+					// outsideEP += currentThread.getEffectivePriority();
 				}
 			}
-			int totEP = initialPriority + outsideEP;
+			LotteryThreadQueue queue = (LotteryThreadQueue) thread.joinQueue;
+			if (queue != null)
+				if (queue.transferPriority){
+					Iterator<BaseThreadState> threadIT = queue.priorityQueue.iterator();
+					while(threadIT.hasNext()){
+						ThreadState currentThread = (ThreadState) threadIT.next();
+						waitedBySet.add(currentThread);
+						waitedBySet.addAll(currentThread.waitedBySet);
+					}
+				}
+			/*
+			if (PRINTING > 0 && this.thread.getName().equals("thread6")){
+				System.out.println("---------------------");
+				System.out.println(this.toString());
+				for(ThreadState currentThread:waitedBySet){
+					System.out.println(currentThread.toString());
+				}
+			}
+			*/
+			for(ThreadState currentThread:waitedBySet){
+				totEP += currentThread.priority;
+			}
 			effectivePriority = totEP;
 			Lib.assertTrue( effectivePriority > 0,
 					"new effectivePriority should be positive");
 			//now that my own effectivePriority Changes I have to recalculate the threads which i am waiting on
 			if (waitingOn != null && waitingOn.dequeuedThread != null){
 				//System.out.println(totEP - initialEffective);
-				((ThreadState) waitingOn.dequeuedThread).addToAllEffective(effectivePriority - initialEffective);
+// 				((ThreadState) waitingOn.dequeuedThread).addToAllEffective(effectivePriority - initialEffective);
+				waitingOn.dequeuedThread.updateEffectivePriority();
 			}
 		}
 
@@ -505,6 +948,7 @@ public class LotteryScheduler extends PriorityScheduler {
 			this.updateEffectivePriority();
 		}
 
+		Set<ThreadState> waitedBySet = new HashSet<ThreadState>();
 		protected boolean dirty;
 	}
 }
