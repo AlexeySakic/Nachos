@@ -671,7 +671,7 @@ public class UserProcess {
 	 */
 	private int handleExit(int status, boolean normalExit) {
 		cleanUp();
-		if (userProcessTable.isEmpty())
+		if (processID == 0)
 			//threadedkernel??
 			Kernel.kernel.terminate();
 		exitStatus = status;

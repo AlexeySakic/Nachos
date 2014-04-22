@@ -1,26 +1,22 @@
 \documentclass{article}
-\usepackage{amsmath,amsfonts,amsthm,amssymb,ulem}
+\usepackage{amsmath,amsfonts,amsthm,amssymb}
 \usepackage{listings}
-\usepackage{xcolor}
 \usepackage{setspace}
 \usepackage{paralist}
 \usepackage{fancyhdr}
 \usepackage{lastpage}
 \usepackage{extramarks}
 \usepackage{chngpage}
-\usepackage{color}
-% \usepackage{soul,color}
+\usepackage{indentfirst}
+\usepackage{soul,color}
 \usepackage{graphicx,float,wrapfig}
 \usepackage{mathrsfs}
-% \usepackage{algorithm}
-% \usepackage{algorithmic}
-\usepackage{algorithm, algpseudocode}
-\usepackage{tikz}
+\usepackage[T1]{fontenc} % to be able to use < and > directly
 \definecolor{pblue}{rgb}{0.13,0.13,1}
 \definecolor{pgreen}{rgb}{0,0.5,0}
 \definecolor{pred}{rgb}{0.9,0,0}
 \definecolor{pgrey}{rgb}{0.46,0.45,0.48}
-\lstset{language=Java,
+\lstset{
   showspaces=false,
   showtabs=false,
   breaklines=true,
@@ -33,10 +29,17 @@
   moredelim=[il][\textcolor{pgrey}]{$$},
   moredelim=[is][\textcolor{pgrey}]{\%\%}{\%\%}
 }
-\usetikzlibrary{arrows,positioning,automata,shadows,fit,shapes}
+% \usepackage{algorithm}
+% \usepackage{algorithmic}
+% \usepackage{algpseudocode}
+\usepackage[ruled, vlined, lined, boxed, commentsnumbered,linesnumbered]{algorithm2e}
+\usepackage[pdfauthor={XeLaTeX},%
+pdftitle={Final Report}]{hyperref}
+
+% \usepackage{tikz}
 % \usepackage{pgffor}
-\newcommand{\xd}{\leqslant}
-\newcommand{\dd}{\geqslant}
+\renewcommand{\gets}{%
+  \ensuremath{\leftarrow}}
 % In case you need to adjust margins:
 \topmargin=-0.45in      %
 \evensidemargin=0in     %
@@ -71,8 +74,8 @@
 \newcommand{\ClassInstructor}{Xu Wei}
 
 % Homework Specific Information. Change it to your own
-\newcommand{\Title}{Nachos Phase 1 Final Report}
-\newcommand{\DueDate}{March 11, 2014}
+\newcommand{\Title}{Nachos Phase 2 Final Report}
+\newcommand{\DueDate}{April 22, 2014}
 \title{\textmd{\bf \Class: \Title}\\{\large Instructed by \textit{\ClassInstructor}}\\\normalsize\vspace{0.1in}\small{Due\ on\ \DueDate}}
 \date{}
 
@@ -84,6 +87,8 @@
   Zhou XuRen 2011012353}
 \newcommand{\StudentClass}{Yao Class}
 
+\definecolor{myyellow}{RGB}{255, 255, 60}
+
 % \author{\textbf{\StudentName}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -93,945 +98,640 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Begin edit from here
 
-\theoremstyle{plain} \newtheorem{computational}{Definition}
-    \section{Task 1}
 
-\subsection{Correctness Constraints}
-\begin{enumerate}
-  \item[$\bullet$] Caller thread waits (sleep) until callee thread finishes.
-  \item[$\bullet$] If callee thread has finishes, \texttt{join()} just returns
-    directly.
-  \item[$\bullet$] All the threads except caller thread should not be effected. 
-\end{enumerate}
-
-\subsection{Declarations}
-Here, we can see that in order to implement \texttt{join()} method, we need callee
-thread sends a signal to caller thread once callee finished. Therefore, we use
-semaphore to reach this goal. 
-\begin{enumerate}
-  \item[$\bullet$] \textit{data structures}: \texttt{Semaphore}.
-  \item[$\bullet$] \textit{member variable}:
-    \begin{enumerate}
-
-  \item \textbf{private} \texttt{Semaphore KThread::finishSemaphore}, initially 0;
-\end{enumerate}
-indicate whether the thread is finished: \texttt{value} = 0 means unfinished, while
-\texttt{value} = 1 means finished.
-
-\end{enumerate}
-
-\subsection{Description}
-because \texttt{KThread::finishSemaphore} is a private
-member variable, we need to modify its value in methord \texttt{finish()}.
-The pseudo code is as follows:
-\begin{algorithm}[htbp]
-  \caption{\texttt{KThread::join()}}
-  \begin{algorithmic}[1]
-    \State /* the given code */
-    \State finishSemaphore.P();
-    \State finishSemaphore.V();
-  \end{algorithmic}
-\end{algorithm}
-
-\begin{algorithm}[htbp]
-  \caption{\texttt{KThread::finish()}}
-  \begin{algorithmic}[1]
-    \State /* the given code except sleep() */
-    \State finishSemaphore.V();
-    \State sleep(); // this code is the last line in the orginal KThread::finish()
-  \end{algorithmic}
-\end{algorithm}
-{\color{red}Here, although the task description say that calling \texttt{join}() a second time is undefined, 
-our code well define the second calling of $\texttt{join}$(). Thus our test code will do call the same thread's
-\texttt{join} second time.}
-
-\subsection{Testing Plan}
-\subsubsection{Runnable Interface}
-We implement a \texttt{Runnable} to be \texttt{Caller}, it has following member variable:
-\begin{enumerate}
-  \item[$\bullet$] \texttt{which1}: index of caller thread.
-  \item[$\bullet$] \texttt{which2}: index of callee thread; if there is no callee thread,
-    it will be assigned with -1.
-  \item[$\bullet$] \texttt{calleeThread}: callee thread; if there is no callee thread, it 
-    will be assigned with \texttt{null}.
-  \item[$\bullet$] \texttt{times1}: the loop times before calling \texttt{join}().
-  \item[$\bullet$] \texttt{times2}: the loop times after calling \texttt{join}().
-\end{enumerate}
-When a thread is assigned with \texttt{Caller}, it will loop for \texttt{times1} times. Then if
-\texttt{calleeThread} is not \texttt{null}, it calls \texttt{calleeThread.join}(); o.w. does nothing.
-Then it will loop for \texttt{times2} times. Here we use empty loop to simulate the running of a thread.
-We will print the loop execution as ping test. And we will print the join start and finish information.
-\subsubsection{Case}
-\begin{enumerate}
-  \item[] case 1: 
-    \begin{enumerate}
-      \item[$\bullet$] \textit{description}: Only 2 thread, \texttt{thread1} and \texttt{thread2}. 
-	\texttt{thread1} calls \texttt{thread2.join()} before \texttt{thread2} finishes.
-      \item[$\bullet$] \textit{purpose}: To check whether \texttt{thread1} waits \texttt{thread2} to finish.
-      \item[$\bullet$] \textit{how it works}: According to the printed information, we can check that
-	after \texttt{thread2} joins into \texttt{thread1}, only \texttt{thread2} runs until it finishs
-	then \texttt{thread1} continues.
-      \item[$\bullet$] \textit{critical code}:
-	\begin{lstlisting}
-	thread2 = new KThread(new Caller(2, -1, null, 1, 3));
-	thread1 = new KThread(new Caller(1, 2, thread2, 2, 4));
-	\end{lstlisting} 
-    \end{enumerate}
-  \item[] case 2:
-    \begin{enumerate}
-      \item[$\bullet$] \textit{description}: Only 2 thread, \texttt{thread1} and \texttt{thread2}.
-	\texttt{thread1} calls \texttt{thread2.join()} after \texttt{thread2} finishes.
-      \item[$\bullet$] \textit{purpose}: To check whether \texttt{join}() just returns if \texttt{thread2} has finished.
-      \item[$\bullet$] \textit{how it works}: According to the printed information, we see if \texttt{thread2}
-	still runs.
-      \item[$\bullet$] \textit{critical code}:
-	\begin{lstlisting}
-	thread2 = new KThread(new Caller(2, -1, null, 2, 0));
-	thread1 = new KThread(new Caller(1, 2, thread2, 4, 2));
-        \end{lstlisting}
-      \end{enumerate}
-  \item[] case 3:
-    \begin{enumerate}
-      \item[$\bullet$] \textit{description}: Only 3 thread, \texttt{thread1},\texttt{thread2} and
-	\texttt{thread3}. \texttt{thread1} calls \texttt{thread2.join()} while \texttt{thread2} calls \texttt{thread3.join()}.
-      \item[$\bullet$] \textit{purpose}: To check whether mutiple \texttt{join}() work well.
-      \item[$\bullet$] \textit{how it works}: \texttt{thread2} waits \texttt{thread3} and \texttt{thread1} waits \texttt{thread2}.
-      \item[$\bullet$] \textit{critical code}:
-	\begin{lstlisting}
-	thread3 = new KThread(new Caller(3, -1, null, 7, 0));
-	thread2 = new KThread(new Caller(2, 3, thread3, 1, 3));
-	thread1 = new KThread(new Caller(1, 2, thread2, 4, 2));
-        \end{lstlisting}
-    \end{enumerate}
-  \item[] case 4:
-    \begin{enumerate}
-      \item[$\bullet$] \textit{description}: Only 3 thread, \texttt{thread1},\texttt{thread2} and
-	\texttt{thread3}. \texttt{thread1} calls \texttt{thread2.join()}.
-      \item[$\bullet$] \textit{purpose}: To check that \texttt{thread3} will not be affected.
-      \item[$\bullet$] \textit{how it works}: To see that during \texttt{thread2} joins into \texttt{thread1}, 
-	\texttt{thread3} still runs.
-      \item[$\bullet$] \textit{critical code}:
-	\begin{lstlisting}
-	thread3 = new KThread(new Caller(4,-1, null, 10, 0));
-	thread2 = new KThread(new Caller(2, -1, null, 1, 3));
-	thread1 = new KThread(new Caller(1, 2, thread2, 2, 4));	
-        \end{lstlisting}
-    \end{enumerate}
-\end{enumerate}
-\subsubsection{Code Location}
-All these code is in \texttt{nachos.threads.KThread.java}, \texttt{Caller} is a implementation of \texttt{Runnable} 
-interface and test code is in \texttt{selfTest} methord.
-    \section{Task 2}
-    \subsection{Implementation}
-    \texttt{sleep()}: we can first disable interrupts in order to make a small critical section, in which we only need to put it in a \texttt{ThreadQueue()} and announce it to sleep.
-
-    \texttt{wake()}: it can be realized by taking the first element in the queue out, and call the \texttt{ready()} function.
-
-    \texttt{wakeAll()} can be done by iteratively taking elements out of the queue and call the \texttt{read()} function.
-
-    \subsection{Pseudocode}
-    \textit{Variables: }
-    \texttt{waitQueue = \color{blue}new ThreadedKernel.scheduler.newThreadQueue(false);} is a \texttt{ThreadQueue} for threads blocked by \texttt{sleep()}.
-    \begin{algorithm}[htbp]
-      \caption{ \texttt{void Condition2::sleep()}}
-      \begin{algorithmic}
-	\State Disable interrupts
-	\State Release \texttt{conditionLock}
-	\State \texttt{waitQueue.waitForAccess(KThread.currentThread())}
-	\State	\texttt{KThread.sleep()}
-	\State Acquire \texttt{conditionLock}
-	\State Enable interrupts
-      \end{algorithmic}
-    \end{algorithm}
-
-    \begin{algorithm}[htbp]
-      \caption{ \texttt{void Condition2::wake()}}
-      \begin{algorithmic}
-	\State Disable interrupts
-	\If {\texttt{thread = waitQueue.nextThread() != null}}
-	\State \texttt{thread.ready()}
-	\EndIf
-	\State Enable interrupts
-      \end{algorithmic}
-    \end{algorithm}
-
-    \begin{algorithm}[htbp]
-      \caption{ \texttt{void Condition2::wakeAll()}}
-      \begin{algorithmic}
-	\State Disable interrupts
-	\While {\texttt{thread = waitQueue.nextThread() != null}}
-	\State \texttt{thread.ready()}
-	\State \texttt{thread = waitQueue.nextThread()}
-	\EndWhile
-	\State Enable interrupts
-      \end{algorithmic}
-    \end{algorithm}
-
-    \subsection{Testing}
-
-    The test is done by running a new static function \texttt{Condition2.selfTest()} which is called in \texttt{ThreadKernel.selfTest()}, and the specific cases are as follows {\color{blue} using a producer-consumer model}:
-    \begin{asparaitem}
-    \item Case 1: Two threads in which one is sleeper and the other is the waker.
-    \item Case 2: Several sleepers with one waker {\color{blue} where the producer can iteratively produce enough number of items}.
-    \item Case 3: Several sleepers together with several wakers.
-    \end{asparaitem}
-    \subsection{Testing Pesudocodes}
-
-    \begin{algorithm}[htbp]
-      \caption{\texttt{Producer::run()}}
-      \begin{algorithmic}
-        \State \texttt{//enqueue items }
-        \For{\texttt{int i = 0; i < numProducts; i++}}
-        \State \texttt{lock.acquire(); }
-        \State \texttt{System.out.println("*** producer " + which + " adds item. "); }
-        \State \texttt{sharedata.add(which); }
-        \State \texttt{dataready.wake(); }
-        \State \texttt{lock.release(); }
-        \EndFor
-      \end{algorithmic}
-    \end{algorithm}
-
-    \begin{algorithm}[htbp]
-      \caption{\texttt{Consumer::run()}}
-      \begin{algorithmic}
-        \State \texttt{//dequeue items }
-        \State \texttt{lock.acquire(); }
-        \State \texttt{System.out.println("*** consumer " + which + " enters. "); }
-        \While{\texttt{sharedata.isEmpty()}}
-        \State \texttt{System.out.println("*** consumer " + which + " sleeps. "); }
-        \State \texttt{dataready.sleep(); }
-        \EndWhile
-        \State \texttt{System.out.println("*** consumer " + which + " gets " + sharedata.pop() }
-        \State \texttt{+ "'s item. "); }
-        \State \texttt{lock.release(); }
-      \end{algorithmic}
-    \end{algorithm}
-    \begin{algorithm}[htbp]
-      \caption{\texttt{ProducerConsumerTest::ProducerConsumerTest(int numProducer, int numConsumer, int productsPerProducer=1)}}
-      \begin{algorithmic}
-            \State \texttt{\color{blue}//Initialize producers and consumers }
-            \For{\texttt{int i = 0; i < numProducer; i++}}
-            \State \texttt{producers.push(new Producer(i, productsPerProducer)); }
-            \State \texttt{order.push(1); }
-            \EndFor
-            \For{\texttt{int i = numProducer; i < numProducer + numConsumer; i++}}
-            \State \texttt{consumers.push(new Consumer(i)); }
-            \State \texttt{order.push(2); }
-            \EndFor
-            \State\texttt{\color{blue} //use random order to execute producers and consumers}
-            \State \texttt{Collections.shuffle(order); }
-            \State \texttt{Stack<KThread> joinStack = new Stack<KThread>(); }
-            \For{\texttt{int i = 0; i < numProducer + numConsumer; i++}}
-            \State \texttt{int currentNumber = order.pop(); }
-            \If{\texttt{currentNumber == 1}}
-            \State \texttt{joinStack.push(new KThread(producers.pop())); }
-            \State \texttt{joinStack.peek().fork(); }
-            \ElsIf{(currentNumber == 2)}
-              \State \texttt{joinStack.push(new KThread(consumers.pop())); }
-              \State \texttt{joinStack.peek().fork(); }
-            \EndIf
-            \EndFor
-            \While{\texttt{!joinStack.isEmpty()}}
-            \State \texttt{joinStack.pop().join(); }
-            \EndWhile
-          \end{algorithmic}
-        \end{algorithm}
-
-    \begin{algorithm}[htbp]
-      \caption{\texttt{Condition2::selfTest()}}
-      \begin{algorithmic}
-        \State {\color{blue}\texttt{//Case 1: 1 producer, 1 consumer }}
-        \State \texttt{System.out.println("Case 1:"); }
-        \State \texttt{new ProducerConsumerTest(1, 1); }
-        \State {\color{blue}\texttt{ //Case 2: 1 producer, several consumers }}
-        \State \texttt{System.out.println("Case 2:"); }
-        \State \texttt{new ProducerConsumerTest(1, 4, 4); }
-        \State {\color{blue}\texttt{ //Case 3: 3 producer3, 3 consumer3 }}
-        \State \texttt{System.out.println("Case 3:"); }
-        \State \texttt{new ProducerConsumerTest(3, 3); }
-      \end{algorithmic}
-    \end{algorithm}
-    \begin{lstlisting}
-
-    \end{lstlisting}
-
-    \section{Task 3}
-    \subsection{Implementation}
-\begin{asparaitem}
-\item Make threads sleep in \texttt{waitUntil(long x)}.
-
-\item In \texttt{timerInterrupt()}, if the current time is larger than a thread's expected waiting time, make a signal.
-\end{asparaitem}
-\subsection{Code}
-\begin{asparaitem}
-    \item Class: \texttt{AlarmThread} is a wrapper that associates \texttt{KThread} with wake up time.
-    \item Instance: \texttt{queue} is a priority queue \texttt{PriorityQueue<AlarmThread>} that keeps a record of sleeping threads.
-    \end{asparaitem}
-    \begin{lstlisting}
-    public void timerInterrupt() {
-    Machine.interrupt().disable();
-    //poll threads that have slept for expected
-   	while (!queue.isEmpty() &&
-			(queue.peek().wakeTime < Machine.timer().getTime())) {
-   		queue.poll().thread.ready();
-   	}
-   	Machine.interrupt().enable();
-
-   	KThread.yield();
-    }
-
-    public void waitUntil(long x) {
-    Machine.interrupt().disable();
-	long wakeTime = Machine.timer().getTime() + x;
-    //put threads to sleep
-	queue.offer(new AlarmThread(KThread.currentThread(), wakeTime));
-	KThread.sleep();
-	Machine.interrupt().enable();
-    }
-    //wrapper class that combines threads with their sleeping time
-    private class AlarmThread implements Comparable {
-    	AlarmThread(KThread thread, long wakeTime) {
-    		this.thread = thread;
-    		this.wakeTime = wakeTime;
-    	}
-		@Override
-		public int compareTo(Object o) {
-			if (this.wakeTime < ((AlarmThread)o).wakeTime)
-				return -1;
-			else if (this.wakeTime > ((AlarmThread)o).wakeTime)
-				return 1;
-			else
-				return 0;
-		}
-		
-    	KThread thread;
-    	long wakeTime;
-    }
-    \end{lstlisting}
-
-    \subsection{TESTING}
-   The test is done by running a new static function \texttt{Alarm.selfTest()} which is called in \texttt{ThreadKernel.selfTest()}, and the specific cases are as follows {\color{blue} by simply making sleeping threads}:
-    \begin{asparaitem}
-    \item Case 1: one thread with wait time $0$.
-    \item Case 2: one thread with wait time within $500$.
-    \item Case 3: one thread with wait time beyond $500$.
-    \item Case 4: several threads with arbitrary wait time.
-    \end{asparaitem}
-  \subsection{Test Pseudocodes}
-  \begin{algorithm}[htbp]
-    \caption{\texttt{sleepThread::run()}}
-    \begin{algorithmic}
-\State \texttt{long startTime = Machine.timer().getTime();  }
-\State \texttt{System.out.println("*** thread " + which + " sleep for " + x + " ticks\ n\ tat time " + startTime); }
-\State \texttt{ThreadedKernel.alarm.waitUntil(x); }
-\State \texttt{long currentTime = Machine.timer().getTime(); }
-\State \texttt{System.out.println("*** thread " + which + " wakes after " }
-\State \texttt{+ (currentTime - startTime) }
-\State \texttt{+ " ticks\ n\ tat time " + currentTime); }
-    \end{algorithmic}
-  \end{algorithm}
-
-  \begin{algorithm}[htbp]
-    \caption{\texttt{Alarm::selfTest()}}
-    \begin{algorithmic}
-      \State {\color{blue}\texttt{//Case 1 }}
-      \State \texttt{System.out.println("Case 1:"); }
-      \State \texttt{KThread thread = new KThread(new sleepThread(0, 0)); }
-      \State \texttt{thread.fork(); }
-      \State \texttt{thread.join(); }
-      \State {\color{blue}\texttt{//Case 2 }}
-      \State \texttt{System.out.println("Case 2:"); }
-      \State \texttt{thread = new KThread(new sleepThread(1, 100)); }
-      \State \texttt{thread.fork(); }
-      \State \texttt{thread.join(); }
-      \State {\color{blue}\texttt{//Case 3 }}
-      \State \texttt{System.out.println("Case 3:"); }
-      \State \texttt{thread = new KThread(new sleepThread(2, 600)); }
-      \State \texttt{thread.fork(); }
-      \State \texttt{thread.join(); }
-      \State {\color{blue}\texttt{//Case 4 }}
-      \State \texttt{System.out.println("Case 4:"); }
-      \State \texttt{LinkedList<KThread> threadList = new LinkedList<KThread>();}
-      \State \texttt{Random rand = new Random(); }
-      \For{\texttt{int i = 0; i < 5; i++}}
-      \State \texttt{threadList.add(new KThread(new sleepThread(i + 3, rand.nextInt(400) + 300))); }
-      \State \texttt{threadList.get(i).fork(); }
-      \EndFor
-      \For{\texttt{int i = 0; i < 5; i++}}
-      \State \texttt{threadList.poll().join(); }
-      \EndFor
-    \end{algorithmic}
-  \end{algorithm}
-
-    \section{Task 4}
-
-    \subsection{Correctness Constraints}
-    \begin{enumerate}
-      \item[$\bullet$] An active speaker should wait until an listener becomes active and
-	recieves the word.
-      \item[$\bullet$] At any time, there should be at most one active speaker.
-      \item[$\bullet$] If there are some waiting speakers but no active speaker,
-	some waiting speaker should become active.
-      \item[$\bullet$] An active listener should wait until an active speaker becomes
-	active and the listener recieves the speaker's word.
-      \item[$\bullet$] At any time, there should be at most one active listener.
-      \item[$\bullet$] If there are some waiting listeners but no active listener,
-	some waiting listener should become active.
-      \item[$\bullet$] Once the listener recieves the word, both the speaker and
-	the listen should leave.
-    \end{enumerate}
-
-    \subsection{Declarations}
-    Here we can see that the \texttt{Communicator} is a mutex resource, we need use
-    a lock to protect this resource. And we can see that we need to maintain waiting
-    speakers and listeners, we can use condition variables to manage them. And we
-    can find that active speaker and active listener need to cooperate with other
-    threads, we also use condition variables to manage them. Finially, to check whether
-    there is active speaker or listener, we use two boolean variables to indicate
-    respectively; and we use boolean variable to indicate whether the word is recieved.
-    \begin{enumerate}
-      \item[$\bullet$] \textit{data structure}: \texttt{Semaphore}, \texttt{Lock}.
-      \item[$\bullet$] \textit{member variable}:
-	The following variables are all the member variables of \texttt{Communicator},
-	all of them are private.
-	\begin{enumerate}
-	  \item \texttt{Lock lock};
-	  \item \texttt{Condition waitingSpeakerQueue}, initially \texttt{lock};
-	  \item \texttt{Condition waitingListenerQueue}, initially \texttt{lock};
-	  \item \texttt{Condition activeSpeaker}, initially \texttt{lock};
-	  \item \texttt{Condition activeListener}, initially \texttt{lock};
-	  \item \texttt{boolean noActiveSpeaker}, initially \texttt{true};
-	  \item \texttt{boolean noActiveListener}, initially \texttt{true};
-	  \item \texttt{boolean recieve}, initially \texttt{false};
-	  \item \texttt{int word};
-	\end{enumerate}
-    \end{enumerate}
-
-    \subsection{Description}
-
-    \begin{algorithm}
-      \caption{\texttt{Communicator::speak(w)}}
-      \begin{algorithmic}[1]
-	\State lock.acquire();
-	\If{!noActiveSpeaker}
-	\State waitingSpeakerQueue.sleep();
-	\EndIf
-	\State noActiveSpeaker $\leftarrow$ false;
-	\State word $\leftarrow$ w;
-	\If{noActiveListener or !recieve}
-	\State activeListener.wake();
-	\State activeSpeaker.sleep();
-	\EndIf
-	\State noActiveSpeaker, noActiveListener $\leftarrow$ true;
-	\State recieve $\leftarrow$ false;
-	\State waitingSpeakerQueue.wake();
-	\State waitingListenerQueue.wake();
-	\State lock.release();
-      \end{algorithmic}
-    \end{algorithm}
-
-    \begin{algorithm}
-      \caption{\texttt{Communicator::listen()}}
-      \begin{algorithmic}[1]
-	\State lock.acquire();
-	\If{!noActiveListener}
-	\State waitingListenerQueue.sleep();
-	\EndIf
-	\State noActiveListener $\leftarrow$ false;
-	\If{noActiveSpeaker}
-	\State activeListener.sleep();
-	\EndIf
-	\State activeSpeaker.wake();
-	\State result $\leftarrow$ word;
-	\State lock.release();
-	\Return result;
-      \end{algorithmic}
-    \end{algorithm}
-
-\subsection{Declarations}
-Here we can see that the \texttt{Communicator} is a mutex resource, we need use
-a lock to protect this resource. And we can see that we need to maintain waiting
-speakers and listeners, we can use condition variables to manage them. {\color{red}\sout{And we 
-can find that active speaker and active listener need to cooperate with other
-threads, we also use condition variables to manage them.}} Finially, to check whether
-there is active speaker or listener, we use two boolean variables to indicate 
-respectively; {\color{red}\sout{and we use boolean variable to indicate whether the word is recieved.}}
-\begin{enumerate}
-  \item[$\bullet$] \textit{data structure}: \texttt{Semaphore}, \texttt{Lock}.
-  \item[$\bullet$] \textit{member variable}:
-    The following variables are all the member variables of \texttt{Communicator},
-    all of them are private. 
-    \begin{enumerate}
-      \item \texttt{Lock lock};
-      \item \texttt{Condition waitingSpeakerQueue}, initially \texttt{lock};
-      \item \texttt{Condition waitingListenerQueue}, initially \texttt{lock};
-      \item {\color{red}\sout{\texttt{Condition activeSpeaker}, initially \texttt{lock};}}
-      \item {\color{red}\sout{\texttt{Condition activeListener}, initially \texttt{lock};}}
-      \item \texttt{boolean noActiveSpeaker}, initially \texttt{true};
-      \item \texttt{boolean noActiveListener}, initially \texttt{true};
-      \item {\color{red}\sout{\texttt{boolean recieve}, initially \texttt{false};}}
-      \item \texttt{int word};
-    \end{enumerate}
-\end{enumerate}
-
-\subsection{Description}
-
-\begin{algorithm}[htbp]
-  \caption{\texttt{Communicator::speak(w)}}
-  \begin{algorithmic}[1]
-    \State lock.acquire();
-    \While{!noActiveSpeaker}
-    \State waitingSpeakerQueue.sleep();
-    \EndWhile
-    \State noActiveSpeaker $\leftarrow$ false;
-    \State word $\leftarrow$ w;
-    {\color{red}
-    \If{!noActiveListener}
-    \State waitingListenerQueue.wakeAll();
-    \Else
-    \State waitingSpeakerQueue.sleep();
-    \State noActiveSpeaker, noActiveListener $\leftarrow$ true;
-    \State waitingSpeakerQueue.wake();
-    \State waitingListenerQueue.wake();
-    \EndIf}
-    \State lock.release();
-  \end{algorithmic}
-\end{algorithm}
-{\color{red} Here, I do not give the code of \texttt{listen}(), because it is totally symmetric with
-\texttt{speak}(), we just need to change the position of $\texttt{waitingListenerQueue}$ and 
-$\texttt{waitingSpeakerQueue}$, and delete line 6, and add \texttt{result$\leftarrow$ word} after
-\textbf{end if} and return \texttt{result}; then we can get the code of \texttt{listen}().
-Compared with the initial doc, we do not use activeListener/Speaker condition variable; instead we put them into waiting
-queue. In this way, we can save two condition variables, and we can make the code symmetric. These are
-the reason I make these change.}
-
-\subsection{Testing Plan}
-\subsubsection{Runnable Interface}
-We implement two \texttt{Runnable} interfaces: \texttt{Speaker} and \texttt{Listener}. The member variables
-are almost the same except that \texttt{Listener} does not have \texttt{word}:
-\begin{enumerate}
-  \item[$\bullet$] \texttt{which}: index of speaker/listener thread.
-  \item[$\bullet$] \texttt{communicator}: communicator.
-  \item[$\bullet$] \texttt{times1}: the loop times before calling \texttt{speak/listen}.
-  \item[$\bullet$] \texttt{word}: message.
-\end{enumerate}
-When a thread is assigned with our implementation, it will loop for \texttt{times1} times and then call
-\texttt{speak/listen}. The necessary information will be printed for test.
-\subsubsection{Case}
-\begin{enumerate}
-  \item[] case 1: 1 speaker $\texttt{thread1}$ and 1 delay listener $\texttt{thread2}$,
-    and check if $\texttt{thread1}$ wait for $\texttt{thread2}$.
-  \item[] case 2: 2 speaker $\texttt{thread1}$,$\texttt{thread2}$ and
-    1 listener $\texttt{thread3}$, and check if $\texttt{thread2}$ is blocked.
-  \item[] case 3: exchange the position between speaker and listener in case 1 and 2.
-  \item[] case 4: 3 speaker and 3 listener and check if they form three pairs.(namely,
-    speaker $i$ only speaks to listen $i$, $i=1,2,3$)
-\end{enumerate}
-According to the printed information, we can check whether the purpose of each case is achieved. Due
-to the limit of pages, we don't give this part test code in this report, but we point out that to implement
-each case, we need to handle the running time of thread, which we can do by \texttt{times1} assignment.
-\subsubsection{Code Location}
-All these code is in \texttt{nachos.threads.Communicator.java}, \texttt{Listener} and \texttt{Speaker} are 
-implementation of \texttt{Runnable} interface and test code is in \texttt{selfTest} methord.
-\section{Task 5}
+\section{Task 1}
 \subsection{Overview}
-Task 5 asks us to implement priority scheduling in Nachos by completing the \texttt{PriorityScheduler} class. Particularly, in choosing which  thread to dequeue, the scheduler always choose a thread of the highest effective priority (choose the one that has been waiting in the queue longest if multiple threads with the same highest priority are waiting).
+Task 1 asks us to implement file system calls  in Nachos by adding code to the \textsf{UserProcess} class. Here we are not asked to implement a file system from scratch, but to give user processes the ability to access a file system that have been implemented.
 
-The most difficulty lies in the function \texttt{Scheduler.getEffectivePriority}. To calculate one thread's effective priority (abbr. EP), we have to maintain a priority queue representing all threads it is getting priority from. Notice that when a thread's EP changes, threads' EP which that thread is waiting on may change as well. So we also need to maintain which thread is it waiting on for each thread.
+The main requirements of the task can be divided into two categories: those to implement functionality, and those to ensure security.
 
-Specifically, we calculate a thread's prior it  by taking the max of the donor's and the recipient's priority. As for the transitive property of priority donation, we simply call \texttt{Scheduler.getEffectivePriority} recursively.
+To implement functionality, we need to add additional attributes (file descriptors, file states, etc.) and additional system call handler methods. As system calls are already declared in the header \textsf{text/syscall.h}, we don't need to consider how to design the interface and we can just focus on the internal implementation inside the class \textsf{UserProcess}. Also, an example method \textsf{UserProcess.halt} has been implemented, which gives us yet more hints.
 
-To speed up the calculation of EP, we create a variable to cache EP in class \texttt{ThreadState}. Thus, we only need to recalculate a thread's effective priority when it is possible for it to change.
+For security constraints, we need to bullet-proof the Nachos kernel from user processes. We need to ensure that exceptions occurred inside the user process will not crash the system, and we also need to ensure that \textsf{halt()} can terminate the system only if it is called by the root process. Therefore we need some more attributes (e.g. pids) to distinguish process from process.
+
+According to \textsf{syscall.h}, when \textsf{unlink}() is called,  if no processes have the file open, the file is deleted immediately and the space it was using is made available for reuse. But if any processes still have the file open, the file will remain in existence until the last file descriptor referring to it it closed. However, \textsf{create}() and \textsf{open}() will not be able to return new file descriptors for the file until it is deleted.
+
+To implement this mechanism, a new member class \textsf{FileManager} is defined within \textsf{UserKernel} class to keep track of files opened by each process. So that if unlink on a file is called, it can wait until all processes have closed the file before actually deleted it. A single instance of FileManager is instantiated and kept as a public instance member of \textsf{UserKernel}. This instance is used by function \textsf{close}, \textsf{open}, \textsf{create} and \textsf{unlink}.
+
+
 
 \subsection{Correctness Constraints}
 
 \begin{asparaitem}
-\item All threads waiting in a queue are sorted by their effective priority\\
-\item All threads store a linked list of queues they own and its own effective priority for cache\\
-\item The effective priority of a thread is calculated by taking max between its initial priority and the largest effective priority stored in the linked list of queues.\\
-\item When a thread is selected from the queue to acquire the resource (\texttt{nextThread}) that thread is removed from the queue and the new thread is told to aquire the queue (\texttt{acquire}) The previous owner of the queue is told it no longer owns this queue, and this queue is removed from its linked list. At the same time, this queue is inserted into the linked list of new owner. The new owner of the queue gets the highest priority in the queue added to its priority cache and its effective priority updated. \\
-\item When a thread is added to the waiting queue (\texttt{waitForAccess}), it may have the highest priority of all threads in the queue. The owner of the queue then needs to update its effective priority to be greater than or equal to the new waiting thread.\\
-\item When a change occurs to a thread's effective priority, it must reinsert itself into the correct position in the queue and as a result may end up affecting the effective priority of that queue's owner.
+\item Implement the system calls: \textsf{create}, \textsf{open}, \textsf{read}, \textsf{write}, \textsf{close} and \textsf{unlink}
+\item Bullet-proof the Nachos Kernel from user program errors: validating input and ensuring that errors are handled gracefully
+\item Error condition of a system call should be indicated by a return value of -1 instead of throw an exception within the kernel
+\item Ensure that halt can only be called from the root process (the first process in the system)
+\item Each file that a process has opened should have a unique file descriptor associated with it.
+\item When any process is started, its file descriptors 0 and 1 must refer to standard input and standard output.
+\item 16 files should be able to be opened simultaneously in a single process
 \end{asparaitem}
 
 \subsection{Declarations}
 
-We use \texttt{LinkedList<PriorityQueue> waitBy} and \texttt{PriorityQueue waitOn} to store threads waiting us and threads we are waiting separately. The class \texttt{PriorityQueue} is implemented by java.util.PriorityQueue.
+ \textsf{OpenFile[] fileDesriptorTable} to store the 16 files opened by this process.
+ \textsf{FileManager fileManager} to implement \textsf{unlink} mechanism
 
 \subsection{Descriptions}
 
-The following algorithm describes the implementation of \texttt{getEffectivePriority} in high level.
+The following algorithms \ref{alg:handleHalt} and \ref{alg:handleCreate} describes the implementation in high level.
 
-\begin{algorithm}[htbp]
-  \caption{calculate effective priority}
-\begin{algorithmic}[1]
-  \State Initialize EP and donatorEP as default priority
-  \State EP $\leftarrow$ priority
-\ForAll {wait queues whose resource has been acquired by me}
-  \State donatorEP $\leftarrow$ largest EP in that wait queue
-  \If {donatorEP $>$ EP}
-    \State EP $\leftarrow$ donatorEP
-  \EndIf
-\EndFor
-\State recursively call calculate effective priority on the thread I am waiting on
-\Return EP
-\end{algorithmic}
+Note we also need to handle all the exceptions from \textsf{Machine.Process}. We just add to the switch inside \textsf{handleException}, and call \textsf{handleExit} if necessary.
+\begin{enumerate}[$\bullet$]
+\item \textsf{exceptionSyscall}
+\item \textsf{exceptionPageFault}
+\item \textsf{exceptionTLBMiss}
+\item \textsf{exceptionReadOnly}
+\item \textsf{exceptionBusError}
+\item \textsf{exceptionAddressError}
+\item \textsf{exceptionOverflow}
+\item \textsf{exceptionIllegalInstruction}
+\end{enumerate}
+
+\begin{algorithm}
+\Begin{
+  \label{alg:handleHalt}
+  \caption{int \textsf{handleHalt}()}
+  \If { processID != 0}{
+    \Return 0
+  }
+  \textsf{Machine.halt()}
+  \Return 0
+}
 \end{algorithm}
 
-To clarify how we manipulate data structure, we illustrate the implementation of function \linebreak \texttt{PriorityQueue.waitForAccess}, \texttt{PriorityQueue.acquire} and \texttt{PriorityQueue.nextThread} (actually, \linebreak \texttt{waitForAccess} and \texttt{acquire} are implemented in class \texttt{ThreadState}).
-
-\begin{algorithm}[htbp]
-  \caption{\texttt{ThreadState.wairForAccess(PriorityQueue waitQueue)}}
-\begin{algorithmic}[1]
-  \State waitQueue.add(this)  \Comment{add this thread to waitQueue}
-  \State this.waitingOn $\leftarrow$ waitQueue  \Comment{update waitingOn queue}
-  \State this.EP $\leftarrow$ calculateEffectivePriority()  \Comment{update EP}
-\Return
-\end{algorithmic}
+\begin{algorithm}[H]
+  \label{alg:handleCreate}
+  \caption{int \textsf{handleCreate}(int vaddr)}
+  \If { vaddr is invalid} {
+    \Return -1\;
+  }
+   filename \gets \textsf{readVirtualMemoryString}(vaddr, 256)\;
+  \If { fileManager.isUnlinked(filename)} {
+    \Return -1\;
+  }
+  \eIf {$\exists$ free file descriptor $x$} {
+     fileManager.openFile(filename)\;
+     file \gets \textsf{ThreadedKernel.fileSystem.open}(filename, false)\;
+     fileDescriptorTable[x] \gets file\;
+     \Return $x$
+   }{
+    \Return -1\;
+  }
 \end{algorithm}
 
-\begin{algorithm}[htbp]
-  \caption{\texttt{ThreadState.acquire(PriorityQueue waitQueue)}}
-\begin{algorithmic}[1]
-  \State waitQueue.owner $\leftarrow$ this
-  \State this.waitingBy.insert(waitQueue)
-  \State this.EP $\leftarrow$ calculateEffectivePriority()  \Comment{update EP}
-\Return
-\end{algorithmic}
+To implemente \textsf{handleOpen}, we only need to change line 9 of \textsf{handleCreate} to following algorithm \ref{alg:handleOpen}:
+\begin{algorithm}[H]
+  \label{alg:handleOpen}
+  \caption{int \textsf{handleOpen}(int vaddr)}
+ \If { vaddr is invalid} {
+    \Return -1\;
+  }
+   filename \gets \textsf{readVirtualMemoryString}(vaddr, 256)\;
+  \If { fileManager.isUnlinked(filename)} {
+    \Return -1\;
+  }
+  \eIf {$\exists$ free file descriptor $x$} {
+     fileManager.openFile(filename)\;
+     \colorbox{myyellow}{file \gets \textsf{ThreadedKernel.fileSystem.open}(filename, true)}\;
+     fileDescriptorTable[x] \gets file\;
+    \Return $x$\;
+  }{
+    \Return -1\;
+  }
 \end{algorithm}
 
-\begin{algorithm}[htbp]
-  \caption{\texttt{nextThread}}
-\begin{algorithmic}[1]
-  \State Initialize chosenThread as null
-  \State chosenThread $\leftarrow$ pickNextThread()
-  \If {chosenThread != null}
-    \State remove this queue from current owner's waitingBy list
-    \State chosenThread.waitingOn $\leftarrow$ null
-    \State insert this queue into chosenThread's waitingBy list
-  \EndIf
-  \State this.owner $\leftarrow$ chosenThread
-\Return chosenThread
-\end{algorithmic}
+\begin{algorithm}
+  \caption{int \textsf{handleRead}(int fileDescriptor, int bufferAddr, int count)}
+
+ \If { fileDescriptor is invalid} {
+    \Return -1\;
+  }
+   file \gets \textsf{fileDescriptorTable}[fileDesriptor]\;
+  \If { file is invalid $||$ count $<$ 0} {
+    \Return -1\;
+  }
+   Initialize buffer to read from file\;
+   bytesRead \gets file.\textsf{read}(buffer, 0, count)\;
+  \eIf {bytesRead $==$ -1} {
+    \Return -1\;
+  }{
+     bytesReturn \gets \textsf{writeVirtualMemory(bufferAddr, buffer, 0, bytesRead)}\;
+    \Return bytesReturn\;
+  }
+
+\end{algorithm}
+
+\textsf{handWrite} is quite similar to \textsf{handleRead}:
+
+\begin{algorithm}
+  \caption{int \textsf{handleWrite}(int fileDescriptor, int bufferAddr, int count)}
+
+ \If { fileDescriptor is invalid} {
+    \Return -1\;
+  }
+   file \gets \textsf{fileDescriptorTable}[fileDesriptor]\;
+  \If { file is invalid $||$ count $<$ 0} {
+    \Return -1\;
+  }
+   Initialize buffer to read from virtual memory\;
+   bytesWritten \gets \textsf{readVirtualMemory}(bufferAddr, buffer, 0, count)\;
+  \If {bytesWritten != count} {
+    \Return -1\;
+  }
+   bytesReturn \gets file.\textsf{write}(buffer, 0, bytesWritten)\;
+  \If {bytesReturn != count} {
+    \Return -1\;
+  }
+  \Return bytesReturn\;
+
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{int \textsf{handleClose}(int fileDescriptor)}
+
+ \If { fileDescriptor is invalid} {
+    \Return -1\;
+  }
+   fileManager.decrementCount(fileDescriptorTable[fileDescriptor].name)\;
+   fileDescriptorTable[fileDesriptor].close()\;
+   fileDescriptorTable[fileDesriptor] \gets null\;
+  \Return 0\;
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{int \textsf{handleUnlink}(string name)}
+ \If { ! fileManager.unlinkFile(name) } {
+    \Return -1\;
+  }
+  \Return 0\;
 \end{algorithm}
 
 \subsection{Testing Plan}
-We need to test the following things. The test is done in \texttt{selfTest()}
-\begin{itemize}
-\item The PriorityQueue of \texttt{java.util.PriorityQueue} works well(Automatically)
-\item The transfer of priority works well
-\item The transfer of priority will hold its property when queue updated
-\item \texttt{Acquire()} will work well, and add queue to the queue list
-\end{itemize}
+\begin{enumerate}
+\item call \textsf{halt} from non-root process
+\item reading from a non-existence file
+\item read from file without reading permission
+\item write to existing file
+\item write to file without writing permission
+\item creating an existing file
+\item passing invalid file descriptor to read/write
+\item passing \textsf{count=0} to read/write
+\item double closing some file
+\item write to closed file
+\end{enumerate}
 
-\begin{algorithm}[htbp]
-  \caption{\texttt{selfTest}}
-\begin{algorithmic}[1]
-  \State Initialize a PriorityScheduler \texttt{s}
-  \State Create 5 threads
-  \State disable interrupt
-  \State
-  \State Thread 1 acquires resource 1
-  \State Thread 2 waits for resource 1
-  \State Thread 5 waits for resource 1
-  \State Thread 1 acquires resource 2
-  \State Thread 4 waits for resource 2
-  \State Thread 5 acquires resource 3
-  \State Thread 3 waits for resource 3
-  \State print all the information of the threads
-  \State
-  \State Thread 2 set priority to 4
-  \State print all the information of the threads
-  \State
-  \State Thread 4 waits for resource 2
-  \State Thread 3 set priority to 5
-  \State print all the information of the threads
-  \State
-  \State Thread 3 set priority to 3
-  \State print all the information of the threads
-  \State
-  \State Thread 1 release resource 1
-  \State print all the information of the threads
-  \State
-  \State Thread 4 set priority to 2
-  \State print all the information of the threads
-  \State
-  \State restore interrupt
-\end{algorithmic}
-\end{algorithm}
-
-
-\section{Task 6}
-\subsection{Overview}
-This task is to use multithreaded programming to implement a distributed process where all threads coordinate to accomplish the sea crossing task. To implement this, we divided the main process into several subrountines in which one person is carried across the river.
+\section{Task 2}
 
 \subsection{Correctness Constraints}
-\begin{itemize}
-  \item All people must be on Oahu at start and be on Molokai at the end.
-  \item The main thread \texttt{begin} must not exit until all boat rowing messages are sent.
-  \item The boat should be in the right place for someone to row as well as to ride. This is abstracted as a DFA; see the testing part.
-\end{itemize}
-\subsection{Declarations}
-\textcolor{green}{In our final implementation, we used almost completely different variables to accomplish the task. The defined variables are used as follows:}
-\begin{itemize}
-  \item \texttt{int population}: the global population counter, initially 0. When a passenger thread is created, it increments this counter by 1. $R$ and $D$ determined the termination of execution by reading this variable.\\
-  \item \texttt{boolean isRowerSet, isRiderSet}: the global indicator indicating whether $R$ and $D$ have been selected. When a child thread is created, it checks and sets these variables and choose to execute $R$, $D$ or $P$ method.\\
-  \item \texttt{boolean isAdult}: the indicator indicating whether this $P$ thread being carried is an adult. $R$ checks this variable and determines which protocol to follow.\\
-  \item \texttt{Lock move}: Every thread should acquire this lock whenever they are created. This lock takes charge of all threads and makes them follow the protocols.\\
-  \item \texttt{Condition mainMove, rowerMove, riderMove, waitingMove, passengerMove}: These conditions are all belong to the lock \texttt{move} and provides queues for different threads to sleep. For example, when $R$ needs to sleep, it will call \texttt{rowerMove.sleep()} to ensure other thread correctly wake it up later on.\\
-\end{itemize}
+\begin{enumerate}
+  \item[$\bullet$] Different processes do not overlap in their physical memory usage.
+  \item[$\bullet$] Make use of ``gaps'' in the free memory pool.
+  \item[$\bullet$] Only valid virtual memory can be read; only valid and writable
+    memory can be written.
+  \item[$\bullet$] All of a process's memory is freed on exit.
+\end{enumerate}
 
+\subsection{Declarations}
+We use a public static \textsf{Queue} to maintain the free physical pages and a public
+static \textsf{Semaphore} to make the access sychronous. Once we allocate a
+page, we delete it from the queue; and once we free a page, we add it
+into the queue. We use a 
+\textsf{TranslationEntry} array to construct the pageTable. In the 
+\textsf{UserProcess.loadSections()} we build the pageTable to associate vpn and ppn.
+We implement \textsf{UserProcess.unloadSection} to release the physical pages
+allocated by $\textsf{loadSections()}$.
+Then we modify \textsf{UserProcess.readVirtualMemory} and 
+\textsf{UserProcess.writeVirtualMemory} to use pageTable to access physical
+memory through virtual memory. Here, we transfer the data in a unit of one page.
+\begin{enumerate}[$\bullet$]
+  \item \textit{data structure}: \textsf{Queue}, \textsf{Semaphore},
+    \textsf{TranslationEntry}.
+  \item \textit{member variable}:
+    \begin{enumerate}
+      \item \textsf{public static Queue<Integer> UserKernel::freePPNList};
+      \item \textsf{public static Semaphore UserKernel::ppnListSemaphore}, initially 1;
+      \item \textsf{protected TranslationEntry[] UserProcess::pageTable};
+      \end{enumerate}
+\end{enumerate}
 
 \subsection{Description}
-The strategy implemented is the same as the role-assigning strategy described in our design document. More specifically, we assigned three roles to all threads:
-\begin{asparaitem}
-  \item \textbf{Rower}: The child who is responsible to row the boat. We denote it by $R$.\\
-  \item \textbf{Rider}: The child who is responsible to ride the boat of the rower. We denote it by $D$.\\
-  \item Other people who are going to be carried by $R$ and $D$, i.e. passengers. We denote them as $P$.\\
-\end{asparaitem}
+\begin{algorithm}
+  \caption{\textsf{UserKernel::initialize()}}
+  $\dots$ \textit{given code} $\dots$\;
+  \textsf{ppnListSemaphore.P()}\;
+  \For{all ppn $i$}{
+    \textsf{freePPNList.enqueue(i)}\;
+  }
+  \textsf{ppnListSemaphore.V()}\;
+\end{algorithm}
 
-To carry an adult to Molokai, we used the following subroutine:\\
-\begin{asparaitem}
-  \item Two children go to Molokai, one rowing the boat and the other riding it.\\
-  \item One child rows the boat back to Oahu.\\
-  \item The adult rows to Molokai.\\
-  \item The child left on Molokai rows the boat back to Oahu.\\
-  \item Two children go to Molokai.\\
-\end{asparaitem}
+\begin{algorithm}
+  \caption{\textsf{UserProcess::loadSections()}}
+  \If {\textsf{numPages $>$ freePPNList.size()} }{
+    \Return \textbf{false}\;
+  }
+  \textsf{ppnListSemaphore.P()}\;
+  \textsf{pageTable.size $\gets$ numPages}\;
+  \For{all section \textsf{s} and all virtual pages \textsf{vpn} in \textsf{s}}{
+    \textsf{ppn $\gets$ freePPNList.dequeue()}\;
+    \textsf{pageTable[vpn] $\gets$ (vpn,ppn,true,s.isReadOnly(),false,false)}\;
+    Load the $\textsf{vpn}$ page's content into the physical memory page $\textsf{ppn}$\;
+  }
+  \For{all stack pages $\textsf{vpn}$}{
+    \textsf{ppn $\gets$ freePPNList.dequeue()}\;
+    \textsf{pageTable[vpn] $\gets$ (vpn,ppn,true,false,false,false)}\;
+  }
+  \textsf{ppnListSemaphore.V()}\;
+  \Return \textbf{true}\;
+\end{algorithm}
 
-Also, to carry a child to Molokai, we used the following subroutine:
-\begin{asparaitem}
-  \item Two children go to Molokai, one rowing the boat and the other riding it.\\
-  \item One child rows the boat back to Oahu.\\
-  \item Two children go to Molokai.\\
-\end{asparaitem}
+\begin{algorithm}[H]
+  \caption{\textsf{UserProcess::unloadSections()}}
+  \textsf{ppnListSemaphore.P()}\;
+  \For{all entry \textsf{i} of \textsf{pageTable}}{
+    \textsf{freePPNList.enqueue(pageTable[i].ppn)}\;
+  }
+  \textsf{ppnListSemaphore.V()}\;
+\end{algorithm}
 
-The whole carring strategy is just the repeated execution of those two subroutines, and it can be described as follows:
-
-\begin{asparaitem}
-  \item We store the total number of adults and children in a global variable. Each time a person is created, the counter increases by one.\\
-  \item All the children try to acquire the rower role, and only one of them get it, which is called as $R$.\\
-  \item Those who failed to get the rower role try to acquire the rider role, and only one of them get it, which is  called as $D$. All the adults and the children who failed then waits to be carried to Molokai.\\
-  \item When $D$ is picked from the children threads, the remaining threads are allowed to go across the sea. There is a global lock which all people except for $R$ and $D$ are waiting to acquire. If one person acquired the lock, he calls $R$ and $D$ to carry him to Molokai via one of the two subrountines, depending on whether it is a child or an adult. Then it decreases the population by 1, release the lock, and returns.\\
-  \item At the end no one except $R$ and $D$ is running, and the population counter is 0. Then $R$ and $D$ perform the final rowing to Molokai and returns.
-\end{asparaitem}
-
-Part of the source code is listed below. Although the main idea remains the same, the implementation is significantly changed from the original design, so codes changed are not highlighted.\\
-
-\begin{lstlisting}
-public static void begin(int adults, int children, BoatGrader b)
-{
-  /*Initialization Part*/
-  bg = b;
-  isRowerSet = false;
-  isRiderSet = false;
-  population = 0;
-	
-  move = new Lock(); // mutex initializing
-  riderMove = new Condition(move);
-  rowerMove = new Condition(move);
-  passengerMove = new Condition(move);
-  waitingMove = new Condition(move);
-  mainMove = new Condition(move);
-	
-  /*Main thread scheme starts here*/
-  move.acquire();
-	
-  Runnable child = new Runnable() {
-	public void run() {
-      ChildItinerary();
+\begin{algorithm}
+  \caption{\textsf{UserProcess::readVirtualMemory(vaddr, data, offset, length)}}
+  $\dots$ some constrains of the parameters in the given code $\dots$ \;
+  \If {\textsf{vaddr < 0}} {
+    \Return 0\;
+  }
+  \textsf{start $\gets$  vpn(vaddr)}\;
+  \textsf{end $\gets$  vpn(vaddr+length)};\;
+  \textsf{en $\gets \min$\{end, pageTable.size()\}};\;
+  \textsf{amount $\gets$  0};
+  \For{\textsf{$\textsf{i}=$start} \textbf{to} \textsf{en}}{
+    \If{\textsf{pageTable[$\textsf{i}$].valid = \textbf{false}}}{
+      \Return{\textsf{amount}}\;
     }
-  };
-
-  Runnable adult = new Runnable() {
-      public void run() {
-      AdultItinerary();
+    \textsf{s $\gets$ 0, e $\gets$ pageSize}\;
+    \If{\textsf{i$=$start}}{
+     \textsf{s $\gets$  offset(vaddr)}\;
     }
-  };
-
-  for(int i = 0; i < children; i ++)
-  {
-    KThread t = new KThread(child);
-    t.setName("Child Thread " + i);
-    t.fork();
-    mainMove.sleep(); // wait for the child initializing
+    \If{\textsf{i$=$end}}{
+      \textsf{e $\gets$  offset(vaddr+length)}\;
+    }
+    \textsf{paddr = ppn*pageSize + s}\;
+    \textsf{System.arraycopy(memory, paddr, data, offset, e-s)}\;
+    \textsf{pageTable[i].used $\gets$}  \textbf{true}\;
+    \textsf{amount  $\gets$  amount + e - s}\;
+    \textsf{offset  $\gets$  offset + e - s}\;
   }
-  for(int i = 0; i < adults; i ++)
-  {
-    KThread t = new KThread(adult);
-    t.setName("Adult Thread " + i);
-    t.fork();
-    mainMove.sleep(); // wait for the adult initializing
+  \Return{\textsf{amount}}\;
+\end{algorithm} 
+The algorithm of \textsf{writeVirtualMemory} is almost the same as 
+\textsf{readVirtualMemory}.
+We only need to change line 10 into: \\
+\begin{center}
+  \textbf{if} \textsf{pageTable[i].valid = \textbf{false} || pageTable[i].readOnly = 
+  \textbf{true}} \textbf{then}
+\end{center}
+and add a line between line 21 and line 22 as: 
+\[ \textsf{pageTable[i].dirty}  \gets  \textbf{true}; \]
+and change line 21 into: \\
+\[ \textsf{System.arraycopy(data, offset, memory, paddr, e-s)}; \]
+
+
+\subsection{Testing Plan}
+\begin{enumerate}[$\bullet$]
+  \item Let two process $p_1$ and $p_2$ run at the same time and see
+    their ppn.
+  \item Only run one process $p_1$, then check the ppn of $p_1$
+    and the free ppn, then finish $p_1$ and check free ppn.
+  \item At a same vpn, we first do \textsf{writeVirtualMemory},
+    and do \textsf{readVirtualMemory} and then do \textsf{writeVirtualMemory},
+    and do \textsf{readVirtualMemory}.
+  \item Try to write in the readonly section.
+  \item Try to read the memory that not in the sections.
+\end{enumerate}
+
+
+
+\section{Task 3}
+\subsection{Overview}
+In Task 3, we need to implement three system calls (\textsf{exec, join} and \textsf{exit}) as documented in \textsf{syscall.h}. All of them require us to add codes for \textsf{handleSyscall} in class \textsf{UserProcess}.
+
+For \textsf{exec}, we need to create a subprocess and run its \textsf{execute()} function and create standard input output file descriptors.
+
+As \textsf{join} deals with subprocesses and can only be used between parents and children, we need to use references to record a process's parent process and a list for its children. And when the function is called, we need to check it by using \textsf{UserKernel.currentProcess()} in case of illegal joins.
+
+And when \textsf{exit} is called, we also need to free up memory, close open files and also inform the parent process of the information so that \textsf{join} can no longer be called. We also have to notify its subprocesses the termination. Besides, since the last process calling \textsf{exit} should invoke \textsf{Kernel.kernel.terminate()}, we should keep a global list making sure that we know which one to do the closing.
+
+Notice that we do not have to modify \textsf{Uthread.finish()} to do the same closing, since as is suggested in file \textsf{start.s}, a normal return from \textsf{main()} would call \textsf{exit} at last. Thus, we only need to care unhandled exceptions and \textsf{exit}. And the process ID is distributed at the construction function of the process.
+\subsection{Correctness Constraints}
+\begin{asparaitem}
+  \item \textsf{exec} and \textsf{join} will first check the validity of its input, and \textsf{join} would make sure of the legitimacy of the caller and the callee.
+  \item References of parents and children are kept in case of \textsf{join}.
+  \item A global list is kept to record which process is the last to call \textsf{exit}.
+  \item Cleanups are done both in \textsf{exit} and unhandled exceptions.
+\end{asparaitem}
+\subsection{Declarations}
+\textsf{private boolean normalExit} for whether the program exits normally
+
+\textsf{private int exitStatus} for the simplicity of transferring the status to its joining parent
+
+\textsf{private UserProcess parentProcess} is the reference to its parent (\textsf{null} as default)
+
+\textsf{private static int nextProcessID} denotes the next process ID to assign
+
+\textsf{private int processID} denotes the ID assigned to ``this'' process
+
+\textsf{private static HashMap<Integer, UserProcess> userProcessList} denotes the list containing all main processes (without fathers)
+
+\textsf{private LinkedList<UserProcess> childProcessList} denotes the list containing all child processes of ``this'' process
+
+\textsf{private Semaphore joinSemaphore} denotes the semaphore used in function \textsf{join}
+
+\textsf{private Semaphore idMutex} denotes the semaphore used in the protection of changing \textsf{processID}
+
+\textsf{private Semaphore tableMutex} denotes the semaphore used in the protection of changing \textsf{userProcessTable}
+\subsection{Descriptions}
+Below are pseudocode for \textsf{UserProcess} \ref{alg:UserProcess}, \textsf{handleExec} \ref{alg:handleExec}, \textsf{join} \ref{alg:join}, \textsf{handleJoin} \ref{alg:handleJoin}, \textsf{cleanUp} \ref{alg:cleanUp} and \textsf{handleExit} \ref{alg:handleExit}.
+
+\begin{algorithm}
+  \label{alg:UserProcess}
+  \caption{\textsf{UserProcess}()}
+  fileDescriptorTable = new OpenFile[16]\;
+  fileDescriptorTable[0] = UserKernel.console.openForReading()\;
+  fileDescriptorTable[1] = UserKernel.console.openForWriting()\;
+  \colorbox{myyellow}{idMutex.P()}\;
+  processID = nextProcessID\;
+  nextProcessID++\;
+  \colorbox{myyellow}{idMutex.V()}\;
+\end{algorithm}
+
+\begin{algorithm}
+  \label{alg:handleExec}
+  \caption{int \textsf{handleExec}(int file, int argc, int argv)}
+  fileName\gets\textsf{readVirtualMemoryString}(file,256)\;
+  \If {(fileName is invalid) or (argc $<$ 0)} {
+    \Return -1\;
   }
-  rowerMove.wake(); //wake up rower to start carrying; will be woken up by halting or error
-  mainMove.sleep();
-}
+  \If {fileName does not end with \textsf{.coff}}{
+    \Return -1\;
+  }
+  byte[] pointer = new byte[4]\;
+  String[] args = new String[argc]\;
+  \For {i = 0; i $<$ argc; i++}{
+    \textsf{readVirtualMemory}(pointer, argv)\;
+    int pos = Lib.bytesToInt(pointer, 0)\;
+    args[i] = \textsf{readVirtualMemoryString}(pos, args[i])\;
+    \colorbox{myyellow}{// in a 4-byte alignment situation}\;
+    argv += 4
+  }
+  UserProcess childProcess = new UserProcess()\;
+  \If {childProcess is not valid} {
+    \Return -1\;
+  }
+  childProcess.setParent(this)\;
+  childProcessList.add(childProcess)\;
+  \colorbox{myyellow}{tableMutex.P()}\;
+  userProcessTable.put(childProcess.getID(), childProcess)\;
+  \colorbox{myyellow}{tableMutex.V()}\;
+  \If {not childProcess.\textsf{execute}(fileName, args)}{
+    \Return -1\;
+  }
+  \Return childProcess.getID()\;
+\end{algorithm}
 
+\begin{algorithm}
+  \label{alg:join}
+  \caption{boolean \textsf{join}(int status)}
+  \tcc{note that we have to keep both exitStatus and normalExit since the exit status is not required to be consistent with a normal exit}
+  joinSemaphore.P()\;
+  \tcc{assume an integer is of 4 bytes and the processor is little endian}
+  byte[] data = Lib.bytesFromInt(exitStatus)\;
+  writeVirtualMemory(status, data)\;
+  joinSemaphore.V()\;
+  \Return normalExit\;
+\end{algorithm}
 
-static void AdultItinerary()
+\begin{algorithm}
+  \label{alg:handleJoin}
+  \caption{int \textsf{handleJoin}(int processID, int status)}
+  \tcc{check validity}
+  \colorbox{myyellow}{tableMutex.P()}\;
+  UserProcess joinProcess = userProcessTable.get(processID)\;
+  \colorbox{myyellow}{tableMutex.V()}\;
+  \If {not (joinProcess.parentProcess.getID() == UserThread.currentProcess().getID())} {
+    \Return -1\;
+  }
+  int retVal = joinProcess.join(status) ? 1 : 0\;
+  \tcc{only need to remove the child in join since only join accesses children}
+  childProcessList.remove(joinProcess)\;
+  \Return retVal\;
+\end{algorithm}
+
+\begin{algorithm}
+\label{alg:cleanUp}
+\caption{void \textsf{cleanUp}()}
+    \For {file in fileDesriptorTable}{
+      \If {file != null} {
+        file.close()\;
+      }
+    }
+    \colorbox{myyellow}{//need free up memory!}\;
+    unloadSections()\;
+    \For {child in childProcessList}{
+      \If {child != null} {
+        child.setParent(null)\;
+      }
+    }
+    \colorbox{myyellow}{tableMutex.P()}\;
+    userProcessTable.remove(UserKernel.getCurrentProcess().getID())\;
+    \colorbox{myyellow}{tableMutex.V()}\;
+    childProcessList.clear()\;
+\end{algorithm}
+
+\begin{algorithm}
+  \label{alg:handleExit}
+  \caption{int \textsf{handleExit}(int status, boolean normalExit)}
+  \tcc{we also use this function to handle unhandled exceptions except that we manually set status}
+  \textsf{cleanUp}()\;
+  \If {userProcessTable.isEmpty()} {
+    Kernel.kernel.terminate()\;
+  }
+  exitStatus = status\;
+  this.normalExit = normalExit\;
+  joinSemaphore.V()\;
+  \colorbox{myyellow}{KThread.finish()}\;
+  \Return status\;
+\end{algorithm}
+
+\subsection{Tests Taken}
+\subsubsection{\textsf{exec} with zero argument}
+This test program calls \textsf{exec} without passing any argument, i.e. \textsf{argc}=0 and \textsf{argv}=0. This program should not call \textsf{exec} successfully.
+\begin{lstlisting}[language=C]
+// This is a test of exec call with zero argc.
+#include "syscall.h"
+
+int main()
 {
-  /* Initialization Part */
-  bg.initializeAdult();
-
-  move.acquire();
-  population ++;
-
-  mainMove.wake(); // initialization is finished. Start waiting
-  waitingMove.sleep();
-
-  /* Protocol Part */
-  isAdult = true;
-  rowerMove.wake();
-  passengerMove.sleep();
-  bg.AdultRowToMolokai();
-  population --;
-  rowerMove.wake();
-  move.release();
-
-}
-
-static void ChildItinerary()
-{
-  /* Initialization Part */
-  bg.initializeChild();
-  move.acquire();
-  population ++;
-  if(isRowerSet == false)
-  {
-    isRowerSet = true;
-    Rower();
-  }
-  else if(isRiderSet == false)
-  {
-    isRiderSet = true;
-    Rider();
-  }
-  else
-  {
-    /* Protocol Part */
-    mainMove.wake();
-    waitingMove.sleep();
-
-    // protocol part
-    isAdult = false;
-    rowerMove.wake();
-    passengerMove.sleep();
-    bg.ChildRideToMolokai();
-    population --;
-    rowerMove.wake();
-  }
-
-  move.release();
-}
-
-static void Rower()
-{
-  /* Protocol Part */
-  mainMove.wake();
-  rowerMove.sleep();
-  while(population >= 3)
-  {
-    waitingMove.wake();
-    rowerMove.sleep();
-    if(isAdult == true) // protocol for adult
+    char* proc = "halt.coff";
+    int argc = 0;
+    char** argv = 0;
+    int pid = exec(proc, argc, argv);
+    if(pid == -1)
     {
-      bg.ChildRowToMolokai();
-      riderMove.wake();
-      rowerMove.sleep();
-      passengerMove.wake();
-      rowerMove.sleep();
-      bg.ChildRowToOahu();
+        printf("zeroargc test failed: exec executed normally without argc\n");
     }
-    else // protocol for children
+    else
     {
-      bg.ChildRowToMolokai();
-      passengerMove.wake();
-      rowerMove.sleep();
-      bg.ChildRowToOahu();
+        printf("zeroargc test passed\n");
     }
-  }
-
-  /* Halting Part */
-  bg.ChildRowToMolokai();
-  riderMove.wake();
+}
+\end{lstlisting}
+This test is passed correctly.
+\subsubsection{testing \textsf{join}}
+This test is to test whether multiple child processes can be joined by their parent successfully. Correct run of the processes outputs nothing and exits with \textsf{exitStatus}=0.
+\begin{lstlisting}[language=C]
+// joinDetect.c
+#include "stdio.h"
+#define MAXBUF 256
+int main(int argc, char** argv)
+{
+    int exitStatus = 0, childCount = 1, i;
+    char* proc = "exit";
+    char agv[2][MAXBUF];
+    strcpy(agv[0], proc);
+    strcat(proc, ".coff");
+    strcpy(agv[1], argv[1]);
+    int exitStatNormal = atoi(argv[1]);
+    if(argc > 2) childCount = atoi(argv[2]);
+    for(i = 0; i < childCount; i ++)
+    {
+        int pid = exec(proc, 2, agv);
+        int exitStat;
+        join(pid, &exitStat);
+        if(exitStatNormal != exitStat)
+        {
+            printf("%d\n", exitStat);
+            exitStatus = -1;
+        }
+    }
+    exit(exitStatus);
 }
 
-static void Rider()
+//exit.c
+#include "stdio.h"
+int main(int argc, char** argv)
 {
-  /* Protocol Part */
-  mainMove.wake();
-  riderMove.sleep();
-
-  while(population >= 3)
-  {
-    bg.ChildRideToMolokai();
-    bg.ChildRowToOahu();
-    rowerMove.wake();
-    riderMove.sleep();
-  }
-
-  /* Halting Part */
-  bg.ChildRideToMolokai();
-  mainMove.wake(); // wake up the main thread to finish
+    if(argc == 1) exit(0);
+    else exit(atoi(argv[1]));
 }
 \end{lstlisting}
 
+\subsubsection{parent halts when child sleeps}
+This is a test where the child process keeps running and the parent halts right after forking the child. It should run and exit normally.
+\begin{lstlisting}[language=C]
+// sleepingParent.c
+#include "stdio.h"
+int main()
+{
+    char* proc = "sleepingChild";
+    char* argv[1];
+    strcpy(argv[0], proc);
+    strcat(proc,".coff");
+    exec(proc, 1, argv);
+    exit(0);
+}
+
+// sleepingChild.c
+// The busy cycles are used to simulate sleeping condition; note that we have not implemented scheduling constraints yet
+#define CYCLES 3000000
+int main()
+{
+    int i = 0;
+    while(i < CYCLES) i ++;
+    exit(0);
+}
+\end{lstlisting}
+
+\section{Task 4}
+
+\subsection{Overview}
+In task 4, we need to implement a lottery scheduler which extends \textsf{PriorityScheduler}. In lottery scheduling, tickets are used to represent the share of a resource that a process(or thread) should receive. So instead of donating priority, waiting threads transfer tickets to threads they wait for. The major difference is that a waiting thread always adds its ticket count to the ticket count of the current queue owner; that is, the owner's ticket count is the sum of its own tickets and the tickets of all its waiters, not the max.
+
+To implements this feature, we have to override \textsf{nextThread} method of class \textsf{PriorityThreadedQueue} and \textsf{updateEffectivePriority} method of class \textsf{ThreadState} and add some short helper methods. We override \textsf{nextThread} method in order to hold a lottery when \textsf{PriorityThreadedQueue} is going to pick a thread from its \textsf{PriorityQueue}. We override \textsf{updateEffectivePriority} to calculate the EP by taking sum instead of taking max.
+
+\subsection{Correctness Constraints}
+
+\begin{asparaitem}
+\item Ensure that the owner's ticket count is the sum of its own tickets and the tickets of all waiters
+\item Implementation should work even if there are billions of tickets in the system.
+\item The number of tickets held by a process should be incremented by 1 when \textsf{LotteryScheduler.increasePriority()} is called.
+\item The total number of tickets in the system is guaranteed not to exceed \textsf{Integer.MAX}\_\textsf{VALUE}.
+\end{asparaitem}
+
+\subsection{Declaration}
+
+\textsf{protected PriorityQueue<ThreadState> priorityQueue} to store all threads waiting in a \textsf{PriorityThreadedQueue}.
+
+\textsf{LinkedList<ThreadState> threads} to temporarily store \textsf{priorityQueue} in another order
+
+\textsf{LinkedList<Integer> tickets} to store corresponding tickets in the same order of \textsf{threads}
+
+\subsection{Description}
+
+\begin{algorithm}[H]
+  \caption{KThread \textsf{nextThread}()}
+  totalTickets $\gets$ 0\;
+  \ForAll { \textsf{ThreadState} ts in \textsf{priorityQueue}}{
+     effectiveTickets $\gets$ ts.\textsf{updateEffectivePriority()}\;
+     totalTickets $\gets$ totalTickets + effectiveTickets\;
+     threads.\textsf{add}(ts)\;
+     tickets.\textsf{add}(effectiveTickets)\;
+  }
+  Initialize pickedThread \gets null, notFound \gets true, ticketsSoFar \gets 0, counter \gets 0\;
+  winTicket \gets \textsf{random}(totalTickets)\;
+  \While { notFound $\&\&$ counter $<$ threads.\textsf{size()}}{
+    ticketsSoFar \gets ticketsSoFar + tickets.\textsf{get}(counter)\;
+    \If {winTicket $<=$ ticketsSoFar} {
+       pickedThread \gets threads.\textsf{get}(counter)\;
+       notFound \gets false\;
+    }
+    counter \gets counter + 1
+  }
+  \textsf{dequeuedThread}.\textsf{removeQueue}(this)\;
+  pickedThread.waiting \gets null\;
+  pickedThread.\textsf{addQueue}(this)\;
+  \textsf{dequeuedThread} \gets pickedThread\;
+  \textsf{priorityQueue}.\textsf{remove}(\textsf{dequeuedThread})\;
+  \textsf{dequeuedThread}.\textsf{updateEffectivePriority}()\;
+  \Return \textsf{dequeuedThread}.thread\;
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{void \textsf{updateEffectivePriority}()}
+   Initialize initialEP \gets \textsf{getEffectivePriority}(), initialP \gets \textsf{getPriority}(), transferedEP \gets 0\;
+  \ForAll { \textsf{PriorityThreadedQueue ptq} in \textsf{waitedBy}}{
+    \ForAll {\textsf{ThreadState ts} in \textsf{ptq}}{
+       transferedEP \gets transferedEP + \textsf{ts.updateEffectivePriority}()\;
+    }
+  }
+  finalEP \gets initialP + transferedEP\;
+  \textsf{waiting}.dequeuedThread.\textsf{addEP}(finalEP-initialEP)
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{void \textsf{addEP}(int amount)}
+  \textsf{effectivePriority \gets effectivePriority + amount}\;
+  \textsf{waiting.dequeuedThread.addEP(amount)}\;
+\end{algorithm}
+
 \subsection{Testing Plan}
-\subsubsection{Correctness Analysis}
-To test the correctness of the role-assigning strategy, we created a class \texttt{BoatChecker extends BoatGrader} to take charge of all testing tasks.\\
-In our \texttt{selfTest()}, we called \texttt{begin} using a \texttt{BoatChecker} as the final argument. Each time a message is sent to the checker, it examines the following three kinds of errors:\\
-\begin{itemize}
-  \item State transition error: the state transition is invalid. We will discuss this later on.
-  \item Population error: all the numbers of children and adults on both side of the sea should be always non-negative. \texttt{bc} will update th epopulation for each call, and if a negative population number is detected, \texttt{bc} will throw out an exception indicating that population error.
-  \item Halting error: upon halting there should not be anyone on side Oahu. If there are still people waiting for carring when \texttt{begin()} is going to halt, there is a halting error.
-\end{itemize}
-The state of the boat rowing mechanism can be regarded as a DFA below:\\
-\begin{center}
-\begin{tikzpicture}[%
-	>=stealth,
-	node distance = 2cm,
-	on grid,
-	auto
-	]
-	\node[initial, initial text = ,state] (str) {STR};
-    \node[state] (cro) [below of= str] {CRO};
-    \node[state] (cdo) [below of= cro] {CDO};
-    \node[state] (aro) [below of= cdo] {ARO};
-    \node[state, accepting] (hlt) at (10, 0) {HLT};
-    \node[state] (crm) [below of=hlt] {CRM};
-    \node[state] (cdm) [below of = crm] {CDM};
-    \node[state] (arm) [below of = cdm] {ARM};
+\begin{enumerate}
+\item All the tests in \textsf{PriorityScheduler}
+\item Call \textsf{increasePriority}
+\item Call \textsf{setPriority}
+\item set priority to millions or more
+\item pressure test, adding thousands or more threads to run
+\end{enumerate}
 
-    \path[->]
-    (str) edge (arm)
-    (str) edge (crm)
-    (cdo) edge (arm)
-    (cdo) edge (crm)
-    (cro) edge (arm)
-    (cro) edge (crm)
-    (aro) edge (arm)
-    (aro) edge (crm)
-    (crm) edge (cro)
-    (crm) edge (aro)
-    (cdm) edge (cro)
-    (cdm) edge (aro)
-    (arm) edge (cro)
-    (arm) edge (aro)
-    (crm) edge (cdm)
-    (cro) edge (cdo)
-    (crm) edge [bend right] (hlt)
-    (cdm) edge [bend right] (hlt)
-    (arm) edge [bend right] (hlt);
-\end{tikzpicture}
-\end{center}
-Here, a state indicates the function it has just implemented: for example, it is permissible to call \texttt{ChildRowToOahu()} (CRO) just after \texttt{ChildRowToMolokai()}, but it is not valid to call \texttt{ChildRideToMolokai()} after \texttt{ChildRowToOahu()}. The DFA is thus responsible for both the position of the boat and the number of person on the boat.\\
-Each time a method is called, we check if the transition function is permissible. If so, \texttt{bc} will output an error message.\\
-If none of the three kinds of errors occur, the boat rowing scheme will halt normally without any error message. Then \texttt{bc} will output a success message.\\
-\subsubsection{Efficiency Analysis}
-To carry $a$ adults and $b$ children across the sea, it can be proved that the minimum number of steps is $5a+3b-4$. Each time a method is called, \texttt{bc} will increment a counter \texttt{step}, which is initialized to be 0. When \texttt{begin()} halts normally, \texttt{bc} will output
-$$\#\text{Steps taken/ \# Minimum steps}$$
-as a measure of efficiency. Analysis related to the clocktick has not been implemented yet.\\
 \end{spacing}
-To see the \texttt{BoatChecker} class, see \texttt{Boat.java}.\\
 \end{document}
-
