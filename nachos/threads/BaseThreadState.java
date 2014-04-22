@@ -124,7 +124,7 @@ class BaseThreadState implements Comparable<BaseThreadState>, Constants {
 	 * @see	nachos.threads.ThreadQueue#waitForAccess
 	 */
 	public void waitForAccess(BasePriorityThreadQueue waitQueue) {
-		System.out.println("in BaseThreadState.java, BaseThreadState.waitForAccess");
+		// System.out.println("in BaseThreadState.java, BaseThreadState.waitForAccess");
 		Lib.assertTrue(Machine.interrupt().disabled());
 		// added to avoid starvation
 		this.age = Machine.timer().getTime();
@@ -154,20 +154,21 @@ class BaseThreadState implements Comparable<BaseThreadState>, Constants {
 	}
 
 	public int compareTo(BaseThreadState threadState){
-		// bigger is polled first
+		// smaller is polled first
 		// -1:<, 0:=, 1:>
-		//changed first if from > to <
 		if (threadState == null)
-			return 1;
-		if (this.getEffectivePriority() < threadState.getEffectivePriority()){
 			return -1;
+		if (this.getEffectivePriority() < threadState.getEffectivePriority()){
+			return 1;
 		}else{ 
 			if (this.getEffectivePriority() > threadState.getEffectivePriority()){
-				return 1;
+				return -1;
 			}else{
 				if (this.age >= threadState.age)
+					return 1;
+				else{
 					return -1;
-				else{ return 1; }
+				}
 			}
 		}
 	}

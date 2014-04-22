@@ -142,6 +142,7 @@ public class PriorityScheduler extends Scheduler implements Constants{
 		ThreadQueue queue1 = s.newThreadQueue(true);
 		ThreadQueue queue2 = s.newThreadQueue(true);
 		ThreadQueue queue3 = s.newThreadQueue(true);
+		ThreadQueue queue4 = s.newThreadQueue(true);
 
 		/**
 		 * Prepare for test
@@ -151,6 +152,7 @@ public class PriorityScheduler extends Scheduler implements Constants{
 		KThread thread3 = new KThread();
 		KThread thread4 = new KThread();
 		KThread thread5 = new KThread();
+		KThread thread_temp;
 		thread1.setName("Thread1");
 		thread2.setName("Thread2");
 		thread3.setName("Thread3");
@@ -174,6 +176,8 @@ public class PriorityScheduler extends Scheduler implements Constants{
 		System.out.println("Thread 1 acquires resource 2");
 		s.getThreadState(thread4).setPriority(4);
 		System.out.println("Thread 4 set priority to 4");
+		System.out.println("[r1](t1)<-(t2,t5)");
+		System.out.println("[r2](t1)");
 		/*
 		queue2.waitForAccess(thread4);
 		System.out.println("Thread 4 waits for resource 2");
@@ -187,18 +191,24 @@ public class PriorityScheduler extends Scheduler implements Constants{
 		printThreadInfo(s, thread3);
 		printThreadInfo(s, thread4);
 		printThreadInfo(s, thread5);
+		System.out.println("[r1](t1)<-(t2,t5)");
+		System.out.println("[r2](t1)");
+		System.out.println("[r3](t5)<-(t3)");
 
 		/**
 		 * Test for case 2
 		 */
 		System.out.println("\nCase 2:");
-		s.getThreadState(thread2).setPriority(4);
-		System.out.println("Thread 2 set priority to 4");
+		s.getThreadState(thread2).setPriority(5);
+		System.out.println("Thread 2 set priority to 5");
 		printThreadInfo(s, thread1);
 		printThreadInfo(s, thread2);
 		printThreadInfo(s, thread3);
 		printThreadInfo(s, thread4);
 		printThreadInfo(s, thread5);
+		System.out.println("[r1](t1)<-(t2,t5)");
+		System.out.println("[r2](t1)");
+		System.out.println("[r3](t5)<-(t3)");
 
 		/**
 		 * Test for case 3
@@ -206,20 +216,24 @@ public class PriorityScheduler extends Scheduler implements Constants{
 		System.out.println("\nCase 3:");
 		queue2.waitForAccess(thread4);
 		System.out.println("Thread 4 waits for resource 2");
-		s.getThreadState(thread3).setPriority(5);
-		System.out.println("Thread 3 set priority to 5");
+		s.getThreadState(thread3).setPriority(6);
+		System.out.println("Thread 3 set priority to 6");
 
 		printThreadInfo(s, thread1);
 		printThreadInfo(s, thread2);
 		printThreadInfo(s, thread3);
 		printThreadInfo(s, thread4);
 		printThreadInfo(s, thread5);
+		System.out.println("[r1](t1)<-(t2,t5)");
+		System.out.println("[r2](t1)<-(t4)");
+		System.out.println("[r3](t5)<-(t3)");
 
 		/**
 		 * Test for case 4
 		 */
+		/*
 		System.out.println("\nCase 4:");
-		s.getThreadState(thread3).setPriority(3);
+		s.getThreadState(thread3).setPriority(5);
 		System.out.println("Thread 3 set priority to 3");
 
 		printThreadInfo(s, thread1);
@@ -227,19 +241,28 @@ public class PriorityScheduler extends Scheduler implements Constants{
 		printThreadInfo(s, thread3);
 		printThreadInfo(s, thread4);
 		printThreadInfo(s, thread5);
+		System.out.println("[r1](t1)<-(t2,t5)");
+		System.out.println("[r2](t1)<-(t4)");
+		System.out.println("[r3](t5)<-(t3)");
+		*/
 
 		/**
 		 * Test for case 5
 		 */
 		System.out.println("\nCase 5:");
-		queue1.nextThread();
+		thread_temp = queue1.nextThread();
 		System.out.println("Thread 1 release resource 1");
+		printThreadInfo(s, thread_temp);
+		System.out.println("-------------");
 
 		printThreadInfo(s, thread1);
 		printThreadInfo(s, thread2);
 		printThreadInfo(s, thread3);
 		printThreadInfo(s, thread4);
 		printThreadInfo(s, thread5);
+		System.out.println("[r1]()<-(t2,t5)");
+		System.out.println("[r2](t1)<-(t4)");
+		System.out.println("[r3](t5)<-(t3)");
 
 		/**
 		 * Test for case 6
@@ -253,6 +276,9 @@ public class PriorityScheduler extends Scheduler implements Constants{
 		printThreadInfo(s, thread3);
 		printThreadInfo(s, thread4);
 		printThreadInfo(s, thread5);
+		System.out.println("[r1]()<-(t2,t5)");
+		System.out.println("[r2](t1)<-(t4)");
+		System.out.println("[r3](t5)<-(t3)");
 
 		Machine.interrupt().restore(intStatus);
 		System.out.println("");
@@ -317,6 +343,20 @@ public class PriorityScheduler extends Scheduler implements Constants{
 
 			//ensure priorityQueue is properly ordered
 			//does this take the old priorityQueue and reorder it? YES!!!
+			/*
+			PriorityQueue<BaseThreadState> tempQueue = new PriorityQueue<BaseThreadState>(priorityQueue);
+			PriorityQueue<BaseThreadState> tempQueue1 = new PriorityQueue<BaseThreadState>();
+			System.out.println("In pickNextThread");
+			while (!tempQueue.isEmpty()){
+				tempQueue1.add(tempQueue.peek());
+				System.out.println(tempQueue.poll().toString());
+			}
+			System.out.println("after first printing in pickNextThread");
+			while (!tempQueue1.isEmpty()){
+				System.out.println(tempQueue1.poll().toString());
+			}
+			System.out.println("after printing in pickNextThread");
+			*/
 			this.priorityQueue = new PriorityQueue<BaseThreadState>(priorityQueue);
 
 			Machine.interrupt().restore(intStatus);
