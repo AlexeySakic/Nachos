@@ -69,6 +69,10 @@ public class UserProcess {
 		if (!load(name, args))
 			return false;
 
+		//put the process in the userProcessTable here
+		tableMutex.P();
+		userProcessTable.put(processID, this);
+		tableMutex.V();
 		new UThread(this).setName(name).fork();
 
 		return true;
@@ -447,11 +451,13 @@ public class UserProcess {
     		}	
     	}
 		UserKernel.ppnListSemaphore.V();
-		for (int i=0; i<16; i++){
-			if (fileDescriptorTable[i] != null){
-				fileDescriptorTable[i].close();
-			}
-		}	
+
+//		for (int i=0; i<16; i++){
+//			if (fileDescriptorTable[i] != null){
+//				fileDescriptorTable[i].close();
+//			}
+//		}	
+
 		coff.close();
 		//-----------------------------------------------
 	}
@@ -605,7 +611,7 @@ public class UserProcess {
 	/**
 	 * real join() method.
 	 */
-	// change return value to int
+	// change return value to JoinRetValue 
 	// since status must be in the space of the parent process
 	private JoinRetValue join() {
 		joinSemaphore.P();
@@ -625,7 +631,8 @@ public class UserProcess {
 			if (child != null)
 				child.setParent(null);
 		tableMutex.P();
-		userProcessTable.remove(UserKernel.currentProcess().getID());
+//		userProcessTable.remove(UserKernel.currentProcess().getID());
+		userProcessTable.remove(this.processID);
 		tableMutex.V();
 		childProcessList.clear();
 	}
@@ -655,13 +662,14 @@ public class UserProcess {
 		UserProcess childProcess = new UserProcess();
 		if (childProcess == null)
 			return -1;
-		childProcess.setParent(this);
-		childProcessList.add(childProcess);
-		tableMutex.P();
-		userProcessTable.put(childProcess.getID(), childProcess);
-		tableMutex.V();
+		// the userProcessTable is modified in execute
 		if (!childProcess.execute(fileName, args))
 			return -1;
+		// the process should be added to the list only if the processID
+		// is correctly returned
+		childProcess.setParent(this);
+		childProcessList.add(childProcess);
+
 		return childProcess.getID();
 	}
 	
@@ -675,11 +683,25 @@ public class UserProcess {
 
 		//if parentProcess does not exist or not equal
 
-		if (joinProcess == null || joinProcess.parentProcess == null)
+//		if (joinProcess == null || joinProcess.parentProcess == null)
+//			return -1;
+//		else if (joinProcess.parentProcess.getID() != 
+//				UserKernel.currentProcess().getID())
+//			return -1;
+			
+		if (joinProcess == null)
 			return -1;
-		else if (joinProcess.parentProcess.getID() != 
-				UserKernel.currentProcess().getID())
-			return -1;
+		else {
+			boolean flag = false;
+			for (UserProcess usr : childProcessList)
+				if (usr.getID() == processID) {
+					flag = true;
+					break;
+				}
+			if (!flag)
+				return -1;
+		}
+				
 		JoinRetValue joinVal = joinProcess.join();
 		int retVal = joinVal.normalExit ? 1 : 0;
 		byte[] data = Lib.bytesFromInt(joinVal.exitStatus);
@@ -695,11 +717,11 @@ public class UserProcess {
 	 */
 	private int handleExit(int status, boolean normalExit) {
 		cleanUp();
-//		if (userProcessTable.isEmpty() || this.processID == 0)
 		exitStatus = status;
 		this.normalExit = normalExit;
 		joinSemaphore.V();
-		if (this.processID == 0)
+		if (userProcessTable.isEmpty())
+//		if (this.processID == 0)
 			//threadedkernel??
 			Kernel.kernel.terminate();
 		KThread.finish();
