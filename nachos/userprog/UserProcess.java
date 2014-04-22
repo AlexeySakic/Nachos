@@ -73,7 +73,9 @@ public class UserProcess {
 		tableMutex.P();
 		userProcessTable.put(processID, this);
 		tableMutex.V();
-		new UThread(this).setName(name).fork();
+		
+		this.thread = new UThread(this);
+		thread.setName(name).fork();
 
 		return true;
 	}
@@ -615,7 +617,8 @@ public class UserProcess {
 	// change return value to JoinRetValue 
 	// since status must be in the space of the parent process
 	private JoinRetValue join() {
-		joinSemaphore.P();
+//		thread.join();;
+		joinSemaphore.P();
 		joinSemaphore.V();
 
 		return new JoinRetValue(normalExit, exitStatus);
@@ -710,6 +713,7 @@ public class UserProcess {
 		//write memory in parent thread
 		writeVirtualMemory(status, data);
 		childProcessList.remove(joinProcess);
+		joinProcess.setParent(null);
 		return retVal;
 	}
 	
@@ -720,7 +724,7 @@ public class UserProcess {
 		cleanUp();
 		exitStatus = status;
 		this.normalExit = normalExit;
-		joinSemaphore.V();
+//		joinSemaphore.V();
 		if (userProcessTable.isEmpty())
 //		if (this.processID == 0)
 			//threadedkernel??
@@ -1019,7 +1023,9 @@ public class UserProcess {
 	private static Semaphore joinSemaphore = new Semaphore(0);
 	private static Semaphore idMutex = new Semaphore(1);
 	private static Semaphore tableMutex = new Semaphore(1);
-	
+
+	private UThread thread;
+
 	class JoinRetValue {
 
 		public boolean normalExit;
