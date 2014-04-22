@@ -422,7 +422,8 @@ public class UserProcess {
 
 		// build stack and arg PageTable
 		for(int i=0; i < stackPages + 1; i++) {
-			int vpn = (numPages - 1 - stackPages) + i;
+		//	int vpn = (numPages - 1 - stackPages) + i;
+			int vpn = numPages - 1 - i;
 			int ppn = UserKernel.freePPNList.poll();
 			pageTable[vpn] = new TranslationEntry(vpn, ppn, true, false, false, false);
 		}

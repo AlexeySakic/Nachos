@@ -25,3 +25,4 @@ nachos/.classpath
 nachos/.project
 nachos/.settings
 mips/
+*.tar
