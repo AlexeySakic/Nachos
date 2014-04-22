@@ -99,6 +99,248 @@ pdftitle={Final Report}]{hyperref}
     \maketitle \thispagestyle{empty}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Begin edit from here
+\section{Task 1}
+\subsection{Overview}
+Task 1 asks us to implement file system calls  in Nachos by adding code to the \textsf{UserProcess} class. Here we are not asked to implement a file system from scratch, but to give user processes the ability to access a file system that have been implemented.
+
+The main requirements of the task can be divided into two categories: those to implement functionality, and those to ensure security.
+
+To implement functionality, we need to add additional attributes (file descriptors, file states, etc.) and additional system call handler methods. As system calls are already declared in the header \textsf{text/syscall.h}, we don't need to consider how to design the interface and we can just focus on the internal implementation inside the class \textsf{UserProcess}. Also, an example method \textsf{UserProcess.halt} has been implemented, which gives us yet more hints.
+
+For security constraints, we need to bullet-proof the Nachos kernel from user processes. We need to ensure that exceptions occurred inside the user process will not crash the system, and we also need to ensure that \textsf{halt()} can terminate the system only if it is called by the root process. Therefore we need some more attributes (e.g. pids) to distinguish process from process.
+
+According to \textsf{syscall.h}, when \textsf{unlink}() is called,  if no processes have the file open, the file is deleted immediately and the space it was using is made available for reuse. But if any processes still have the file open, the file will remain in existence until the last file descriptor referring to it it closed. However, \textsf{create}() and \textsf{open}() will not be able to return new file descriptors for the file until it is deleted.
+
+To implement this mechanism, a new member class \textsf{FileManager} is defined within \textsf{UserKernel} class to keep track of files opened by each process. So that if unlink on a file is called, it can wait until all processes have closed the file before actually deleted it. A single instance of FileManager is instantiated and kept as a public instance member of \textsf{UserKernel}. This instance is used by function \textsf{close}, \textsf{open}, \textsf{create} and \textsf{unlink}.
+
+
+
+\subsection{Correctness Constraints}
+
+\begin{asparaitem}
+\item Implement the system calls: \textsf{create}, \textsf{open}, \textsf{read}, \textsf{write}, \textsf{close} and \textsf{unlink}
+\item Bullet-proof the Nachos Kernel from user program errors: validating input and ensuring that errors are handled gracefully
+\item Error condition of a system call should be indicated by a return value of -1 instead of throw an exception within the kernel
+\item Ensure that halt can only be called from the root process (the first process in the system)
+\item Each file that a process has opened should have a unique file descriptor associated with it.
+\item When any process is started, its file descriptors 0 and 1 must refer to standard input and standard output.
+\item 16 files should be able to be opened simultaneously in a single process
+\end{asparaitem}
+
+\subsection{Declarations}
+
+ \textsf{OpenFile[] fileDesriptorTable} to store the 16 files opened by this process.
+ \textsf{FileManager fileManager} to implement \textsf{unlink} mechanism
+
+\subsection{Descriptions}
+
+The following algorithms \ref{alg:handleHalt} and \ref{alg:handleCreate} describes the implementation in high level.
+
+Note we also need to handle all the exceptions from \textsf{Machine.Process}. We just add to the switch inside \textsf{handleException}, and call \textsf{handleExit} if necessary.
+\begin{enumerate}[$\bullet$]
+\item \textsf{exceptionSyscall}
+\item \textsf{exceptionPageFault}
+\item \textsf{exceptionTLBMiss}
+\item \textsf{exceptionReadOnly}
+\item \textsf{exceptionBusError}
+\item \textsf{exceptionAddressError}
+\item \textsf{exceptionOverflow}
+\item \textsf{exceptionIllegalInstruction}
+\end{enumerate}
+
+\begin{algorithm}
+\Begin{
+  \label{alg:handleHalt}
+  \caption{int \textsf{handleHalt}()}
+  \If { processID != 0}{
+    \Return 0
+  }
+  \textsf{Machine.halt()}
+  \Return 0
+}
+\end{algorithm}
+
+\begin{algorithm}[H]
+  \label{alg:handleCreate}
+  \caption{int \textsf{handleCreate}(int vaddr)}
+  \If { vaddr is invalid} {
+    \Return -1\;
+  }
+   filename \gets \textsf{readVirtualMemoryString}(vaddr, 256)\;
+  \If { fileManager.isUnlinked(filename)} {
+    \Return -1\;
+  }
+  \eIf {$\exists$ free file descriptor $x$} {
+     fileManager.openFile(filename)\;
+     file \gets \textsf{ThreadedKernel.fileSystem.open}(filename, false)\;
+     fileDescriptorTable[x] \gets file\;
+     \Return $x$
+   }{
+    \Return -1\;
+  }
+\end{algorithm}
+
+To implemente \textsf{handleOpen}, we only need to change line 9 of \textsf{handleCreate} to following algorithm \ref{alg:handleOpen}:
+\begin{algorithm}[H]
+  \label{alg:handleOpen}
+  \caption{int \textsf{handleOpen}(int vaddr)}
+ \If { vaddr is invalid} {
+    \Return -1\;
+  }
+   filename \gets \textsf{readVirtualMemoryString}(vaddr, 256)\;
+  \If { fileManager.isUnlinked(filename)} {
+    \Return -1\;
+  }
+  \eIf {$\exists$ free file descriptor $x$} {
+     fileManager.openFile(filename)\;
+     \colorbox{myyellow}{file \gets \textsf{ThreadedKernel.fileSystem.open}(filename, true)}\;
+     fileDescriptorTable[x] \gets file\;
+    \Return $x$\;
+  }{
+    \Return -1\;
+  }
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{int \textsf{handleRead}(int fileDescriptor, int bufferAddr, int count)}
+
+ \If { fileDescriptor is invalid} {
+    \Return -1\;
+  }
+   file \gets \textsf{fileDescriptorTable}[fileDesriptor]\;
+  \If { file is invalid $||$ count $<$ 0} {
+    \Return -1\;
+  }
+   Initialize buffer to read from file\;
+   bytesRead \gets file.\textsf{read}(buffer, 0, count)\;
+  \eIf {bytesRead $==$ -1} {
+    \Return -1\;
+  }{
+     bytesReturn \gets \textsf{writeVirtualMemory(bufferAddr, buffer, 0, bytesRead)}\;
+    \Return bytesReturn\;
+  }
+
+\end{algorithm}
+
+\textsf{handWrite} is quite similar to \textsf{handleRead}:
+
+\begin{algorithm}
+  \caption{int \textsf{handleWrite}(int fileDescriptor, int bufferAddr, int count)}
+
+ \If { fileDescriptor is invalid} {
+    \Return -1\;
+  }
+   file \gets \textsf{fileDescriptorTable}[fileDesriptor]\;
+  \If { file is invalid $||$ count $<$ 0} {
+    \Return -1\;
+  }
+   Initialize buffer to read from virtual memory\;
+   bytesWritten \gets \textsf{readVirtualMemory}(bufferAddr, buffer, 0, count)\;
+  \If {bytesWritten != count} {
+    \Return -1\;
+  }
+   bytesReturn \gets file.\textsf{write}(buffer, 0, bytesWritten)\;
+  \If {bytesReturn != count} {
+    \Return -1\;
+  }
+  \Return bytesReturn\;
+
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{int \textsf{handleClose}(int fileDescriptor)}
+
+ \If { fileDescriptor is invalid} {
+    \Return -1\;
+  }
+   fileManager.decrementCount(fileDescriptorTable[fileDescriptor].name)\;
+   fileDescriptorTable[fileDesriptor].close()\;
+   fileDescriptorTable[fileDesriptor] \gets null\;
+  \Return 0\;
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{int \textsf{handleUnlink}(string name)}
+ \If { ! fileManager.unlinkFile(name) } {
+    \Return -1\;
+  }
+  \Return 0\;
+\end{algorithm}
+
+\subsection{Testing Plan}
+\begin{enumerate}
+\item call \textsf{halt} from non-root process
+\item reading from a non-existence file
+\item read from file without reading permission
+\item write to existing file
+\item write to file without writing permission
+\item creating an existing file
+\item passing invalid file descriptor to read/write
+\item passing \textsf{count=0} to read/write
+\item double closing some file
+\item write to closed file
+\end{enumerate}
+%% %% %%
+\begin{lstlisting}[language=C]
+#include "syscall.h"
+#include "stdio.h"
+
+void testprint(char* m, int s){
+  printf("%s: %s\n", m, (s ? "OK" : "Fail"));
+}
+
+int main(){
+  int fd, state, i;
+  char buf[16];
+
+  *buf = 0;
+
+  state = close(17);
+  testprint("close unopened fd, should fail", state == -1);
+
+  fd = creat("testfile");
+  printf("file descriptor: %d\n", fd);
+  testprint( "creat file `testfile`", fd > -1 );
+
+  state = close( fd );
+  testprint( "close file `testfile`", state == 0 );
+
+  state = unlink( "testfile" );
+  testprint( "unlink file `testfile`", state == 0 );
+
+  fd = creat( "writefile" );
+  printf("file descriptor: %d\n", fd);
+  testprint( "creat file `writefile`", fd > -1 );
+
+  state = write( fd, "foo", 3 );
+  testprint( "write line `foo` to `writefile`", state == 3 );
+
+  state = close( fd );
+  testprint( "close file `writefile`", state == 0 );
+
+  fd = open( "writefile" );
+  printf("file descriptor: %d\n", fd);
+  testprint( "open file `writefile`", fd > -1 );
+
+  state = read( fd, buf, 16 );
+  printf("read content: %c%c%c\n", buf[0], buf[1], buf[2]);
+  testprint( "read from file `writefile`", state > 0 );
+
+  state = close( fd );
+  testprint( "close file `writefile`", state == 0 );
+
+  state = 0;
+  for (i = 0; i < 14; ++i){
+    fd = open("writefile");
+    if (fd < 0)
+      state = -1;
+  }
+  testprint("opened 14 fds (+2 for io)", state == 0 );
+
+  return 0;
+
+}
+\end{lstlisting}
 
     
 \section{Task 2}
@@ -583,6 +825,162 @@ int main()
     exit(0);
 }
 \end{lstlisting}
+
+\section{Task 4}
+
+\subsection{Overview}
+In task 4, we need to implement a lottery scheduler which extends \textsf{PriorityScheduler}. In lottery scheduling, tickets are used to represent the share of a resource that a process(or thread) should receive. So instead of donating priority, waiting threads transfer tickets to threads they wait for. The major difference is that a waiting thread always adds its ticket count to the ticket count of the current queue owner; that is, the owner's ticket count is the sum of its own tickets and the tickets of all its waiters, not the max.
+
+To implements this feature, we have to override \textsf{nextThread} method of class \textsf{PriorityThreadedQueue} and \textsf{updateEffectivePriority} method of class \textsf{ThreadState} and add some short helper methods. We override \textsf{nextThread} method in order to hold a lottery when \textsf{PriorityThreadedQueue} is going to pick a thread from its \textsf{PriorityQueue}. We override \textsf{updateEffectivePriority} to calculate the EP by taking sum instead of taking max.
+
+\subsection{Correctness Constraints}
+
+\begin{asparaitem}
+\item Ensure that the owner's ticket count is the sum of its own tickets and the tickets of all waiters
+\item Implementation should work even if there are billions of tickets in the system.
+\item The number of tickets held by a process should be incremented by 1 when \textsf{LotteryScheduler.increasePriority()} is called.
+\item The total number of tickets in the system is guaranteed not to exceed \textsf{Integer.MAX}\_\textsf{VALUE}.
+\end{asparaitem}
+
+\subsection{Declaration}
+
+\textsf{protected PriorityQueue<ThreadState> priorityQueue} to store all threads waiting in a \textsf{PriorityThreadedQueue}.
+
+\textsf{LinkedList<ThreadState> threads} to temporarily store \textsf{priorityQueue} in another order
+
+\textsf{LinkedList<Integer> tickets} to store corresponding tickets in the same order of \textsf{threads}
+
+\subsection{Description}
+
+\begin{algorithm}[H]
+  \caption{KThread \textsf{nextThread}()}
+  totalTickets $\gets$ 0\;
+  \ForAll { \textsf{ThreadState} ts in \textsf{priorityQueue}}{
+     effectiveTickets $\gets$ ts.\textsf{updateEffectivePriority()}\;
+     totalTickets $\gets$ totalTickets + effectiveTickets\;
+     threads.\textsf{add}(ts)\;
+     tickets.\textsf{add}(effectiveTickets)\;
+  }
+  Initialize pickedThread \gets null, notFound \gets true, ticketsSoFar \gets 0, counter \gets 0\;
+  winTicket \gets \textsf{random}(totalTickets)\;
+  \While { notFound $\&\&$ counter $<$ threads.\textsf{size()}}{
+    ticketsSoFar \gets ticketsSoFar + tickets.\textsf{get}(counter)\;
+    \If {winTicket $<=$ ticketsSoFar} {
+       pickedThread \gets threads.\textsf{get}(counter)\;
+       notFound \gets false\;
+    }
+    counter \gets counter + 1
+  }
+  \textsf{dequeuedThread}.\textsf{removeQueue}(this)\;
+  pickedThread.waiting \gets null\;
+  pickedThread.\textsf{addQueue}(this)\;
+  \textsf{dequeuedThread} \gets pickedThread\;
+  \textsf{priorityQueue}.\textsf{remove}(\textsf{dequeuedThread})\;
+  \textsf{dequeuedThread}.\textsf{updateEffectivePriority}()\;
+  \Return \textsf{dequeuedThread}.thread\;
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{void \textsf{updateEffectivePriority}()}
+   Initialize initialEP \gets \textsf{getEffectivePriority}(), initialP \gets \textsf{getPriority}(), transferedEP \gets 0\;
+  \ForAll { \textsf{PriorityThreadedQueue ptq} in \textsf{waitedBy}}{
+    \ForAll {\textsf{ThreadState ts} in \textsf{ptq}}{
+       transferedEP \gets transferedEP + \textsf{ts.updateEffectivePriority}()\;
+    }
+  }
+  finalEP \gets initialP + transferedEP\;
+  \textsf{waiting}.dequeuedThread.\textsf{addEP}(finalEP-initialEP)
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{void \textsf{addEP}(int amount)}
+  \textsf{effectivePriority \gets effectivePriority + amount}\;
+  \textsf{waiting.dequeuedThread.addEP(amount)}\;
+\end{algorithm}
+
+\subsection{Testing Plan}
+\begin{enumerate}
+\item All the tests in \textsf{PriorityScheduler}
+\item Call \textsf{increasePriority}
+\item Call \textsf{setPriority}
+\item set priority to millions or more
+\item pressure test, adding thousands or more threads to run
+\end{enumerate}
+
+\begin{lstlisting}[language=Java]
+System.out.println("---------LotteryScheduler test---------------------");
+		LotteryScheduler s = new LotteryScheduler();
+		ThreadQueue queue = s.newThreadQueue(true);
+		ThreadQueue queue2 = s.newThreadQueue(true);
+		ThreadQueue queue3 = s.newThreadQueue(true);
+
+		KThread thread1 = new KThread();
+		KThread thread2 = new KThread();
+		KThread thread3 = new KThread();
+		KThread thread4 = new KThread();
+		KThread thread5 = new KThread();
+		thread1.setName("thread1");
+		thread2.setName("thread2");
+		thread3.setName("thread3");
+		thread4.setName("thread4");
+		thread5.setName("thread5");
+
+
+		boolean intStatus = Machine.interrupt().disable();
+
+		queue.acquire(thread1);
+		queue.waitForAccess(thread2);
+		queue.waitForAccess(thread3);
+		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+		System.out.println("thread2 EP="+s.getThreadState(thread2).getEffectivePriority());
+		System.out.println("thread3 EP="+s.getThreadState(thread3).getEffectivePriority());
+		System.out.println("~~~~~~~~Thread4 aquires queue2 thread1 waits~~~~~~~~~`");
+		queue2.acquire(thread4);
+		queue2.waitForAccess(thread1);
+		System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+		System.out.println("~~~~~~~~thread2 priority changed to 2~~~~~~~~~`");
+		s.getThreadState(thread2).setPriority(2);
+
+		System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+		System.out.println("~~~~~~~~thread2 priority changed to 1~~~~~~~~~`");
+		s.getThreadState(thread2).setPriority(1);
+		System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+		System.out.println("~~~~~~~~Thread5 waits on queue1~~~~~~~~~`");
+		queue.waitForAccess(thread5);
+
+		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+
+		System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+		System.out.println("~~~~~~~~thread2 priority changed to 8~~~~~~~~~`");
+		s.getThreadState(thread2).setPriority(8);
+		System.out.println("thread4 EP="+s.getThreadState(thread4).getEffectivePriority());
+		System.out.println("thread1 EP="+s.getThreadState(thread1).getEffectivePriority());
+		ThreadQueue newQueue;
+
+		KThread thread10;
+		int tot10 = 0;
+		KThread thread20;
+		int tot20 = 0;
+		for (int i =0; i<999; i++){
+			newQueue = s.newThreadQueue(true);
+			thread10 = new KThread();
+			thread20 = new KThread();
+			newQueue.waitForAccess(thread10);
+			newQueue.waitForAccess(thread20);
+			if (newQueue.nextThread() == thread10)
+				tot10 += 1;
+			else
+				tot20+=1;	
+		}
+
+		System.out.println("thread1 Total = " + tot10);
+		System.out.println("thread2 Total = " + tot20);
+
+\end{lstlisting}
+
 
 
 \end{spacing}
