@@ -53,7 +53,7 @@ start.o: start.s syscall.h
 	rm strt.s
 
 %.o: %.c *.h
-	$(CC) $(CFLAGS) -c $<
+	$(CC) -L/opt/local/lib $(CFLAGS) -c $<
 
 %.coff: %.o $(NLIB)
 	$(LD) $(LDFLAGS) -o $@ $< start.o -lnachos
