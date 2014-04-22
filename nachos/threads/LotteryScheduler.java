@@ -194,7 +194,14 @@ public class LotteryScheduler extends PriorityScheduler {
 				tot00 += 1;
 		}
 
-		System.out.printf("tot00 = %d, tot10 = %d, tot20 = %d\n", tot00, tot10, tot20);
+		// System.out.printf("tot00 = %d, tot10 = %d, tot20 = %d\n", tot00, tot10, tot20);
+		System.out.print("tot00 = ");
+		System.out.print(tot00);
+		System.out.print(", tot10 = ");
+		System.out.print(tot10);
+		System.out.print(", tot20 = ");
+		System.out.print(tot20);
+		System.out.println();
 		System.out.println("~~~~~~~~~~~~~~~~~`");
 		
 		KThread thread30, thread40, thread50;
@@ -241,7 +248,14 @@ public class LotteryScheduler extends PriorityScheduler {
 				tot00 += 1;
 		}
 
-		System.out.printf("tot00 = %d, tot10 = %d, tot20 = %d\n", tot00, tot10, tot20);
+		// System.out.printf("tot00 = %d, tot10 = %d, tot20 = %d\n", tot00, tot10, tot20);
+		System.out.print("tot00 = ");
+		System.out.print(tot00);
+		System.out.print(", tot10 = ");
+		System.out.print(tot10);
+		System.out.print(", tot20 = ");
+		System.out.print(tot20);
+		System.out.println();
 		System.out.println("~~~~~~~~~~~~~~~~~`");	
 
 		/*
