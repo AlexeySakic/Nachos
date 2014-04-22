@@ -105,19 +105,7 @@ public class UserProcess {
 	 * @return	the string read, or <tt>null</tt> if no null terminator was
 	 *		found.
 	 */
-	public String readVirtualMemoryString(int vaddr, int maxLength) {
-		Lib.assertTrue(maxLength >= 0);
-
-		byte[] bytes = new byte[maxLength+1];
-
-		int bytesRead = readVirtualMemory(vaddr, bytes);
-
-		for (int length=0; length<bytesRead; length++) {
-			if (bytes[length] == 0)
-				return new String(bytes, 0, length);
-		}
-		return null;
-	}
+	
 
 	/**
 	 * Transfer data from this process's virtual memory to all of the specified
@@ -127,9 +115,7 @@ public class UserProcess {
 	 * @param	data	the array where the data will be stored.
 	 * @return	the number of bytes successfully transferred.
 	 */
-	public int readVirtualMemory(int vaddr, byte[] data) {
-		return readVirtualMemory(vaddr, data, 0, data.length);
-	}
+	
 
 	/**
 	 * Transfer data from this process's virtual memory to the specified array.
@@ -145,57 +131,7 @@ public class UserProcess {
 	 *			the array.
 	 * @return	the number of bytes successfully transferred.
 	 */
-	public int readVirtualMemory(int vaddr, byte[] data, int offset,
-			int length) {
-		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
-
-		byte[] memory = Machine.processor().getMemory();
-
-		 //for now, just assume that virtual addresses equal physical addresses
-		if (vaddr < 0 || vaddr >= memory.length)
-			return 0;
-
-		int amount = Math.min(length, memory.length-vaddr);
-		System.arraycopy(memory, vaddr, data, offset, amount);
-
-		return amount;
-		//----------------------------------------------------------------------
-//		if(vaddr < 0)
-//			return 0;
-//		
-//		int tableNum = pageTable.length;
-//		int startVaddr = vaddr;
-//		int endVaddr = startVaddr + length;
-//		int startVpn = startVaddr / pageSize;
-//		int endVpn = endVaddr / pageSize;
-//		int start = startVpn;
-//		int end = endVpn;
-//		if(end > tableNum - 1)
-//			end = tableNum;
-//		
-//		int amount = 0;
-//		
-//		for(int vpn = start; vpn <= end; vpn ++) {
-//			if(!pageTable[vpn].valid)
-//				return amount;
-//			
-//			int s = 0;
-//			int e = pageSize;
-//			if(vpn == startVpn)
-//				s = startVaddr % pageSize;
-//			if(vpn == endVpn)
-//				e = endVaddr % pageSize;
-//			
-//			int paddr = pageTable[vpn].ppn * pageSize + s;
-//			System.arraycopy(memory, paddr, data, offset, e - s);
-//			pageTable[vpn].used = true;
-//			amount += (e - s);
-//			offset += (e - s);
-//		}
-//		
-//		return amount;
-		//----------------------------------------------------------------------
-	}
+	
 
 	/**
 	 * Transfer all data from the specified array to this process's virtual
@@ -206,9 +142,7 @@ public class UserProcess {
 	 * @param	data	the array containing the data to transfer.
 	 * @return	the number of bytes successfully transferred.
 	 */
-	public int writeVirtualMemory(int vaddr, byte[] data) {
-		return writeVirtualMemory(vaddr, data, 0, data.length);
-	}
+	
 
 	/**
 	 * Transfer data from the specified array to this process's virtual memory.
@@ -224,59 +158,7 @@ public class UserProcess {
 	 *			virtual memory.
 	 * @return	the number of bytes successfully transferred.
 	 */
-	public int writeVirtualMemory(int vaddr, byte[] data, int offset,
-			int length) {
-		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
-
-		byte[] memory = Machine.processor().getMemory();
-
-		// for now, just assume that virtual addresses equal physical addresses
-		if (vaddr < 0 || vaddr >= memory.length)
-			return 0;
-
-		int amount = Math.min(length, memory.length-vaddr);
-		System.arraycopy(data, offset, memory, vaddr, amount);
-
-		return amount;
-		//----------------------------------------------------------------------
-		/*
-		if(vaddr < 0)
-			return 0;
-		
-		int tableNum = pageTable.length;
-		int startVaddr = vaddr;
-		int endVaddr = startVaddr + length;
-		int startVpn = startVaddr / pageSize;
-		int endVpn = endVaddr / pageSize;
-		int start = startVpn;
-		int end = endVpn;
-		if(end > tableNum - 1)
-			end = tableNum;
-		
-		int amount = 0;
-		
-		for(int vpn = start; vpn <= end; vpn ++) {
-			if(!pageTable[vpn].valid || pageTable[vpn].readOnly)
-				return amount;
-			
-			int s = 0;
-			int e = pageSize;
-			if(vpn == startVpn)
-				s = startVaddr % pageSize;
-			if(vpn == endVpn)
-				e = endVaddr % pageSize;
-			
-			int paddr = pageTable[vpn].ppn * pageSize + s;
-			System.arraycopy(data, offset, memory, paddr, e - s);
-			pageTable[vpn].used = true;
-			pageTable[vpn].dirty = true;
-			amount += (e - s);
-			offset += (e - s);
-		}
-		
-		return amount;	//----------------------------------------------------------------------
-		*/
-	}
+	
 
 	/**
 	 * Load the executable with the specified name into this process, and
@@ -288,83 +170,7 @@ public class UserProcess {
 	 * @param	args	the arguments to pass to the executable.
 	 * @return	<tt>true</tt> if the executable was successfully loaded.
 	 */
-	private boolean load(String name, String[] args) {
-		Lib.debug(dbgProcess, "UserProcess.load(\"" + name + "\")");
-
-		OpenFile executable = ThreadedKernel.fileSystem.open(name, false);
-		if (executable == null) {
-			Lib.debug(dbgProcess, "\topen failed");
-			return false;
-		}
-
-		try {
-			coff = new Coff(executable);
-		}
-		catch (EOFException e) {
-			executable.close();
-			Lib.debug(dbgProcess, "\tcoff load failed");
-			return false;
-		}
-
-		// make sure the sections are contiguous and start at page 0
-		numPages = 0;
-		for (int s=0; s<coff.getNumSections(); s++) {
-			CoffSection section = coff.getSection(s);
-			if (section.getFirstVPN() != numPages) {
-				coff.close();
-				Lib.debug(dbgProcess, "\tfragmented executable");
-				return false;
-			}
-			numPages += section.getLength();
-		}
-
-		// make sure the argv array will fit in one page
-		byte[][] argv = new byte[args.length][];
-		int argsSize = 0;
-		for (int i=0; i<args.length; i++) {
-			argv[i] = args[i].getBytes();
-			// 4 bytes for argv[] pointer; then string plus one for null byte
-			argsSize += 4 + argv[i].length + 1;
-		}
-		if (argsSize > pageSize) {
-			coff.close();
-			Lib.debug(dbgProcess, "\targuments too long");
-			return false;
-		}
-
-		// program counter initially points at the program entry point
-		initialPC = coff.getEntryPoint();
-
-		// next comes the stack; stack pointer initially points to top of it
-		numPages += stackPages;
-		initialSP = numPages*pageSize;
-
-		// and finally reserve 1 page for arguments
-		numPages++;
-
-		if (!loadSections())
-			return false;
-
-		// store arguments in last page
-		int entryOffset = (numPages-1)*pageSize;
-		int stringOffset = entryOffset + args.length*4;
-
-		this.argc = args.length;
-		this.argv = entryOffset;
-
-		for (int i=0; i<argv.length; i++) {
-			byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
-			Lib.assertTrue(writeVirtualMemory(entryOffset,stringOffsetBytes) == 4);
-			entryOffset += 4;
-			Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) ==
-					argv[i].length);
-			stringOffset += argv[i].length;
-			Lib.assertTrue(writeVirtualMemory(stringOffset,new byte[] { 0 }) == 1);
-			stringOffset += 1;
-		}
-
-		return true;
-	}
+	
 
 	/**
 	 * Allocates memory for this process, and loads the COFF sections into
@@ -373,85 +179,12 @@ public class UserProcess {
 	 *
 	 * @return	<tt>true</tt> if the sections were successfully loaded.
 	 */
-	protected boolean loadSections() {
-		if (numPages > Machine.processor().getNumPhysPages()) {
-			coff.close();
-			Lib.debug(dbgProcess, "\tinsufficient physical memory");
-			return false;
-		}
-
-		// load sections
-		for (int s=0; s<coff.getNumSections(); s++) {
-			CoffSection section = coff.getSection(s);
-
-			Lib.debug(dbgProcess, "\tinitializing " + section.getName()
-					+ " section (" + section.getLength() + " pages)");
-
-			for (int i=0; i<section.getLength(); i++) {
-				int vpn = section.getFirstVPN()+i;
-
-				// for now, just assume virtual addresses=physical addresses
-				section.loadPage(i, vpn);
-			}
-		}
-
-		return true;
-    	//--------------------------------------------------------------------------
-//    	UserKernel.ppnListSemaphore.P();
-//    	if(numPages > UserKernel.freePPNList.size()) {
-//    		coff.close();
-//    	    Lib.debug(dbgProcess, "\tinsufficient physical memory");
-//    	    return false;
-//    	}
-//    	
-//    	// build PageTable
-//    	pageTable = new TranslationEntry[numPages];
-//    	
-//    	// load section
-//    	for(int s=0; s < coff.getNumSections(); s++) {
-//    		
-//    	    CoffSection section = coff.getSection(s);
-//    	    
-//    		Lib.debug(dbgProcess, "\tinitializing " + section.getName() 
-//    				+ " section (" + section.getLength() + " pages)");
-//    		
-//    	    for (int i=0; i<section.getLength(); i++) {
-//    	    	int vpn = section.getFirstVPN()+i;    	    	
-//    	    	int ppn = UserKernel.freePPNList.poll();
-//    	    	pageTable[vpn] = new TranslationEntry(vpn, ppn, true, section.isReadOnly(), false, false);
-//    	    	section.loadPage(i, ppn);
-//    	    }
-//    	}
-//    	
-//    	// build stack and arg PageTable
-//    	for(int i=0; i < stackPages + 1; i++) {
-//    		int vpn = (numPages - 1) - i;
-//    		int ppn = UserKernel.freePPNList.poll();
-//    		pageTable[vpn] = new TranslationEntry(vpn, ppn, true, false, false, false);
-//    	}
-//    	UserKernel.ppnListSemaphore.V();
-//    	
-//    	return true;
-    	//---------------------------------------------------------------------------------------
-	}
+	
 
 	/**
 	 * Release any resources allocated by <tt>loadSections()</tt>.
 	 */
-	protected void unloadSections() {
-    	//-----------------------------------------------
-//    	int tableNum = pageTable.length;
-//		UserKernel.ppnListSemaphore.P();
-//    	for(int i=0; i < tableNum; i++) {
-//    		if(pageTable[i] != null && pageTable[i].valid == true) {
-//    			UserKernel.freePPNList.offer(pageTable[i].ppn);
-//    			pageTable[i] = null; // delete entry
-//    		}	
-//    	}
-//		UserKernel.ppnListSemaphore.V();
-
-    	//-----------------------------------------------
-	}
+	
 
 	/**
 	 * Initialize the processor's registers in preparation for running the
