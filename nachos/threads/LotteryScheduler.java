@@ -64,7 +64,15 @@ public class LotteryScheduler extends PriorityScheduler {
 		return (ThreadState) thread.schedulingState;
 	}
 	
+	// @Override
 	public void setPriority(KThread thread, int priority){
+		/*
+		Lib.assertTrue(Machine.interrupt().disabled());
+		priority = priority >= priorityMinimum ?
+				(priority <= priorityMaximum ? priority : priorityMaximum)
+				: priorityMinimum; 
+				*/
+
 		this.getThreadState(thread).setPriority(priority);
 	}
 
@@ -186,7 +194,14 @@ public class LotteryScheduler extends PriorityScheduler {
 				tot00 += 1;
 		}
 
-		System.out.printf("tot00 = %d, tot10 = %d, tot20 = %d\n", tot00, tot10, tot20);
+		// System.out.printf("tot00 = %d, tot10 = %d, tot20 = %d\n", tot00, tot10, tot20);
+		System.out.print("tot00 = ");
+		System.out.print(tot00);
+		System.out.print(", tot10 = ");
+		System.out.print(tot10);
+		System.out.print(", tot20 = ");
+		System.out.print(tot20);
+		System.out.println();
 		System.out.println("~~~~~~~~~~~~~~~~~`");
 		
 		KThread thread30, thread40, thread50;
@@ -233,7 +248,14 @@ public class LotteryScheduler extends PriorityScheduler {
 				tot00 += 1;
 		}
 
-		System.out.printf("tot00 = %d, tot10 = %d, tot20 = %d\n", tot00, tot10, tot20);
+		// System.out.printf("tot00 = %d, tot10 = %d, tot20 = %d\n", tot00, tot10, tot20);
+		System.out.print("tot00 = ");
+		System.out.print(tot00);
+		System.out.print(", tot10 = ");
+		System.out.print(tot10);
+		System.out.print(", tot20 = ");
+		System.out.print(tot20);
+		System.out.println();
 		System.out.println("~~~~~~~~~~~~~~~~~`");	
 
 		/*
@@ -386,14 +408,6 @@ public class LotteryScheduler extends PriorityScheduler {
 		}
 
 		/**
-		 * Return the priority of the associated thread.
-		 *
-		 * @return the priority of the associated thread.
-		 */
-		public int getPriority() {
-			return priority;
-		}
-		/**
 		 * Calculate the Effective Priority of a thread and the thread that currently holds the resource
 		 * it is waiting on.
 		 */
@@ -412,6 +426,8 @@ public class LotteryScheduler extends PriorityScheduler {
 			}
 			int totEP = initialPriority + outsideEP;
 			effectivePriority = totEP;
+			Lib.assertTrue( effectivePriority > 0,
+					"new effectivePriority should be positive");
 			//now that my own effectivePriority Changes I have to recalculate the threads which i am waiting on
 			if (waitingOn != null && waitingOn.dequeuedThread != null){
 				//System.out.println(totEP - initialEffective);
@@ -432,6 +448,8 @@ public class LotteryScheduler extends PriorityScheduler {
 		}
 
 		public void addToAllEffective(int diff){
+			Lib.assertTrue(effectivePriority + diff > 0,
+					"new effectivePriority should be positive");
 			effectivePriority += diff;
 			if (waitingOn != null && waitingOn.dequeuedThread != null){
 				((ThreadState) waitingOn.dequeuedThread).addToAllEffective(diff);
